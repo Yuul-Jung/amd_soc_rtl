@@ -44,7 +44,17 @@ for chapter in chapters:
               "중앙 CSS 누락 " + chapter["file"])
         check("../assets/education/site.js" in body,
               "좌측 탐색 JS 누락 " + chapter["file"])
+        # (추가) 누적 실습 인계와 실제 보드 절차 링크가 모든 장에 존재해야 한다.
+        check('id="cumulative-lab"' in body,
+              "Cumulative learning section missing: " + chapter["file"])
+        check('field_lab_v01.html#' in body,
+              "Board procedure link missing: " + chapter["file"])
 
+# (추가) 누적 프로젝트 4단계와 Basys3 실습 안내서는 31장 전체의 공통 선수자료다.
+check((P3 / "PROJECT_LAB_00_31.md").is_file(),
+      "Cumulative project map missing")
+check((P3 / "field_lab_v01.html").is_file(),
+      "Board practice guide missing")
 check((P3 / "index.html").is_file(), "index.html missing")
 if (P3 / "index.html").is_file():
     index_html = (P3 / "index.html").read_text(encoding="utf-8")
@@ -69,7 +79,8 @@ class LocalLinks(HTMLParser):
 
 
 link_checks = 0
-for page in [P3 / "index.html", *(P3 / ch["file"] for ch in chapters)]:
+for page in [P3 / "index.html", P3 / "field_lab_v01.html",
+             *(P3 / ch["file"] for ch in chapters)]:
     if not page.is_file():
         continue
     body = page.read_text(encoding="utf-8")
@@ -96,6 +107,13 @@ for page in [P3 / "index.html", *(P3 / ch["file"] for ch in chapters)]:
         target = (page.parent / unquote(url.path)).resolve()
         check(target.is_relative_to(ROOT) and target.is_file(),
               f"Broken relative link: {page} -> {raw}")
+        # (추가) 다른 HTML의 섹션을 가리키는 경우 해당 앵커까지 실재 확인한다.
+        if target.is_relative_to(ROOT) and target.is_file() and (
+                target.suffix.lower() == ".html" and url.fragment):
+            target_parser = LocalLinks()
+            target_parser.feed(target.read_text(encoding="utf-8"))
+            check(unquote(url.fragment) in target_parser.ids,
+                  f"Broken cross-page anchor: {page} -> {raw}")
 
 for n in range(1, 11):
     chapter = P3 / f"ch{n:02d}"
