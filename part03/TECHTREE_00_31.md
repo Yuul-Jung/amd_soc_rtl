@@ -25,7 +25,7 @@ flowchart LR
 
 | 장 | 과제 | 1차 산출물 | 증거·현재 상태 |
 |---|---|---|---|
-| 00 | UART Echo 준비 | 물리 UART 에코 TB | 신규 RTL 시뮬레이션 대기 |
+| 00 | UART Echo 준비 | 물리 UART 에코 TB | 로컬 Icarus PASS 기록, 실물·합성 별도 미검증 |
 | 01 | MAC 누산 | MAC 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
 | 02 | DSP48E1 곱 | DSP 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
 | 03 | Pipeline MAC | 파이프라인 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
@@ -36,27 +36,27 @@ flowchart LR
 | 08 | 4PE 병렬 연산 | 4PE 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
 | 09 | Dense4 | Dense4 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
 | 10 | 4뉴런 NPU | 소형 NPU 원본 RTL/TB | 기존 독립 RTL 기록 보존 |
-| 11 | UART 모델 적재 | UART Command Controller·TB | 신규 통합 RTL 시뮬레이션 대기 |
-| 12 | UART·DSP·BRAM·4PE 통합 | NPU4 Top/Engine·TB·XDC | 신규 통합 RTL 시뮬레이션 대기 |
-| 13 | 8×8 손글씨·10분류 준비 | MNIST 전처리·모델 계약 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 14 | 4PE 10분류 그룹 스케줄 | 4PE 그룹 스케줄 계약·호스트 판정 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 15 | 64→10 정수 분류기 | 64×10 정수 Python 기준모델 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 16 | 64→8→10 정수 MLP | 64→8→10 기준모델·ReLU | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 17 | 784픽셀 분할 누산 | 784픽셀 64단위 타일 기준모델 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 18 | 정수 양자화·범위 검증 | INT8/16 반올림·포화 기준모델 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 19 | PE·BRAM 처리량 비교 | PE1/4/8 발행주기 분석 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 20 | AXI4-Lite NPU 제어 IP | AXI 주소·레지스터·시뮬레이션 설계 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 21 | MicroBlaze V SoC·NPU 결합 | BD·Reset·CPU/NPU 연결 가이드 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 22 | Vitis C 추론 드라이버 | C Register Driver 예제·주소 확인 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 23 | CPU/NPU 성능 비교 | 성능 측정식 및 측정 포인트 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 24 | LUT/FF/DSP/BRAM·타이밍 | report_utilization·WNS/TNS 절차 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 25 | 동적 전력·추론 에너지 | 동적/정적 전력 구분식 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 26 | 3×3 소형 CNN 경로 | 3×3 합성곱 Python 기준 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 27 | 10분류 NPU SoC 통합 | 통합 시스템 Gate 체크리스트 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 28 | 손글씨 숫자 인식 종합 | 10분류 시스템 구성·로그 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 29 | 센서 융합 산업안전 감시 | 센서 유효성·AI 경보 정책 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 30 | NPU·모터 안전 제어 | 독립 모터 안전 인터록 정책 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
-| 31 | AES-128·HMAC 보안 UART | AES-CTR·HMAC 호스트 예제 및 인증 계약 | HTML 가이드/호스트 예제 작성, 해당 RTL 및 실물 미검증 |
+| 11 | UART 모델 적재 | UART Command Controller·TB | 로컬 통합 RTL·적대 시험 PASS 기록, 보드 미검증 |
+| 12 | UART·DSP·BRAM·4PE 통합 | NPU4 Top/Engine·TB·XDC | 로컬 통합 RTL PASS 기록, Vivado 합성·보드 미검증 |
+| 13 | 8×8 손글씨·10분류 준비 | MNIST 전처리·모델 계약 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 14 | 4PE 10분류 그룹 스케줄 | 4PE 그룹 스케줄 계약·호스트 판정 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 15 | 64→10 정수 분류기 | 64×10 정수 Python 기준모델 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 16 | 64→8→10 정수 MLP | 64→8→10 기준모델·ReLU | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 17 | 784픽셀 분할 누산 | 784픽셀 64단위 타일 기준모델 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 18 | 정수 양자화·범위 검증 | INT8/16 반올림·포화 기준모델 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 19 | PE·BRAM 처리량 비교 | PE1/4/8 발행주기 분석 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 20 | AXI4-Lite NPU 제어 IP | AXI 주소·레지스터·시뮬레이션 설계 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 21 | MicroBlaze V SoC·NPU 결합 | BD·Reset·CPU/NPU 연결 가이드 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 22 | Vitis C 추론 드라이버 | C Register Driver 예제·주소 확인 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 23 | CPU/NPU 성능 비교 | 성능 측정식 및 측정 포인트 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 24 | LUT/FF/DSP/BRAM·타이밍 | report_utilization·WNS/TNS 절차 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 25 | 동적 전력·추론 에너지 | 동적/정적 전력 구분식 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 26 | 3×3 소형 CNN 경로 | 3×3 합성곱 Python 기준 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 27 | 10분류 NPU SoC 통합 | 통합 시스템 Gate 체크리스트 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 28 | 손글씨 숫자 인식 종합 | 10분류 시스템 구성·로그 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 29 | 센서 융합 산업안전 감시 | 센서 유효성·AI 경보 정책 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 30 | NPU·모터 안전 제어 | 독립 모터 안전 인터록 정책 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
+| 31 | AES-128·HMAC 보안 UART | AES-CTR·HMAC 호스트 예제 및 인증 계약 | HTML·누적 실습 절차 작성, 해당 RTL GitHub 미게시·보드 미검증 |
 
 ## 3. 적대적 검증에서 확정한 설계 경계
 
@@ -87,3 +87,27 @@ bash part03/mini_npu/scripts/run_batch_00_12.sh
 - 코드·테스트가 별도로 없는 13~31장에 대해서는 **실제 RTL 구현 완료를 주장하지 않는다.**
 - 보드·합성 검증은 VS Code/실기 환경에서 받은 증거와 RTL 소스 SHA를 연결하여 판정한다.
 - HTML은 `rule_md/web/education-html/STANDARD.md`와 동일한 교육 브랜드 디자인/번호/탐색을 사용한다.
+
+## 5. 4대 누적형 프로젝트 운영 및 실제 보드 절차
+
+> **반드시 함께 참고:** [00~31장 누적형 실습·보드 확인 운영 기준](PROJECT_LAB_00_31.md) / [따라 하기 HTML 실습 안내](field_lab_v01.html).
+
+| 대형 프로젝트 | 유지하는 기존 결과 | 각 장에서 추가하는 기능 | 종합 통합 확인 |
+|---|---|---|---|
+| ① 00~12 | UART, DSP, BRAM, 4PE 독립 RTL과 12장 통합 Top | 11장 모델 적재/12장 출력·표시 연결 | Basys3 USB-UART '0'~'3' → 실제 CLASS·LED0~3·FND |
+| ② 13~19 | ① 설계 패턴 + 13장 입력 버퍼·14장 4PE·15장 Dense | 16장 MLP, 17장 13타일 외부 누산, 18장 INT8/16, 19장 자원 비교 | **10클래스 신규 Top/프로토콜 구현 후** 0~9 벡터·10점수→보드 확인 |
+| ③ 20~27 | ② 검증 NPU 코어, 제1부 SoC 설계 구조 | AXI4-Lite 래퍼, 독립 Vivado BD, XSA, Vitis C, 성능·타이밍 | CPU→AXI→NPU→UART/LED/FND 실측 |
+| ④ 28~31 | ③ 27장 검증 SoC의 변경 없는 기준선 | 숫자 인식, 센서/경보, 모터 인터록, 인증/암호 분기 | 각 응용별 안전·전기/보안 경계 분리 검증 |
+
+### 모든 장에 적용할 4원칙
+
+1. **체계화:** 이전 장의 보존 파일·새 기능·소스 위치·입출력·검증 로그·다음 장 인계를 **명시**한다.
+2. **순서화:** 코드 → 단위 TB → Python 기준값 → 통합 TB → Vivado 합성/구현 → bitstream → 보드 명령/출력으로 진행한다. 단, 실제 하드웨어가 필요 없는 독립 산술 단계는 해당 검증을 뒤의 통합 장에 연결한다.
+3. **구조화:** Top에는 연결만, 기능 Controller/CORE/AXI/UART/표시는 재사용 가능한 하위 모듈에 둔다. 00~12 `mini_npu`를 변경하지 않고 13~19 NPU10, 20~27 SoC를 누적한다.
+4. **시각화:** 코드 신호명과 일치하는 블록도, 전후 데이터 경로, 보드 실제 LED/FND/UART 기대 상태를 표시한다. 가상의 모듈은 설계도로 표시한다.
+
+### 실제 보드 성공과 설명용 예시 구별
+
+- 00~12장은 **GitHub RTL/시뮬레이션 기록 존재**. Vivado 실제 합성·Bitstream·Basys3 보드 실행은 별도 증거가 없다.
+- 13~31장은 신규 RTL·AXI BD·Vitis 코드가 **현재 GitHub에 아직 수록되지 않았다**. VS Code에서 만든 소스를 실제 Commit으로 인계받은 뒤, Source → TB → 합성/보드와 HTML 해설을 대조한다.
+- 각 장 HTML에는 `누적 실습` 절을 두고 실제 Vivado/Vitis/시리얼 실습 순서는 `field_lab_v01.html`에서 참조한다. 최종 승인 전에는 실제 GUI·장치·로그를 확인해야 한다.
