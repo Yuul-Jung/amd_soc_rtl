@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<meta content="Basys3 MicroBlaze V SoC에서 Clocking Wizard와 Processor System Reset을 연결하고 Clock/Reset 신호와 해제 순서를 이해하는 절차형 실습 자료." name="description">
+<title>교수용 상세 해설서 | 제1부 02장 | SoC 02 · Clock / Reset 구조와 Processor System Reset</title>
+<style>
+
+:root{
+  --paper:#F1F2EE;--card:#FFFFFF;--ink:#15171C;--ink-2:#4A4F5A;--ink-3:#858B96;
+  --line:#DDDFD8;--line-strong:#C9CCC3;--accent:#4635B1;--accent-soft:#EDEAFA;
+  --yellow:#FFD24A;--good:#1F6F4A;--good-bg:#EEF8F3;--warn:#7A4D14;--warn-bg:#FDF3E7;
+  --maxw:1560px;--sidebar:260px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:22px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.72;-webkit-font-smoothing:antialiased}
+a{color:inherit} code,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+
+/* top */
+.topbar{background:#fff;border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:var(--maxw);margin:0 auto;padding:12px 34px;display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:.88rem;color:var(--ink-2)}
+.breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.breadcrumb a{text-decoration:none;color:var(--ink)}.breadcrumb .sep{color:#B0B4BC}
+.brand{font-family:"SFMono-Regular",Consolas,monospace;font-size:.75rem;color:var(--ink-3)}
+
+/* hero */
+.hero{position:relative;background:var(--ink);color:#F1F2EE;overflow:hidden;border-bottom:1px solid #111}
+.hero-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(255,255,255,.052) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.052) 1px,transparent 1px);background-size:28px 28px}
+.hero-inner{position:relative;max-width:var(--maxw);margin:0 auto;padding:72px 34px 58px}
+.hero-kicker{display:inline-block;margin:0 0 16px;padding-bottom:7px;border-bottom:2px solid var(--yellow);color:var(--yellow);font-weight:700;font-size:.96rem}
+.hero h1{margin:0;max-width:1100px;font-size:clamp(1.9rem,4.2vw,3.15rem);line-height:1.18;letter-spacing:-.03em;word-break:keep-all;overflow-wrap:normal;text-wrap:balance}
+.hero-desc{margin:22px 0 0;max-width:760px;color:#BBC0C8;font-size:1rem;font-weight:300}
+.hero-meta{margin-top:30px;display:flex;flex-wrap:wrap;gap:9px}
+.chip{border:1px solid rgba(255,255,255,.22);padding:5px 10px;border-radius:2px;color:#E6E8EC;font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+.hero-brief{margin-top:38px;padding-top:28px;border-top:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.hero-brief article{padding:15px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11)}
+.hero-brief h2{margin:0 0 6px;color:#fff;font-size:.9rem}.hero-brief p{margin:0;color:#ADB2BA;font-size:.86rem;line-height:1.62}
+
+/* main */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 34px 92px;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);gap:38px;align-items:start}
+.flow-nav{position:sticky;top:0;max-height:100vh;overflow:auto;padding:38px 0;scrollbar-width:thin}
+.nav-title{margin:0 0 7px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;letter-spacing:.08em;color:var(--ink-3);font-weight:700}
+.nav-help{margin:0 0 19px;color:var(--ink-3);font-size:.76rem}.phase{margin:20px 0 7px;font-size:.72rem;font-weight:700;color:var(--ink-3)}
+.timeline{list-style:none;margin:0;padding:0 0 0 10px;position:relative}.timeline::before{content:"";position:absolute;left:20px;top:12px;bottom:12px;width:1px;background:#CFD2CB}
+.timeline li{position:relative;margin:0;padding:0}
+.timeline a{position:relative;display:grid;grid-template-columns:27px 1fr;gap:10px;align-items:start;text-decoration:none;color:var(--ink-2);padding:5px 6px 5px 0;font-size:.80rem;line-height:1.4;transition:color .15s,transform .15s}
+.timeline .n{z-index:1;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:1px solid #C9CDC5;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.64rem;font-weight:700}
+.timeline a:hover{color:var(--accent);transform:translateX(2px)}.timeline a.active{color:var(--accent);font-weight:650}
+.timeline a.active .n{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+main{padding-top:38px;min-width:0}
+.overview-card{background:#FBFBF9;border:1px solid var(--line);margin-bottom:18px;padding:28px 32px}
+.overview-card h2{margin:0 0 16px;font-size:1.24rem}.stage-flow{display:flex;align-items:center;gap:7px;overflow-x:auto;padding:4px 0 8px}
+.stage{min-width:max-content;padding:9px 11px;border:1px solid var(--line);background:#fff;font-size:.82rem;color:var(--ink-2)}.arrow{color:var(--accent);font-weight:800;flex:none}
+
+/* source sections */
+.step-card{background:var(--card);border:1px solid var(--line);padding:32px 40px 36px;margin-bottom:16px;scroll-margin-top:18px}
+.step-card h2{margin:0 0 17px;font-size:1.36rem;letter-spacing:-.025em}.step-card h3{font-size:1rem;margin:24px 0 9px}
+.step-anchor{scroll-margin-top:22px}
+.step{display:inline-block;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:4px 8px;border-radius:2px;margin:3px 0 7px}
+p{color:var(--ink-2)}ul,ol{color:var(--ink-2)}li{margin:5px 0}
+.flow{background:#FBFBF9;border:1px solid var(--line);border-left:3px solid var(--accent);padding:17px 19px;margin:16px 0;font-weight:600;color:#2C2F38;overflow-x:auto}
+.codeblock-pre{margin:12px 0 18px;background:#FBFBF9;color:#282C34;padding:17px 19px;border:1px solid var(--line);border-left:3px solid #B9B2E8;border-radius:0;overflow:auto;line-height:1.72;font-size:.84rem}
+.inline,p code,li code,td code{font-family:"SFMono-Regular",Consolas,monospace;font-size:.87em;background:#F4F4F1;border:1px solid var(--line);padding:1px 5px;border-radius:2px}
+.note,.warn,.ok{padding:14px 16px;border-radius:0;margin:16px 0;border:1px solid var(--line);font-size:.91rem}
+.note{background:var(--accent-soft);border-color:#DAD4F6;color:#3A2F8C}.warn{background:var(--warn-bg);border-color:#F0DCBE;color:var(--warn)}.ok{background:var(--good-bg);border-color:#CFE8DB;color:#18573C}
+.table-wrap{overflow-x:auto;margin:14px 0 20px}table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:680px;table-layout:auto}th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);word-break:keep-all;overflow-wrap:break-word}
+thead th{font-size:.78rem;color:var(--ink-3);font-weight:700;border-bottom:1px solid var(--line-strong)}td:first-child{color:var(--ink);font-weight:600}
+
+/* summary/nav */
+.summary{background:#F8F7FD;border:1px solid #D8D3F2;border-left:5px solid var(--accent);color:var(--ink)}.summary h2{color:var(--ink)}.summary li,.summary p{color:var(--ink-2)}.summary code{background:#fff;border-color:#D8D3F2}
+.chapter-nav{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;margin-top:26px}
+.chapter-nav a,.chapter-nav span{display:flex;align-items:center;padding:13px 14px;background:#fff;border:1px solid var(--line);text-decoration:none;font-size:.88rem;color:var(--ink)}
+.chapter-nav .home{justify-content:center}.chapter-nav .next{justify-content:flex-end;text-align:right}.chapter-nav .disabled{color:#A0A5AD;background:#F7F7F4}
+.site-footer{max-width:var(--maxw);margin:0 auto;padding:0 34px 38px;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+
+/* index compatibility */
+.home-main{max-width:1380px;margin:0 auto;padding:42px 30px 90px}.home-section,.card{background:#fff;border:1px solid var(--line);padding:30px 34px}
+.home-section h2,.card h2{margin-top:0}
+
+@media(max-width:920px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 20px 62px}.flow-nav{position:static;max-height:none;padding:28px 0 8px;border-bottom:1px solid var(--line)}
+  .timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.timeline::before{display:none}
+  main{padding-top:26px}.hero-inner{padding:58px 20px 48px}.hero-brief{grid-template-columns:1fr}.topbar-inner{padding:11px 20px}
+  .step-card,.overview-card{padding:24px 21px 27px}.site-footer{padding:0 20px 34px}
+}
+@media(max-width:600px){.timeline{grid-template-columns:1fr}.brand{display:none}.chapter-nav{grid-template-columns:1fr}.chapter-nav .next,.chapter-nav .home{justify-content:flex-start;text-align:left}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+
+/* technical figures */
+.tech-figure{margin:18px 0 24px;padding:14px;background:#FBFBF9;border:1px solid var(--line);overflow-x:auto}
+.tech-figure img{display:block;width:auto;height:auto;max-width:100%;margin:0 auto}
+.tech-figure figcaption{margin-top:10px;color:var(--ink-3);font-size:.78rem;line-height:1.55;text-align:center}
+.source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:700px){.source-grid{grid-template-columns:1fr}}
+
+/* original-source figure references: no technical redraws */
+.source-figure-ref{margin:18px 0 24px;padding:22px 24px;background:#FBFBF9;border:1px solid var(--line);border-left:4px solid var(--accent)}
+.source-figure-ref .source-kicker{margin:0 0 6px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.source-figure-ref h3{margin:0 0 8px;font-size:1.06rem;color:var(--ink)}
+.source-figure-ref p{margin:6px 0 12px}
+.source-figure-link{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#fff;border:1px solid var(--line-strong);text-decoration:none;font-size:.84rem;font-weight:700;color:var(--accent)}
+.source-figure-link:hover{border-color:var(--accent)}
+.resource-table th:first-child,.resource-table td:first-child{width:28%}
+main,.step-card,.overview-card{max-width:100%;min-width:0}
+
+/* Concise self-contained source presentation. */
+.polished-source{border-top:4px solid var(--accent);}
+.source-group{margin:30px 0 0;}
+.source-group>h2{padding-bottom:9px;border-bottom:2px solid var(--accent);}
+.source-file{margin:18px 0 30px;border:1px solid var(--line);background:#fff;}
+.source-file-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;background:#f4f4f1;border-bottom:1px solid var(--line);font-family:"IBM Plex Mono",monospace;}
+.source-file-header span{font-size:.72rem;font-weight:700;color:var(--accent);}.source-file-header strong{font-size:.84rem;overflow-wrap:anywhere}.source-file-header small{color:var(--ink-3);}
+.full-source-code{margin:0;border:0;border-bottom:1px solid var(--line);}.full-source-code pre{max-height:none;white-space:pre;tab-size:4;}
+.source-explain{padding:18px 20px 20px;}.source-explain h3{margin:0 0 12px}.source-explain p{margin:7px 0}.source-role{display:inline-block;padding:3px 7px;margin-right:5px;background:#eceafc;color:#4635b1;font:700 .7rem/1.2 "IBM Plex Mono",monospace;}
+.source-path{color:var(--ink-3);font-size:.82rem}.external-note{padding:12px 14px;border-left:3px solid #a45a22;background:#fff6ed;}
+.code-repeat-note{padding:9px 12px;border-left:3px solid var(--line);color:var(--ink-3);font-size:.88rem;}
+.verification-link{max-width:1350px;margin:18px auto;padding:0 22px}.verification-link a{display:inline-block;padding:9px 12px;border:1px solid var(--line);background:#fff;text-decoration:none;font-weight:700}
+@media(max-width:760px){.source-file-header{grid-template-columns:1fr}.source-file-header small{text-align:left}}
+
+
+
+/* SoC chapter extensions */
+.lesson-goal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.lesson-goal article{border:1px solid var(--line);background:#FBFBF9;padding:15px 16px}
+.lesson-goal strong{display:block;font-size:.82rem;color:var(--accent);margin-bottom:5px}
+.lesson-goal p{margin:0;font-size:.84rem;line-height:1.55}
+.manual-figure{margin:20px 0 24px;border:1px solid var(--line);background:#fff;padding:14px}
+.manual-figure img{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff}
+.manual-figure figcaption{margin:10px 4px 2px;color:var(--ink-3);font-size:.78rem;line-height:1.58;text-align:center}
+.manual-figure .figure-source{display:block;margin-top:4px;font-size:.74rem}
+.manual-figure .figure-source a{color:var(--accent);font-weight:700;text-decoration:none}
+.manual-figure.compact img{max-height:640px}
+.step-seq{counter-reset:socstep;list-style:none;padding:0;margin:18px 0}
+.step-seq>li{counter-increment:socstep;position:relative;margin:0 0 12px;padding:16px 18px 16px 58px;border:1px solid var(--line);background:#FBFBF9}
+.step-seq>li::before{content:counter(socstep, decimal-leading-zero);position:absolute;left:16px;top:16px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font:700 .7rem/1 "SFMono-Regular",Consolas,monospace}
+.step-seq h3{margin:0 0 7px;font-size:1rem}.step-seq p{margin:5px 0}.step-seq ul{margin:6px 0}
+.gate{border-left:5px solid var(--good);background:var(--good-bg)}
+.danger{border-left:5px solid #A23B3B;background:#FFF2F2;border-top:1px solid #F0CCCC;border-right:1px solid #F0CCCC;border-bottom:1px solid #F0CCCC;padding:14px 16px;margin:16px 0;color:#733}
+.signal-map{font-family:"SFMono-Regular",Consolas,monospace;background:#15171C;color:#E7EAF0;padding:19px 20px;overflow-x:auto;line-height:1.7;margin:16px 0;border-left:4px solid var(--yellow)}
+.acceptance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.acceptance div{padding:13px 15px;border:1px solid var(--line);background:#FBFBF9}.acceptance strong{display:block;margin-bottom:4px}
+.version-badge{display:inline-block;padding:3px 8px;border:1px solid rgba(255,255,255,.22);font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;color:#E8E8EE}
+@media(max-width:900px){.lesson-goal{grid-template-columns:repeat(2,minmax(0,1fr))}.acceptance{grid-template-columns:1fr}}
+@media(max-width:560px){.lesson-goal{grid-template-columns:1fr}}
+
+
+/* Chapters 01-10: shared top navigation */
+.topbar{background:#fff;border-bottom:1px solid #DDDFD8}
+.topbar .topbar-inner,.topbar .top-inner{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 18px}
+.topbar .breadcrumb,.topbar .top-inner>span:first-child{font-size:.86rem;line-height:1.6;color:#4A4F5A}
+.topbar a,.topbar .breadcrumb a{color:#333743;text-decoration:none}
+.topbar a:hover,.topbar .breadcrumb a:hover{text-decoration:underline;color:#4635B1}
+.topbar .breadcrumb strong,.topbar .top-inner b{color:#15171C;font-weight:800}
+.topbar .brand,.topbar .meta{font-size:.76rem;color:#747B86;letter-spacing:0}
+@media(max-width:600px){.topbar .topbar-inner,.topbar .top-inner{padding:10px 14px}}
+</style>
+<style>
+/* MicroBlaze V 배포: 기존 스타일 유지, 좌측 세부 목차와 폭 제한 */
+:root{--sidebar:260px;--maxw:1520px}body{overflow-wrap:anywhere}.wrap{grid-template-columns:260px minmax(0,1fr)}.wrap>main{min-width:0}.flow-nav{position:sticky;top:0;max-height:100vh;overflow-y:auto}.step-card,.card,.section-card{min-width:0}figure{max-width:100%;margin-left:0;margin-right:0}figure img,img{display:block;max-width:100%;height:auto;object-fit:contain;margin-left:auto;margin-right:auto}figure img{max-height:760px}table{min-width:0!important;width:100%;table-layout:fixed}td,th{overflow-wrap:anywhere;white-space:normal!important}pre{max-width:100%;overflow-x:auto;white-space:pre;tab-size:4}.table-wrap{max-width:100%;overflow-x:auto}.resource-table td,.resource-table a{overflow-wrap:anywhere}.runtime-scope{display:none}@media(max-width:1050px){.wrap{grid-template-columns:225px minmax(0,1fr);gap:22px;padding-left:20px;padding-right:20px}.flow-nav{width:auto}td,th{padding:10px!important}}@media(max-width:760px){.wrap{display:block;padding-left:14px;padding-right:14px}.flow-nav{position:relative;max-height:340px;margin-bottom:22px}.hero-inner{padding:34px 20px}.hero-brief{grid-template-columns:1fr}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border:1px solid #d9dce2;margin:12px 0}td{border:0;border-bottom:1px solid #e5e7eb}td:before{content:attr(data-label);display:block;font-size:11px;color:#6b7280;font-weight:650}td:first-child{background:#f3f1fa}.step-card{padding:22px 17px}pre{font-size:12px}}
+
+/* Readability and keyboard access; original chapter layout retained. */
+:root{--ink-3:#626975}
+body{font-family:"Noto Sans KR","Noto Sans CJK KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.skip-link{position:fixed;left:16px;top:12px;z-index:1000;transform:translateY(-180%);padding:10px 16px;background:#fff;color:#33218f;border:3px solid #4635b1;font-weight:700}
+.skip-link:focus{transform:none}
+:focus-visible{outline:3px solid #6547cf;outline-offset:4px}
+.signal-map:focus-visible,pre:focus-visible,.table-wrap:focus-visible{outline-offset:2px}
+.signal-map{white-space:pre;font-family:"SFMono-Regular",Consolas,"Liberation Mono","Noto Sans CJK KR",monospace;font-size:.9375rem;line-height:1.8;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.signal-map.signal-table{white-space:normal}
+.signal-table table{min-width:0;width:100%;font-size:.9rem;color:#e7eaf0;line-height:1.7}
+.signal-table th,.signal-table td{color:inherit;padding:10px 12px;border-color:#414650;overflow-wrap:anywhere;word-break:normal}
+.signal-table thead th{color:#ffd24a;font-size:.84rem}
+.signal-table tbody th{font-weight:600}
+.signal-table td:first-child{color:inherit;font-weight:400}
+.signal-table code{font:inherit;background:none;border:0;padding:0;color:inherit}
+pre{font-size:.9rem;line-height:1.75;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.codeblock-pre{font-size:.9rem}
+.flow,p,li,td,th,.source-path,.source-file-header strong{overflow-wrap:anywhere}
+.timeline a{font-size:.875rem;line-height:1.55;padding-top:7px;padding-bottom:7px}
+.timeline .n{font-size:.75rem}
+.nav-title,.nav-help,.phase{color:#626975}
+.tech-figure figcaption,.manual-figure figcaption{color:#555d69;font-size:.875rem;line-height:1.7}
+.manual-figure .figure-source{font-size:.8125rem}
+.figure-original{display:inline-block;margin-top:8px;padding:4px 9px;border:1px solid var(--line-strong,#c9ccc3);background:#fff;color:var(--accent,#4635b1);font-size:.8125rem;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.figure-image-link{display:block}
+.figure-image-link:focus-visible{outline-offset:5px}
+.manual-figure.compact img{max-height:none}
+thead th{color:#626975;font-size:.84rem}
+.hero-desc{font-weight:400}
+main[tabindex="-1"]:focus{outline:none}
+@media(max-width:600px){
+ .signal-map{padding:15px 12px;font-size:.875rem}
+ .signal-table{padding:10px 8px}.signal-table th,.signal-table td{padding:8px 6px;font-size:.8125rem}
+ .tech-figure,.manual-figure{padding:10px}
+ .step-card h2{line-height:1.5;overflow-wrap:anywhere}
+ .chip{overflow-wrap:anywhere;max-width:100%}
+}
+@media(forced-colors:active){:focus-visible{outline:3px solid Highlight}.signal-map{border:1px solid CanvasText}.figure-original{border:1px solid LinkText}}
+
+
+.signal-map{scrollbar-width:auto;scrollbar-color:#9da6b4 #252a33}
+@media(max-width:760px){
+ table thead{display:block!important;position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);white-space:nowrap!important}
+ .signal-table td:first-child{background:#252a33}
+ .signal-table td::before{color:#ffd24a;font-size:.8125rem;font-weight:700}
+}
+</style><link rel="stylesheet" href="../part01/legacy/pages/soc/../../assets/reader.css"><script defer src="../part01/legacy/pages/soc/../../assets/reader.js"></script><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;border:1px solid #d6d4ea;border-left:4px solid #4635B1;border-radius:8px;padding:18px 20px;margin:18px 0;color:#1b1c22;line-height:1.75}.prof-banner h2,.prof-card h3{margin:0 0 8px;color:#352994}.prof-banner p,.prof-card p,.prof-code p{margin:7px 0}.prof-flow{max-width:100%;overflow-x:auto}.prof-flow svg{min-width:580px;width:100%;height:auto}.prof-code{border-left-color:#3f7768;background:#fafdfa}.prof-code summary{cursor:pointer;font-weight:700;color:#234e44}.prof-table-wrap{max-width:100%;overflow-x:auto}.prof-table{width:100%;border-collapse:collapse;font-size:.86rem;table-layout:auto}.prof-table th,.prof-table td{border:1px solid #dcded9;padding:6px 10px;text-align:left;vertical-align:top}.prof-table th{background:#ececf6}.prof-table td:first-child{white-space:nowrap}.prof-table td code{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.82rem}.prof-source{font-size:.86rem;color:#555}.prof-explain{margin:12px 0 16px 0;padding:11px 14px;background:#f4f2ff;border-left:3px solid #8877cc;border-radius:4px}.prof-explain strong{color:#352994}.prof-mini{font-size:.9rem;color:#494961}.prof-banner a{color:#4635b1}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px;margin:12px 0}.prof-table{font-size:.81rem}}</style></head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 바로가기</a><div class="topbar"><div class="topbar-inner">
+<div class="breadcrumb"><a href="../part01/legacy/pages/soc/../../index.html">Basys3 SoC + NPU</a><span class="sep">/</span><a href="../part01/legacy/pages/soc/01_microblaze_bram_minimal_soc.html">SoC 01</a><span class="sep">/</span><strong>SoC 02</strong><span class="sep">/</span><a href="../part01/legacy/pages/soc/03_microblaze_bram_program_execution.html">SoC 03</a></div>
+<div class="brand">BASYS3 · MICROBLAZE V SOC</div>
+</div></div>
+
+<header class="hero"><div class="hero-grid"></div><div class="hero-inner">
+<p class="hero-kicker">Basys3 SoC + NPU · SoC 02</p>
+<h1>Clock / Reset 구조와 Processor System Reset</h1>
+<p class="hero-desc">01장에서 만든 Block Design을 이어서 Clocking Wizard 설정, Clock/Reset 연결, 기존 XDC 확인, Validate Design 및 빌드를 진행한다.</p>
+<div class="hero-meta">
+<span class="chip">Basys3 100 MHz</span><span class="chip">Clocking Wizard</span><span class="chip">Processor System Reset</span><span class="chip">locked</span><span class="chip">dcm_locked</span><span class="chip">Active-Low Reset</span>
+</div>
+<div class="hero-brief">
+<article><h2>Clock</h2><aside class="prof-explain"><strong>교수용 보충 — Clock</strong><p>Clock의 주파수·주기·도메인을 확인합니다. 100 MHz의 한 주기는 10 ns입니다.</p></aside><p>W5의 100 MHz를 SoC 내부 동기 기준으로 사용한다.</p></article>
+<article><h2>Reset</h2><aside class="prof-explain"><strong>교수용 보충 — Reset</strong><p>Reset의 활성 극성과 동기화 여부를 확인합니다. CPU 및 주변장치별 출력 신호가 다를 수 있습니다.</p></aside><p>외부 Reset과 Clock lock 상태를 이용해 CPU·Bus Reset을 생성한다.</p></article>
+<article><h2>검증</h2><p>01장에서 설정한 XDC와 실제 BD 포트명을 대조한 뒤 Validate Design을 수행한다.</p></article>
+</div>
+</div></header>
+
+<div class="wrap">
+<aside class="flow-nav" aria-label="장별 세부 목차"><div class="reader-tools"><form hidden><label for="chapter-select">장 이동</label><select class="reader-chapter-select" id="chapter-select"><option value="01_microblaze_bram_minimal_soc.html">SoC 01 · MicroBlaze V + BRAM 최소 SoC</option><option value="02_clock_reset_processor_system_reset.html" selected>SoC 02 · Clock / Reset 구조와 Processor System Reset</option><option value="03_microblaze_bram_program_execution.html">SoC 03 · MicroBlaze V 실행 구조와 BRAM 프로그램 실행</option><option value="04_memory_map_memory_mapped_io.html">SoC 04 · Memory Map과 Memory-Mapped I/O</option><option value="05_axi4_axi4lite_axi4stream.html">SoC 05 · AXI4 / AXI4-Lite / AXI4-Stream 구조</option><option value="06_axi_gpio.html">SoC 06 · AXI GPIO</option><option value="07_axi_uart_lite.html">SoC 07 · AXI UART Lite</option><option value="08_axi_timer.html">SoC 08 · AXI Timer</option><option value="09_axi_interrupt_controller.html">SoC 09 · AXI Interrupt Controller</option><option value="10_microblaze_gpio_uart_timer_integration.html">SoC 10 · MicroBlaze V + GPIO + UART + Timer 통합</option><option value="11_register_map_design_principles.html">SoC 11 · Register Map 설계 원칙</option><option value="12_custom_axi4lite_slave_basics.html">SoC 12 · Custom AXI4-Lite Slave 기초</option><option value="13_axi_register_read_write_path.html">SoC 13 · AXI Register Read / Write 경로</option><option value="14_register_bank_rtl_controller.html">SoC 14 · Register Bank + RTL Controller 연결</option><option value="15_microblaze_software_driver.html">SoC 15 · MicroBlaze V Software Driver</option><option value="16_vivado_ip_packaging_reuse.html">SoC 16 · Vivado IP Packaging과 재사용</option><option value="17_existing_verilog_rtl_to_ip.html">SoC 17 · 기존 Verilog RTL을 IP로 변환</option><option value="18_uart_pwm_controller_ip.html">SoC 18 · UART / PWM Controller IP화</option><option value="19_axi_control_status_bridge.html">SoC 19 · AXI Control / Status Bridge</option><option value="20_cdc_reset_safe_design.html">SoC 20 · CDC / Reset 안전 설계</option><option value="21_self_checking_assertion_coverage.html">SoC 21 · Self-Checking Testbench / Assertion / Coverage</option><option value="22_timing_critical_path_wns_tns.html">SoC 22 · Timing / Critical Path / WNS / TNS</option><option value="23_resource_power_thermal.html">SoC 23 · Resource / Power / Thermal</option><option value="24_npu_mac_datapath.html">SoC 24 · NPU Datapath / MAC 기본 구조</option><option value="25_pe_parallel_mac_vector_dot_product.html">SoC 25 · PE / Parallel MAC / Vector Dot Product</option><option value="26_vector_dot_product_controller.html">SoC 26 · Vector Dot Product Controller</option><option value="27_local_bram_address_generator_data_feeding.html">SoC 27 · Local BRAM / Address Generator / Data Feeding</option><option value="28_prefetch_fifo_double_buffer_stall_safe_feeding.html">SoC 28 · Prefetch / FIFO / Double Buffer</option><option value="29_data_reuse_weight_stationary_tiling.html">SoC 29 · Data Reuse / Weight Stationary / Tiling</option><option value="30_bias_requantization_rounding_saturation_int8.html">SoC 30 · Bias / Requantization / Rounding / Saturation / int8 Output</option><option value="31_npu_register_map_microblaze_axi_integration.html">SoC 31 · NPU Register Map / MicroBlaze V Control / Accelerator Integration</option><option value="32_npu_done_interrupt_axi_intc_isr.html">SoC 32 · NPU Done Interrupt / AXI Interrupt Controller / ISR</option><option value="33_axi_bram_tensor_buffer_control_data_plane.html">SoC 33 · AXI BRAM Tensor Buffer / Control Plane &amp; Data Plane</option><option value="34_command_descriptor_job_control.html">SoC 34 · Command / Descriptor / Job Control</option><option value="35_full_npu_accelerator_integration.html">SoC 35 · Full NPU Accelerator Integration</option><option value="36_cpu_npu_end_to_end_software_inference.html">SoC 36 · CPU ↔ NPU End-to-End Software / Inference Flow</option><option value="37_performance_baseline_timing_resource_power_throughput.html">SoC 37 · Performance Baseline / Timing / Resource / Power / Throughput</option><option value="38_bottleneck_analysis_pipelined_bram_read.html">SoC 38 · Bottleneck Analysis / Pipelined BRAM Read Optimization</option><option value="39_parallel4_requantization_optimization.html">SoC 39 · 4-Lane Parallel Requantization Optimization</option><option value="40_prefetch_pingpong_data_compute_overlap.html">SoC 40 · Prefetch / Ping-Pong Buffer / Data-Compute Overlap</option><option value="41_group8_cumulative_signoff_matrix.html">SoC 41 · Group 8 Cumulative Sign-off Matrix</option></select><button type="submit">선택한 장 열기</button></form><div class="reader-links"><a href="../part01/legacy/pages/soc/../../00_overview/START_HERE.html">공통 사양·실습 순서</a><a href="../part01/legacy/pages/soc/../../manifests/soc02_manifest.html">실습 파일</a></div></div>
+<p class="nav-title">SOC 02 · PRACTICE FLOW</p>
+<p class="nav-help">기존 BD → Clock / Reset → Validate → Wrapper → Bitstream</p>
+<ol class="timeline">
+<li><a href="#s01"><span class="n">01</span><span>기존 BD · Clocking Wizard</span></a></li>
+<li><a href="#s02"><span class="n">02</span><span>외부 Clock / Reset 연결</span></a></li>
+<li><a href="#s03"><span class="n">03</span><span>Processor System Reset 설정</span></a></li>
+<li><a href="#s04"><span class="n">04</span><span>01장 XDC 확인</span></a></li>
+<li><a href="#s05"><span class="n">05</span><span>연결 경로 확인</span></a></li>
+<li><a href="#s06"><span class="n">06</span><span>Validate Design</span></a></li>
+<li><a href="#s07"><span class="n">07</span><span>Output Products · Wrapper</span></a></li>
+<li><a href="#s08"><span class="n">08</span><span>Synthesis · Implementation · Bitstream</span></a></li>
+<li><a href="#s09"><span class="n">09</span><span>Methodology Warning · XDC 변경</span></a></li>
+<li><a href="#s10"><span class="n">10</span><span>오류 점검</span></a></li>
+<li><a href="#summary"><span class="n">S</span><span>완료 확인</span></a></li>
+<li><a href="#sources"><span class="n">R</span><span>공식 매뉴얼</span></a></li>
+</ol>
+</aside>
+
+<main id="main-content" tabindex="-1"><section class="prof-banner" id="prof-intro"><h2>교수용 추가 해설 · 제1부 02장</h2><p><strong>이 장에서 설명할 핵심:</strong> 100MHz Clock·Reset 배선</p><p>100 MHz는 1초에 1억 번 반복한다는 뜻이고 주기는 10 ns입니다. Clock은 회로의 동작 기준, Reset은 초기 상태를 정하는 신호로 역할이 다릅니다.</p><p><strong>쉽게 풀어 말하기:</strong> W5의 입력을 clk_wiz_1에 연결하고 locked를 rst_clk_wiz_1_100M/dcm_locked로 전달합니다.</p><div class="prof-flow" role="img" aria-label="clk (W5) → clk_wiz_1 → CPU / btnC (U18) → Processor System Reset → CPU"><svg viewBox="0 0 910 130" xmlns="http://www.w3.org/2000/svg"><title>현재 장의 데이터·제어 흐름</title><rect x="18" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="114" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="114" dy="0">clk (W5)</tspan></text><path d="M210 67 H238" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M234 60 L242 67 L234 74" stroke="#4635b1" fill="none"/><rect x="238" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="334" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="334" dy="0">clk_wiz_1</tspan></text><path d="M430 67 H458" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M454 60 L462 67 L454 74" stroke="#4635b1" fill="none"/><rect x="458" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="554" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="554" dy="0">CPU / btnC (U18)</tspan></text><path d="M650 67 H678" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M674 60 L682 67 L674 74" stroke="#4635b1" fill="none"/><rect x="678" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="774" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="774" dy="0">Processor System Reset</tspan></text></svg></div><p class="prof-mini"><strong>수업의 판정 기준:</strong> 최종 XDC에서 create_clock의 -add만 제거합니다. 원본에 기록된 Bitstream 완료와 실제 C·보드 동작을 구별합니다.</p><p class="prof-source"><a href="../part01/legacy/pages/soc/02_clock_reset_processor_system_reset.html">기존 학습안내서 원문 열기</a> · 기존 사진·도표·원본 코드 및 실습 순서는 이 페이지 안에 그대로 유지하였습니다.</p><nav aria-label="교수용 인접 장 탐색"><a href="index.html">교수용 전체 목차</a> · <a href="ch01_teacher_v02.html">이전 장</a> · <a href="ch03_teacher_v02.html">다음 장</a></nav></section>
+<div class="overview-card"><h2>전체 학습 위치</h2>
+<div class="stage-flow"><span class="stage">SoC 01 최소 시스템</span><span class="arrow">→</span><span class="stage"><strong>SoC 02 Clock / Reset</strong></span><span class="arrow">→</span><span class="stage">SoC 03 BRAM 프로그램 실행</span><span class="arrow">→</span><span class="stage">Memory Map</span><span class="arrow">→</span><span class="stage">AXI</span></div>
+</div>
+
+<section class="step-card" id="s01"><span class="step">SECTION 01</span><h2>01장 Block Design에서 계속 진행</h2>
+<ol class="step-seq">
+<li><h3>기존 Block Design 열기</h3><p>Vivado의 <strong>Sources → Design Sources</strong>에서 01장에 저장한 <code>soc01_mb_bram.bd</code>를 연다. MicroBlaze V, 16 KB Local BRAM, Clocking Wizard, Processor System Reset은 다시 생성하지 않는다.</p></li>
+<li><h3>Clocking Wizard 설정 열기</h3><p>Diagram에서 <code>clk_wiz_1</code>을 더블클릭 → <strong>Clocking Options</strong>를 확인한다.</p></li>
+<li><h3>Basys3 클럭 입력 확인</h3><p>Basys3 W5는 단일 100 MHz 클럭 입력이므로 Primary Input Source는 <strong>Single ended clock capable pin</strong>, Primary Input Frequency는 <strong>100.000 MHz</strong>로 맞춘다. <code>clk_out1</code>도 설정값 100 MHz인지 확인한다.</p></li>
+<li><h3>입력 포트 형태 확인</h3><p><code>CLK_IN1_D</code>가 있다면 차동 입력 설정인지 확인하고 단일 입력으로 변경한다. <code>Ctrl+S</code>로 저장한다.</p></li>
+</ol>
+
+</section>
+
+<section class="step-card" id="s02"><span class="step">SECTION 02</span><h2>Clock / Reset 외부 포트 연결</h2><aside class="prof-explain"><strong>교수용 보충 — Clock / Reset 외부 포트 연결</strong><p>Clock의 주파수·주기·도메인을 확인합니다. 100 MHz의 한 주기는 10 ns입니다.</p></aside>
+<p>01장에서 생성된 Clock/Reset IP를 Basys3의 외부 Clock 및 버튼 신호에 연결한다. <strong>현재 Diagram의 외부 포트명과 01장의 XDC를 대조</strong>한다.</p>
+<ol class="step-seq">
+<li><h3>Clock 외부 포트</h3><p>단일 입력으로 설정된 <code>clk_wiz_1</code>의 Clock 입력을 우클릭 → <strong>Make External</strong>로 외부 포트를 만든다. 생성된 외부 포트명을 확인한다.</p></li>
+<li><h3>Reset 외부 포트</h3><p><code>clk_wiz_1/reset</code>의 기존 배선을 확인한 후 필요하면 <strong>Make External</strong>을 실행한다. 동일한 외부 Reset 신호를 <code>rst_clk_wiz_1_100M/ext_reset_in</code>에 연결한다.</p></li>
+<li><h3>중복 포트 확인</h3><p>이미 외부 포트가 생성되어 있다면 새로 만들지 않는다. 실제 외부 Clock과 Reset 포트명을 SECTION 04에서 기존 XDC와 대조한다.</p></li>
+</ol>
+<figure class="manual-figure">
+<a href="../part01/legacy/pages/soc/../../images/soc02_vivado_final_2024_2.png" target="_blank" rel="noopener" class="figure-image-link" aria-label="실습에서 완성한 Vivado Block Design 회로도 확대">
+<img loading="lazy" src="../part01/legacy/pages/soc/../../images/soc02_vivado_final_2024_2.png" alt="실제 Vivado 2024.2 최종 회로도: clk(W5), btnC(U18), clk_wiz_1, rst_clk_wiz_1_100M, Local BRAM, mdm_1 신호 연결"></a>
+<figcaption>Vivado 2024.2 · Implementation 완료 당시 실제 Block Design · <code>clk</code>(W5), <code>btnC</code>(U18) 포함
+<a href="../part01/legacy/pages/soc/../../images/soc02_vivado_final_2024_2.png" target="_blank" rel="noopener" class="figure-original" aria-label="실습 원본 회로도 확대 보기">회로도 확대 ↗</a></figcaption>
+</figure>
+<div class="signal-map signal-table" role="region" aria-label="보드 입력 및 클록 잠금 배선" tabindex="0"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">출발 신호</th><th scope="col" role="columnheader">도착 신호</th></tr></thead><tbody role="rowgroup"><tr role="row"><td role="cell" data-label="출발 신호">외부 Clock 포트 · W5 · 100 MHz</td><td role="cell" data-label="도착 신호">clk_wiz_1/clk_in1</td></tr><tr role="row"><td role="cell" data-label="출발 신호">외부 Reset 포트 · U18</td><td role="cell" data-label="도착 신호">clk_wiz_1/reset</td></tr><tr role="row"><td role="cell" data-label="출발 신호">외부 Reset 포트 · U18</td><td role="cell" data-label="도착 신호">rst_clk_wiz_1_100M/ext_reset_in</td></tr><tr role="row"><td role="cell" data-label="출발 신호">clk_wiz_1/locked</td><td role="cell" data-label="도착 신호">rst_clk_wiz_1_100M/dcm_locked</td></tr><tr role="row"><td role="cell" data-label="출발 신호">clk_wiz_1/clk_out1</td><td role="cell" data-label="도착 신호">rst_clk_wiz_1_100M/slowest_sync_clk</td></tr></tbody></table></div>
+</section>
+
+<section class="step-card" id="s03"><span class="step">SECTION 03</span><h2>Processor System Reset 설정 · 연결</h2><aside class="prof-explain"><strong>교수용 보충 — Processor System Reset 설정 · 연결</strong><p>Reset의 활성 극성과 동기화 여부를 확인합니다. CPU 및 주변장치별 출력 신호가 다를 수 있습니다.</p></aside>
+<p>Basys3 Center Button은 누르면 High가 되는 입력으로 사용하므로 <code>ext_reset_in</code>도 Active-High로 맞추는 것이 직관적이다.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Processor System Reset 설정 · 표"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">항목</th><th scope="col" role="columnheader">SoC 02 기준</th><th scope="col" role="columnheader">이유</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="항목" role="cell">External Reset Logic Level</td><td data-label="SoC 02 기준" role="cell">Active-High</td><td data-label="이유" role="cell">BTNC 누름 = High</td></tr>
+<tr role="row"><td data-label="항목" role="cell">Auxiliary Reset</td><td data-label="SoC 02 기준" role="cell">미사용</td><td data-label="이유" role="cell">현재 내부 보조 Reset 없음</td></tr>
+<tr role="row"><td data-label="항목" role="cell">MicroBlaze Debug Reset</td><td data-label="SoC 02 기준" role="cell">MDM V 연결</td><td data-label="이유" role="cell">Debug Reset 경로 유지</td></tr>
+<tr role="row"><td data-label="항목" role="cell"><code>dcm_locked</code></td><td data-label="SoC 02 기준" role="cell"><code>clk_wiz_1/locked</code></td><td data-label="이유" role="cell">Clock 안정 상태 반영</td></tr>
+<tr role="row"><td data-label="항목" role="cell"><code>slowest_sync_clk</code></td><td data-label="SoC 02 기준" role="cell">100 MHz System Clock</td><td data-label="이유" role="cell">현재 단일 Clock Domain</td></tr>
+</tbody></table></div>
+<p>외부 Push Button은 FPGA Clock과 비동기이며 기계적 바운스가 발생할 수 있다. Processor System Reset은 Reset 입력 검출과 동기화 기능을 제공하지만, 이를 일반적인 Push Button Debouncer로 간주하지 않는다.</p>
+<p>MDM V의 <code>Debug_SYS_Rst</code>는 <code>mb_debug_sys_rst</code>로 연결한다. <code>aux_reset_in</code>을 사용하지 않으면 Active-High 설정에서 0으로 고정한다.</p></section>
+
+<section class="step-card" id="s04"><span class="step">SECTION 04</span><h2>01장 XDC 설정 확인</h2><aside class="prof-explain"><strong>교수용 보충 — 01장 XDC 설정 확인</strong><p>XDC의 get_ports 이름은 Top 외부 포트 이름과 정확히 일치해야 합니다. PACKAGE_PIN은 FPGA 패키지 핀입니다.</p></aside>
+<p>01장에서 등록한 <code>Basys-3-Master.xdc</code>를 다시 설정하지 않고, 현재 Block Design의 외부 포트와 일치하는지만 확인한다.</p>
+<ol class="step-seq">
+<li><h3>기존 XDC 확인</h3><p>Sources → Constraints에서 <code>Basys-3-Master.xdc</code>를 열어 활성화된 Clock 및 Reset 제약을 확인한다.</p></li>
+<li><h3>BD 포트 대조</h3><p>외부 포트 <code>clk</code>, <code>btnC</code>가 XDC의 <code>get_ports</code>와 일치하는지 확인한다. 해당 포트가 이미 일치하므로 변경하지 않는다.</p></li>
+</ol>
+<div class="table-wrap" tabindex="0" role="region" aria-label="01장 XDC 대조 결과"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">BD 외부 포트</th><th scope="col" role="columnheader">Basys3 핀</th><th scope="col" role="columnheader">제약</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="BD 외부 포트" role="cell"><code>clk</code></td><td data-label="Basys3 핀" role="cell"><code>W5</code></td><td data-label="제약" role="cell"><code>LVCMOS33</code> · 100 MHz · 10 ns</td></tr>
+<tr role="row"><td data-label="BD 외부 포트" role="cell"><code>btnC</code></td><td data-label="Basys3 핀" role="cell"><code>U18</code></td><td data-label="제약" role="cell"><code>LVCMOS33</code></td></tr>
+</tbody></table></div>
+</section>
+
+<section class="step-card" id="s05"><span class="step">SECTION 05</span><h2>신호 경로 추적</h2>
+<p>다음 신호가 실제 Diagram에서 연결되었는지 확인한다. 외부 Clock/Reset 포트명은 현재 회로도에서 확인한 이름을 사용한다.</p>
+<ol class="step-seq">
+<li><h3>Primary Clock</h3><p>BD 외부 Clock → <code>clk_wiz_1</code> 단일 입력</p></li>
+<li><h3>Generated Clock</h3><p><code>clk_wiz_1/clk_out1 → microblaze_riscv_0/Clk</code></p></li>
+<li><h3>Lock</h3><p><code>clk_wiz_1/locked → rst_clk_wiz_1_100M/dcm_locked</code></p></li>
+<li><h3>External Reset</h3><p>BD 외부 Reset → <code>rst_clk_wiz_1_100M/ext_reset_in</code></p></li>
+<li><h3>CPU Reset</h3><p><code>rst_clk_wiz_1_100M/mb_reset → microblaze_riscv_0/Reset</code></p></li>
+</ol>
+<div class="ok">이 다섯 경로가 설명과 실제 Block Design에서 일치해야 SoC 02의 핵심 구조가 완성된다.</div>
+</section>
+
+<section class="step-card" id="s06"><span class="step">SECTION 06</span><h2>Validate Design — 첫 번째 Stage Gate</h2>
+<ol class="step-seq">
+<li><h3>첫 Validate Design</h3><p>외부 Clock/Reset 연결 및 기존 XDC와의 일치 확인 후 <code>Ctrl+S</code>로 Block Design을 저장하고 <strong>Validate Design</strong>을 실행한다.</p></li>
+<li><h3>Clock Association</h3><p>MicroBlaze V, Local Memory, Processor System Reset이 동일한 100 MHz Clock에 연결되었는지 확인한다.</p></li>
+<li><h3>Reset Association</h3><p>AXI 계층이 아직 최소 구성이라도 <code>interconnect_aresetn</code>, <code>peripheral_aresetn</code>이 올바른 극성으로 생성되는지 확인한다.</p></li>
+</ol>
+<div class="gate note"><strong>Gate 1 PASS 기준:</strong> Clock 입력 100 MHz, Clock Wizard lock 경로, Processor System Reset 입력/출력, MicroBlaze V Reset 경로가 모두 연결되고 Validate Design이 오류 없이 완료되어야 한다. Messages에서 Clock/Reset과 미연결 Interface 오류를 함께 확인한다. 사용하지 않을 AXI 인터페이스의 미완성 주소 경고도 원인을 확인한다.</div>
+<div class="note"><strong>정상 결과:</strong> <code>Validation successful</code> 메시지를 확인한다. Error 또는 Critical Warning이 없어야 한다. <code>M_AXI_DP</code> 주소 경로 미완성 경고(<code>BD 41-2670</code>)는 현재 미연결 AXI 확장 포트와 구분하여 후속 주변장치 연결 때 확인한다.</div>
+</section>
+
+<section class="step-card" id="s07"><span class="step">SECTION 07</span><h2>Generate Output Products · HDL Wrapper</h2>
+<ol class="step-seq">
+<li><h3>Generate Output Products</h3><p>Sources에서 <code>soc01_mb_bram.bd</code>를 우클릭 → <strong>Generate Output Products</strong>를 실행한다. 기존 설정인 <strong>Out of context per IP</strong>를 사용한다.</p></li>
+<li><h3>생성 결과 확인</h3><p>Log에 합성용/시뮬레이션용 <code>soc01_mb_bram.v</code>, <code>soc01_mb_bram_wrapper.v</code>, <code>soc01_mb_bram.hwh</code>, <code>soc01_mb_bram.hwdef</code> 생성 메시지가 있는지 확인한다.</p></li>
+<li><h3>HDL Wrapper · Top 확인</h3><p><strong>Sources → Design Sources</strong>에서 <code>soc01_mb_bram_wrapper</code>가 프로젝트에 등록되어 Top으로 지정되었는지 확인한다. 생성 폴더에 <code>soc01_mb_bram_wrapper.v</code> 파일이 존재하는 것만으로는 Top 설정이 확인되지 않는다.</p></li>
+<li><h3>필요한 경우 Create HDL Wrapper</h3><p>Sources에 Wrapper가 없다면 <code>soc01_mb_bram.bd</code> 우클릭 → <strong>Create HDL Wrapper</strong> → <strong>Let Vivado tools manage wrapper and auto-update</strong>를 선택한다. 생성 후 Top 지정 여부를 다시 확인한다.</p></li>
+</ol>
+<div class="note"><strong>출력 파일 확인:</strong> Log에서 합성/시뮬레이션용 <code>soc01_mb_bram.v</code>, <code>soc01_mb_bram_wrapper.v</code>, <code>soc01_mb_bram.hwh</code>, <code>soc01_mb_bram.hwdef</code> 파일 생성 메시지를 확인한다. 파일 생성과 프로젝트 Top 지정은 별도 절차이다.</div>
+<div class="flow">Design Sources → <code>soc01_mb_bram_wrapper</code> (Top) → <code>soc01_mb_bram_i</code> → MicroBlaze V · Local BRAM · Clock/Reset IP</div>
+<div class="note">HDL Wrapper는 Block Design을 감싸는 Shell/Wrapper로 유지한다. 계산, 상태 판단, Register Map 정책, FSM은 별도 RTL/IP에서 구현한다.</div>
+</section>
+
+<section class="step-card" id="s08"><span class="step">SECTION 08</span><h2>Synthesis · Implementation · Generate Bitstream</h2>
+<ol class="step-seq">
+<li><h3>Run Synthesis</h3><p>Flow Navigator → <strong>Run Synthesis</strong>를 실행한다. 이미 성공했다면 다시 실행하지 않고 완료 상태를 확인한다.</p></li>
+<li><h3>Run Implementation</h3><p>Flow Navigator → <strong>Run Implementation</strong>을 실행한다. Placement/Routing 완료 후 <strong>Design Runs</strong>에서 <code>impl_1</code>의 완료 상태를 확인한다.</p></li>
+<li><h3>Timing 및 제약 확인</h3><p><strong>Design Runs</strong>에서 WNS/TNS와 Failed Routes를 확인한다. XDC의 100 MHz Clock 제약과 <code>clk</code>(W5), <code>btnC</code>(U18) 포트를 점검한다. Critical Warning과 일반 Warning은 구분하여 확인한다.</p></li>
+<li><h3>Generate Bitstream</h3><p>Flow Navigator → <strong>PROGRAM AND DEBUG → Generate Bitstream</strong>을 클릭한다. 완료되면 생성 메시지와 <code>impl_1</code>의 <strong>write_bitstream Complete</strong> 상태를 확인한다.</p></li>
+<li><h3>Bitstream 파일 확인</h3><p>프로젝트의 <code>*.runs/impl_1/</code>에서 <code>soc01_mb_bram_wrapper.bit</code> 파일 생성 여부를 확인한다. 실제 파일명과 경로는 해당 Run 결과를 따른다.</p></li>
+</ol>
+<h3>최종 Bitstream 생성 결과 · Vivado 2024.2</h3>
+<p>제공된 실습 화면에서 <strong>Bitstream Generation successfully completed</strong>와 <strong>write_bitstream Complete!</strong>를 확인하였다. 최종 XDC는 09절의 <code>-add</code> 제거안이다.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="02장 최종 구현 및 Bitstream 결과"><table><thead><tr><th>검증 항목</th><th>실제 결과</th></tr></thead><tbody>
+<tr><td>Bitstream</td><td><strong><code>write_bitstream Complete!</code></strong></td></tr>
+<tr><td>Setup</td><td>WNS +1.372 ns · TNS 0.000 ns</td></tr>
+<tr><td>Hold</td><td>WHS +0.045 ns · THS 0.000 ns</td></tr>
+<tr><td>Pulse Width</td><td>WPWS +3.000 ns</td></tr>
+<tr><td>Routing</td><td>Failed Routes 0</td></tr>
+<tr><td>FPGA 자원</td><td>LUT 1,731 · FF 1,441 · BRAM 4 · DSP 0</td></tr>
+<tr><td>Power</td><td>0.186 W (Vivado 추정치)</td></tr>
+<tr><td>Methodology</td><td>Critical Warning 0건 · 일반 Warning 5건</td></tr>
+</tbody></table></div>
+<div class="note"><strong>판정:</strong> 02장 하드웨어 합성·구현·Bitstream 생성 완료. 실제 Basys3 보드 프로그램 실행과 C 소프트웨어 동작은 03장에서 확인한다.</div>
+<div class="flow">Validate Design → HDL Wrapper → Synthesis → Implementation → Bitstream 생성 완료 → 03장 XSA Export</div>
+</section>
+
+<section class="step-card" id="s09"><span class="step">SECTION 09</span><h2>Methodology Warning · XDC 수정 및 재검증</h2><aside class="prof-explain"><strong>교수용 보충 — Methodology Warning · XDC 수정 및 재검증</strong><p>XDC의 get_ports 이름은 Top 외부 포트 이름과 정확히 일치해야 합니다. PACKAGE_PIN은 FPGA 패키지 핀입니다.</p></aside>
+<p>초기 <code>create_clock -add</code> 설정에서 <code>TIMING-6</code> Critical Warning 2건이 발생했다. <code>create_clock</code> 전체 주석 처리로 한 차례 경고를 점검한 뒤, <strong>100 MHz 입력 Clock 제약을 유지하며 <code>-add</code> 옵션만 제거하는 방법</strong>을 실제 Vivado 2024.2에서 적용하였다.</p>
+<h3>1. XDC 변경 단계 비교</h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="XDC 변경별 Methodology 결과"><table><thead><tr><th>Clock 제약</th><th>Critical Warning</th><th>일반 Warning</th><th>판정</th></tr></thead><tbody>
+<tr><td><code>create_clock -add</code></td><td>2건</td><td>6건</td><td><code>TIMING-6</code> 발생</td></tr>
+<tr><td><code>create_clock</code> 전체 주석 처리</td><td>0건</td><td>4건</td><td>중간 확인</td></tr>
+<tr><td><strong><code>-add</code>만 제거</strong></td><td><strong>0건</strong></td><td><strong>5건</strong></td><td><strong>최종 적용 · Bitstream 생성 성공</strong></td></tr>
+</tbody></table></div>
+<h3>2. 최종 적용 XDC — <code>-add</code> 제거</h3>
+<div class="note" role="note" aria-label="Vivado 2024.2에서 Bitstream까지 생성한 XDC 설정">
+<p><strong>최종 적용 코드 · Basys-3-Master.xdc</strong></p>
+<pre class="codeblock-pre" tabindex="0" role="region" aria-label="최종 XDC 100 MHz"><code>## Clock signal
+set_property -dict { PACKAGE_PIN W5   IOSTANDARD LVCMOS33 } [get_ports clk]
+
+# (변경) -add 옵션 제거 — 100 MHz Clock 제약 유지
+create_clock -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]
+
+# (기존) -add 옵션 포함 설정은 주석 처리
+#create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 1 (6개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>## Clock signal</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>2</td><td><code>set_property -dict { PACKAGE_PIN W5   IOSTANDARD LVCMOS33 } [get_ports clk]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>4</td><td><code># (변경) -add 옵션 제거 — 100 MHz Clock 제약 유지</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>5</td><td><code>create_clock -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]</code></td><td>타이밍 분석용 기준 Clock 객체의 주기와 파형을 지정합니다.</td></tr><tr><td>7</td><td><code># (기존) -add 옵션 포함 설정은 주석 처리</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>8</td><td><code>#create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr></tbody></table></div></details>
+<p>외부 <code>clk</code>는 W5에 연결하며 <code>create_clock</code>으로 10 ns(100 MHz)를 지정한다. 같은 소스에 불필요한 Clock 객체가 추가되는 것을 피하도록 <code>-add</code>를 제거했다.</p>
+</div>
+<h3>3. 최종 Methodology 일반 Warning</h3>
+<p>최종 화면에는 <strong>Critical Warning 0건 · 일반 Warning 5건</strong>이 표시된다. 화면에서 상세 내용을 읽을 수 있는 4건은 아래와 같다. 나머지 1건의 상세 내용은 제공된 화면만으로 확정하지 않는다.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="최종 Methodology Warning 항목"><table><thead><tr><th>Warning</th><th>건수</th><th>확인할 사항</th></tr></thead><tbody>
+<tr><td><code>LUTAR-1</code></td><td>2건</td><td><code>Serial_Dbg_Intf</code> 내부 비동기 Preset/Clear를 구동하는 LUT 경로와 글리치 위험 확인</td></tr>
+<tr><td><code>TIMING-9</code></td><td>1건</td><td>CDC(클럭 영역 교차) 경로의 동기화 구조 확인: <code>report_cdc</code></td></tr>
+<tr><td><code>TIMING-18</code></td><td>1건</td><td><code>btnC</code> 입력과 <code>sys_clk_pin</code> 사이의 Input Delay 경고: 비동기 Reset 경로 검토</td></tr>
+<tr><td>그 밖의 Warning</td><td>1건</td><td>스크롤 아래의 미확인 상세 메시지 추가 확인</td></tr>
+</tbody></table></div>
+<h3>4. Clock · Timing 추가 확인</h3>
+<p>최종 Bitstream 생성, WNS/WHS 양수, Critical Warning 0건은 확인되었다. 그러나 Clock 제약 전체와 모든 미제약 경로가 검증된 것은 아니므로 다음 명령으로 확인한다.</p>
+<pre class="codeblock-pre" tabindex="0" role="region" aria-label="Clock 타이밍 추가 검증 명령"><code># 외부 기준 Clock 및 Generated Clock 주기 확인
+report_clocks
+
+# W5의 clk에 연결된 Clock 객체 확인
+get_clocks -of_objects [get_ports clk]
+
+# 예상하지 않은 미제약 경로 확인
+check_timing -verbose
+
+# 잔여 Warning 및 CDC 경로 확인
+report_methodology
+report_cdc</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 2 (9개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code># 외부 기준 Clock 및 Generated Clock 주기 확인</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>2</td><td><code>report_clocks</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr><tr><td>4</td><td><code># W5의 clk에 연결된 Clock 객체 확인</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>5</td><td><code>get_clocks -of_objects [get_ports clk]</code></td><td>Vivado 최상위 외부 포트 이름을 대상으로 속성·제약을 적용합니다.</td></tr><tr><td>7</td><td><code># 예상하지 않은 미제약 경로 확인</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>8</td><td><code>check_timing -verbose</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>10</td><td><code># 잔여 Warning 및 CDC 경로 확인</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>11</td><td><code>report_methodology</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr><tr><td>12</td><td><code>report_cdc</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr></tbody></table></div></details>
+<div class="warn"><strong>검증 범위:</strong> <code>-add</code> 제거 상태에서 Bitstream 생성 성공과 Critical Warning 해소까지 확인했다. 남은 일반 Warning은 보드 동작과 별개로 상세 경로 분석이 필요하다. 임의로 <code>set_false_path</code>를 추가하여 경고만 숨기지 않는다.</div>
+<p>AMD Vivado 2024.2 참고: <a href="https://docs.amd.com/r/2024.2-English/ug835-vivado-tcl-commands/create_clock" rel="noopener" target="_blank">UG835 · create_clock</a> · <a href="https://docs.amd.com/r/2024.2-English/ug903-vivado-using-constraints/Timing-Constraints-Wizard" rel="noopener" target="_blank">UG903 · Timing Constraints Wizard</a>.</p>
+</section>
+
+<section class="step-card" id="s10"><span class="step">SECTION 10</span><h2>오류 점검</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="오류 점검 · 표"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">증상</th><th scope="col" role="columnheader">원인 후보</th><th scope="col" role="columnheader">확인 위치</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="증상" role="cell">CPU가 실행되지 않음</td><td data-label="원인 후보" role="cell"><code>mb_reset</code>이 계속 High</td><td data-label="확인 위치" role="cell"><code>locked → dcm_locked</code>, 외부 Reset 상태 확인</td></tr>
+<tr role="row"><td data-label="증상" role="cell">Reset이 반대로 동작</td><td data-label="원인 후보" role="cell"><code>ext_reset_in</code> polarity 불일치</td><td data-label="확인 위치" role="cell">Processor System Reset 설정과 BTNC 논리 확인</td></tr>
+<tr role="row"><td data-label="증상" role="cell">Clock 관련 Critical Warning</td><td data-label="원인 후보" role="cell">XDC <code>create_clock</code> 누락 또는 포트명 불일치</td><td data-label="확인 위치" role="cell">W5, <code>get_ports clk</code>, Report Clocks 확인</td></tr>
+<tr role="row"><td data-label="증상" role="cell">AXI IP가 Reset에서 안 풀림</td><td data-label="원인 후보" role="cell">Active-Low Reset을 잘못 반전</td><td data-label="확인 위치" role="cell"><code>peripheral_aresetn</code>, <code>interconnect_aresetn</code> 확인</td></tr>
+<tr role="row"><td data-label="증상" role="cell">Reset 해제 직후 불안정</td><td data-label="원인 후보" role="cell">Clock lock 전에 Reset 해제</td><td data-label="확인 위치" role="cell"><code>locked → dcm_locked</code> 연결 확인</td></tr>
+<tr role="row"><td data-label="증상" role="cell">다른 Clock Domain 추가 후 오동작</td><td data-label="원인 후보" role="cell">Reset을 모든 Domain에 공통 사용</td><td data-label="확인 위치" role="cell">Clock Domain별 Reset 동기화 구조 재설계</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="step-card summary" id="summary"><span class="step">SUMMARY</span><h2>SoC 02 완료 확인</h2>
+<ul>
+<li>01장에서 생성한 MicroBlaze V 및 Local BRAM 구조를 그대로 이어서 사용했다.</li>
+<li><code>clk_wiz_1</code>의 입력을 Basys3 단일 100 MHz Clock으로 설정했다.</li>
+<li>BD 외부 Clock/Reset 포트와 Processor System Reset 연결을 확인했다.</li>
+<li>기존 XDC의 <code>get_ports</code>가 실제 BD 외부 포트명과 일치한다.</li>
+<li>W5 · U18 · LVCMOS33 제약과 <code>-add</code>를 제거한 10 ns Clock XDC를 적용했다.</li>
+<li>Validate Design이 오류 및 Critical Warning 없이 완료되었다. 일반 Warning 3건은 별도로 확인했다.</li>
+<li>합성/시뮬레이션용 RTL과 <code>.hwh</code>, <code>.hwdef</code> 파일이 생성되었다.</li>
+<li><code>soc01_mb_bram_wrapper</code>를 프로젝트 Top으로 등록했다.</li>
+<li>Synthesis · Implementation 및 <strong><code>write_bitstream Complete</code></strong>를 확인했다.</li>
+<li>최종 XDC의 <code>create_clock</code>에서 <code>-add</code> 옵션만 제거하고 Bitstream 생성 성공을 확인했다. Critical Warning 0건, 일반 Warning 5건이다.</li>
+</ul>
+<div class="flow">SoC 02 · Bitstream 생성 완료 → SoC 03 · XSA Export 및 Vitis 프로그램 실행</div>
+</section>
+
+<section class="step-card" id="sources"><span class="step">SOURCE</span><h2>공식 매뉴얼 및 원본 근거</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="공식 매뉴얼 및 원본 근거 · 표"><table class="resource-table" role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">문서</th><th scope="col" role="columnheader">확인 항목</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/ug1711-microblaze-v-embedded-design/MicroBlaze-V-Design-without-a-Memory-IP-Core?contentId=dcJs6In8vDG1ZS__MmS5JQ" rel="noopener" target="_blank">AMD UG1711 · MicroBlaze V Processor Embedded Design User Guide · 2026.1</a></td><td data-label="확인 항목" role="cell">Clocking Wizard 생성, Processor System Reset 자동 연결, <code>locked → dcm_locked</code>, Connection Automation</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/ug994-vivado-ip-subsystems/Using-the-Designer-Assistance-Feature" rel="noopener" target="_blank">AMD UG994 · Designing IP Subsystems Using IP Integrator · 2026.1</a></td><td data-label="확인 항목" role="cell">Designer Assistance, Block Automation, Connection Automation, 외부 Clock/Reset 연결 흐름</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset" rel="noopener" target="_blank">AMD PG164 · Processor System Reset Module v5.0</a></td><td data-label="확인 항목" role="cell">Reset 입출력, active polarity, <code>dcm_locked</code>, <code>slowest_sync_clk</code>, Reset 해제 순서</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://digilent.com/reference/_media/reference/programmable-logic/basys-3/basys3_rm.pdf" rel="noopener" target="_blank">Digilent Basys 3 Reference Manual</a></td><td data-label="확인 항목" role="cell">100 MHz Oscillator, W5 Clock Pin, Clocking Resources</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://github.com/Digilent/digilent-xdc/blob/master/Basys-3-Master.xdc" rel="noopener" target="_blank">Digilent Basys-3-Master.xdc</a></td><td data-label="확인 항목" role="cell">W5, 10 ns Clock Constraint, U18 Center Button</td></tr>
+</tbody></table></div>
+</section>
+
+<nav class="chapter-nav">
+<a href="../part01/legacy/pages/soc/01_microblaze_bram_minimal_soc.html">← SoC 01</a><a href="../part01/legacy/pages/soc/../../index.html">전체 목차</a><a href="../part01/legacy/pages/soc/03_microblaze_bram_program_execution.html">SoC 03 →</a></nav>
+<section class="prof-card" id="prof-end"><h3>교수용 마무리 질문</h3><p>① 이 장에서 CPU·메모리·IP·외부 장치 중 어느 부분을 추가하거나 연결했나요?</p><p>② 실제 코드의 변수·포트·주소 중 한 개를 골라 입력에서 출력까지 추적해 보세요.</p><p>③ 화면·시뮬레이션·Bitstream·실물 중 어떤 결과를 확인했고 무엇은 미검증인지 구분해 보세요.</p><p>기존 원본의 실습 성공 기록은 신규 재실행 결과와 구분합니다.</p></section></main></div>
+
+<footer class="site-footer">BASYS3 · MICROBLAZE V SOC</footer>
+
+</body></html>

@@ -1,0 +1,107 @@
+{
+  "title": "제1부 교수용 1:1 상세 해설서",
+  "part": 1,
+  "count": 11,
+  "sourceHead": "cb057474a9e2cefe9834ebf253e384e5ef5bb511",
+  "chapters": [
+    {
+      "number": 1,
+      "title": "MicroBlaze V + BRAM 최소 SoC",
+      "sourcePath": "part01/legacy/pages/soc/01_microblaze_bram_minimal_soc.html",
+      "sourceBlobSha": "2284fb1fd2189126fef3e7637e77a833c2422639",
+      "guidePath": "easy01/ch01_teacher_v02.html",
+      "guideBlobSha": "3f715983f564de0f6957873552c9a20879156db4",
+      "refType": "P1-original"
+    },
+    {
+      "number": 2,
+      "title": "Clock / Reset 구조와 Processor System Reset",
+      "sourcePath": "part01/legacy/pages/soc/02_clock_reset_processor_system_reset.html",
+      "sourceBlobSha": "8e5ecbfeb4c38c5fad150b5092bdc3bd5a69840d",
+      "guidePath": "easy01/ch02_teacher_v02.html",
+      "guideBlobSha": "aa1824f364e9034642d4e6bfea932bc36ccf0679",
+      "refType": "P1-original"
+    },
+    {
+      "number": 3,
+      "title": "BRAM 프로그램 실행",
+      "sourcePath": "part01/legacy/pages/soc/03_microblaze_bram_program_execution.html",
+      "sourceBlobSha": "94ec70b4d4e8ee38fad307334ba08c45b9c3d6c8",
+      "guidePath": "easy01/ch03_teacher_v02.html",
+      "guideBlobSha": "8ee7f80e6475c2671221644a2c60f61f7b63fb5c",
+      "refType": "P1-original"
+    },
+    {
+      "number": 4,
+      "title": "Local BRAM 주소·Memory Map",
+      "sourcePath": "part01/legacy/pages/soc/04_memory_map_memory_mapped_io.html",
+      "sourceBlobSha": "4a934f0c7c0232c4bbb1d1fa7ff94c82dad5feaf",
+      "guidePath": "easy01/ch04_teacher_v02.html",
+      "guideBlobSha": "13264a21c1b9ac768df233f069fb2c41629d7c8b",
+      "refType": "P1-original"
+    },
+    {
+      "number": 5,
+      "title": "AXI4 / AXI4-Lite / AXI4-Stream",
+      "sourcePath": "part01/legacy/pages/soc/05_axi4_axi4lite_axi4stream.html",
+      "sourceBlobSha": "9d9015b00dab1a1b17fafe212ee8b20c2fdf3663",
+      "guidePath": "easy01/ch05_teacher_v02.html",
+      "guideBlobSha": "b61a91d4fa11232c055153183e2296e80545571c",
+      "refType": "P1-original"
+    },
+    {
+      "number": 6,
+      "title": "AXI GPIO",
+      "sourcePath": "part01/legacy/pages/soc/06_axi_gpio.html",
+      "sourceBlobSha": "14356b994f9de9eada8f585736137d5ca33d5679",
+      "guidePath": "easy01/ch06_teacher_v02.html",
+      "guideBlobSha": "4c36c1cf4e101db0f660382701e8e4db1c764984",
+      "refType": "P1-original"
+    },
+    {
+      "number": 7,
+      "title": "AXI UART Lite",
+      "sourcePath": "part01/legacy/pages/soc/07_axi_uart_lite.html",
+      "sourceBlobSha": "42a4465b377d613e1508cc48cc6c59dfcc5572bd",
+      "guidePath": "easy01/ch07_teacher_v02.html",
+      "guideBlobSha": "486875fdaf1e6fb410db6480b72680dedd3b3ac9",
+      "refType": "P1-original"
+    },
+    {
+      "number": 8,
+      "title": "AXI Timer",
+      "sourcePath": "part01/legacy/pages/soc/08_axi_timer.html",
+      "sourceBlobSha": "0563237f65885ac979bd7b7ff975de73db913e71",
+      "guidePath": "easy01/ch08_teacher_v02.html",
+      "guideBlobSha": "e2c5d4e9868d736b84ad2f553d11a0f6e08ad2bd",
+      "refType": "P1-original"
+    },
+    {
+      "number": 9,
+      "title": "AXI Interrupt Controller",
+      "sourcePath": "part01/legacy/pages/soc/09_axi_interrupt_controller.html",
+      "sourceBlobSha": "93a4ecbc49588722b450819a5136b86777ada9ff",
+      "guidePath": "easy01/ch09_teacher_v02.html",
+      "guideBlobSha": "be6a5d609cc918e94eb989e8ff30782164bc5d86",
+      "refType": "P1-original"
+    },
+    {
+      "number": 10,
+      "title": "GPIO + UART + Timer 통합",
+      "sourcePath": "part01/legacy/pages/soc/10_microblaze_gpio_uart_timer_integration.html",
+      "sourceBlobSha": "e4befdb35728c9d96488502afe5d6aaaa28ab963",
+      "guidePath": "easy01/ch10_teacher_v02.html",
+      "guideBlobSha": "d6e619579c23deba1de2f1fdb46c498678b3cfcd",
+      "refType": "P1-original"
+    },
+    {
+      "number": 11,
+      "title": "사용자 Top · SW0 → LED0",
+      "sourcePath": "part01/chapters/11_user_top_io_remap.html",
+      "sourceBlobSha": "746941499be2607bbbdb66970c8cb7827fb7c347",
+      "guidePath": "easy01/ch11_teacher_v02.html",
+      "guideBlobSha": "7178db7060a626c4c0b959b653235814dd0a85bf",
+      "refType": "P1-11"
+    }
+  ]
+}

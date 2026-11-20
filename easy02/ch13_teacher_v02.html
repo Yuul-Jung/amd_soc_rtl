@@ -1,0 +1,506 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SPI Mode 0 → 레지스터 읽기 → 4바이트 UID 모의 검증"><title>교수용 상세 해설서 | 제2부 13장 | MFRC522 SPI 프레임·UID4 모의</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch13"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 13/20</p><h1>제13장 · MFRC522 SPI RFID 통신</h1><p>SPI Mode 0 → 레지스터 읽기 → 4바이트 UID 모의 검증</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 13장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> SPI는 SCLK와 MOSI·MISO 및 CS를 이용하는 동기식 직렬 통신입니다. 읽기/쓰기 주소 프레임과 시프트 동작을 이해한 후 RFID 장치의 UID 읽기 절차로 연결합니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="SPI Command → spi_master RTL → MFRC522 → UID 상태"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">SPI Command</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">spi_master RTL</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">MFRC522</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">UID 상태</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 4바이트 UID 제한형 모의 테스트를 실제 카드 인증이나 전체 RFID 기능으로 표현하지 않습니다. 모듈 3.3V 호환성을 확인합니다.</p><p class="prof-small"><a href="../part02_2/guide/ch13_spi_rfid_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch12_teacher_v02.html">이전 장</a> · <a href="ch14_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>개요</h2>
+<p>SPI(Serial Peripheral Interface, 에스피아이, 동기식 직렬 주변장치 인터페이스)는 SCK(클록), MOSI(마스터 송신), MISO(마스터 수신), NSS(슬레이브 선택) 4개 신호로 통신한다. RC522 보드의 MFRC522는 SPI 슬레이브로 동작하며 FPGA가 클록과 명령을 공급한다.</p>
+<p><strong>이번 구현 완료 범위:</strong> SPI Mode 0(클록 유휴 LOW, 상승 에지 수신), 16비트 레지스터 프레임, MFRC522 VersionReg(0x37) 읽기, 동작 자체를 확인하는 RTL 자가검증 테스트벤치.</p>
+<p class="warn"><strong>미완료:</strong> 실제 RC522의 안테나 설정, REQA/WUPA, 안티콜리전·UID 수집, IRQ 처리, 실제 AXI 인스턴스, Vitis 타깃 구동, Vivado 합성·타이밍, 카드 실물 감지. VersionReg 값을 읽을 수 있다고 카드 인식까지 성공한 것은 아니다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>전체 기능 구조</h2>
+<svg viewBox="0 0 1020 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="P2-13 CPU 통신과 SPI 레지스터 컨트롤러 구조도">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7z" fill="#477a9c"/></marker></defs>
+<rect x="12" y="12" width="994" height="275" rx="12" fill="#f7fafc" stroke="#c0d6e4"/>
+<rect x="36" y="48" width="196" height="84" rx="10" fill="#dfecf8" stroke="#71a0c1"/><text x="134" y="82" font-size="18" fill="#174867" text-anchor="middle">MicroBlaze V</text><text x="134" y="108" font-size="14" text-anchor="middle">AXI 확장 예정</text>
+<rect x="300" y="48" width="191" height="84" rx="10" fill="#cde7ed" stroke="#6b9fb0"/><text x="396" y="81" font-size="18" text-anchor="middle">Version Probe</text><text x="396" y="106" font-size="13" text-anchor="middle">mfrc522_version_probe</text>
+<rect x="559" y="48" width="204" height="84" rx="10" fill="#c7eadf" stroke="#70ae95"/><text x="661" y="81" font-size="18" text-anchor="middle">SPI Master</text><text x="661" y="106" font-size="13" text-anchor="middle">mfrc522_spi_master</text>
+<rect x="826" y="48" width="163" height="84" rx="10" fill="#f2dfb5" stroke="#c7a06e"/><text x="908" y="81" font-size="18" text-anchor="middle">MFRC522</text><text x="908" y="106" font-size="13" text-anchor="middle">RC522 보드</text>
+<path d="M232 90H300M491 90H559M763 90H826" stroke="#477a9c" stroke-width="3" marker-end="url(#a)" fill="none"/>
+<text x="661" y="159" font-size="13" fill="#29667a" text-anchor="middle">SCK · MOSI · MISO · NSS</text>
+<rect x="300" y="195" width="463" height="65" rx="8" fill="#e9e8f7" stroke="#aaa4cb"/><text x="531" y="220" font-size="15" text-anchor="middle">재사용 가능한 RTL · 보드 비종속</text><text x="531" y="243" font-size="13" text-anchor="middle">Top은 핀 연결만 · RFID 알고리즘은 독립 Controller</text>
+</svg><p><code>mfrc522_version_system.v</code>은 두 독립 모듈을 연결하는 Wrapper이며, 사용자 Top이나 Basys3 핀 이름에 종속되지 않는다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>MFRC522 SPI 전송 규칙</h2>
+<table><tr><th>항목</th><th>기준</th><th>설명</th></tr><tr><td>SPI Mode</td><td>Mode 0</td><td>SCK 유휴 LOW, 상승 에지에서 수신</td></tr><tr><td>전송 방향</td><td>MSB First</td><td>최상위 비트부터 전송</td></tr><tr><td>NSS</td><td>LOW 동안 2바이트 유지</td><td>레지스터 주소 + 데이터/더미</td></tr><tr><td>주소 바이트</td><td><code>{R/W,ADDR[5:0],0}</code></td><td>비트7=읽기1/쓰기0, 비트0=0</td></tr><tr><td>VersionReg</td><td><code>0x37</code></td><td>읽기 주소 바이트 <code>0xEE</code></td></tr><tr><td>예상 Version</td><td><code>0x91</code> 또는 <code>0x92</code></td><td>MFRC522 공식 버전 1.0/2.0 대표값, 호환품에서 다를 수 있음</td></tr><tr><td>SCK 주파수</td><td><code>clk / (2 × CLK_DIV)</code></td><td>100MHz / (2×10) → 5MHz 예시</td></tr></table>
+<p>읽기 1건의 MOSI 전송 예: <code>EE 00</code>. 첫 번째 주소 바이트에서의 MISO 값은 사용하지 않고 두 번째 바이트의 MISO만 수신 데이터로 처리한다. 쓰기는 예를 들어 레지스터 <code>0x14</code>에 <code>0x5A</code>를 쓰면 MOSI는 <code>28 5A</code>가 된다.</p>
+<p>공식 근거: <a href="https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf">NXP MFRC522 데이터시트 — SPI Interface, Address Byte, VersionReg</a>.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>외부 연결과 안전</h2>
+<table><tr><th>RC522 표시</th><th>방향</th><th>Basys3 연결 기준</th></tr><tr><td>3.3V</td><td>전원</td><td>모듈 규격의 3.3V 공급, 핀·전류 용량 확인</td></tr><tr><td>GND</td><td>공통</td><td>Basys3 GND와 연결</td></tr><tr><td>SCK</td><td>FPGA 출력</td><td><code>spi_sck</code></td></tr><tr><td>MOSI</td><td>FPGA 출력</td><td><code>spi_mosi</code></td></tr><tr><td>MISO</td><td>FPGA 입력</td><td><code>spi_miso</code></td></tr><tr><td>SDA/SS</td><td>FPGA 출력</td><td><code>spi_nss</code> (LOW 활성)</td></tr><tr><td>RST</td><td>리셋 입력</td><td>현재 RTL에서 미제어; 실제 보드에선 명시적 리셋 회로/핀 검토</td></tr><tr><td>IRQ</td><td>선택 입력</td><td>후속 UID 읽기/인터럽트 과제에서 정의</td></tr></table>
+<p class="warn">RC522 모듈은 일반적으로 <strong>3.3V 전원·논리</strong>를 사용한다. 5V 출력을 FPGA나 RC522 신호 핀에 직접 입력하지 않는다. 현재 프로젝트는 실제 사용 가능한 Pmod 핀, RST 및 전원 구성을 확인하지 않았으므로 XDC를 임의 확정하지 않는다.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>RTL 동작 구조 및 테스트벤치</h2>
+<p><strong>TX 알고리즘:</strong> ① 사용자 명령 수신 → ② 주소/데이터 16비트 레지스터 로드 → ③ NSS LOW → ④ SCK 상승에서 MISO 수신 → ⑤ SCK 하강에서 MOSI 변경 → ⑥ 총 16비트 전송 → ⑦ NSS HIGH 및 1클록 <code>rsp_valid</code>.</p>
+<p>SPI SCK는 출력 신호로 생성하되 내부 상태 머신은 하나의 FPGA 시스템 클록만 사용한다. 자체 별도 클록 도메인 생성 없이 클록 디바이더 카운터로 시점을 선택한다.</p><details><summary>rtl/mfrc522_spi_master.v — 전체 소스 코드</summary><div class="codeblock"><div class="codebar"><span>rtl/mfrc522_spi_master.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-13 · MFRC522 16-bit SPI register transaction.
+// CPOL=0, CPHA=0, MSB first; CS asserted throughout 2 bytes.
+// CMD handshakes on valid &amp;&amp; ready; done pulses after 16 rising edges.
+// Input clk only, no generated FPGA clock domain. SCK is output GPIO.
+// SPI bit rate = clk / (2 * CLK_DIV). e.g. 100MHz/20 = 5MHz.
+// No RST output, antenna setup or RFID card/UID procedure here.
+module mfrc522_spi_master #(
+    parameter integer CLK_DIV = 10
+)(
+    input wire clk, input wire resetn,
+    input wire cmd_valid, output wire cmd_ready,
+    input wire cmd_read,
+    input wire [5:0] cmd_addr,
+    input wire [7:0] cmd_wdata,
+    output reg [7:0] rsp_rdata,
+    output reg rsp_valid,
+    output reg spi_sck,
+    output reg spi_mosi,
+    input wire spi_miso,
+    output reg spi_nss
+);
+    localparam [1:0] IDLE=0, LOW=1, HIGH=2, FINISH=3;
+    reg [1:0] state;
+    reg [15:0] tx_word;
+    reg [7:0] rx_shift;
+    reg [4:0] bit_pos;
+    reg [31:0] div_count;
+    assign cmd_ready = (state == IDLE);
+
+    always @(posedge clk) begin
+        if (!resetn) begin
+            state &lt;= IDLE; tx_word &lt;= 16'd0; rx_shift &lt;= 8'd0;
+            bit_pos &lt;= 5'd0; div_count &lt;= 32'd0;
+            spi_sck &lt;= 1'b0; spi_mosi &lt;= 1'b0; spi_nss &lt;= 1'b1;
+            rsp_rdata &lt;= 8'd0; rsp_valid &lt;= 1'b0;
+        end else begin
+            rsp_valid &lt;= 1'b0;
+            case (state)
+            IDLE: begin
+                spi_sck &lt;= 1'b0; spi_nss &lt;= 1'b1;
+                if (cmd_valid) begin
+                    // First byte [R/W, six-bit register address, 0].
+                    // For reads: MOSI second byte is dummy 8'h00.
+                    tx_word &lt;= {{cmd_read,cmd_addr,1'b0},
+                                (cmd_read ? 8'h00 : cmd_wdata)};
+                    spi_mosi &lt;= cmd_read; // first outgoing bit
+                    spi_nss &lt;= 1'b0;
+                    bit_pos &lt;= 5'd15; div_count &lt;= 32'd0;
+                    rx_shift &lt;= 8'd0;
+                    state &lt;= LOW;
+                end
+            end
+            LOW: begin
+                // SCK low for CLK_DIV FPGA cycles; MOSI stable before rising edge.
+                if(div_count == CLK_DIV-1) begin
+                    div_count &lt;= 32'd0;
+                    spi_sck &lt;= 1'b1;
+                    if(bit_pos &lt; 5'd8)
+                        rx_shift &lt;= {rx_shift[6:0], spi_miso};
+                    state &lt;= HIGH;
+                end else div_count &lt;= div_count + 32'd1;
+            end
+            HIGH: begin
+                if(div_count == CLK_DIV-1) begin
+                    div_count &lt;= 32'd0;
+                    spi_sck &lt;= 1'b0;
+                    if(bit_pos == 5'd0) begin
+                        state &lt;= FINISH;
+                    end else begin
+                        bit_pos &lt;= bit_pos - 5'd1;
+                        // Advance output bit at falling edge, sample next rising edge.
+                        spi_mosi &lt;= tx_word[bit_pos-5'd1];
+                        state &lt;= LOW;
+                    end
+                end else div_count &lt;= div_count + 32'd1;
+            end
+            FINISH: begin
+                spi_nss &lt;= 1'b1; spi_sck &lt;= 1'b0;
+                rsp_rdata &lt;= rx_shift;
+                rsp_valid &lt;= 1'b1;
+                state &lt;= IDLE;
+            end
+            default: state &lt;= IDLE;
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (87줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-13 · MFRC522 16-bit SPI register transaction.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// CPOL=0, CPHA=0, MSB first; CS asserted throughout 2 bytes.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// CMD handshakes on valid &amp;&amp; ready; done pulses after 16 rising edges.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// Input clk only, no generated FPGA clock domain. SCK is output GPIO.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// SPI bit rate = clk / (2 * CLK_DIV). e.g. 100MHz/20 = 5MHz.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// No RST output, antenna setup or RFID card/UID procedure here.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>module mfrc522_spi_master #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>9</td><td><code>    parameter integer CLK_DIV = 10</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire cmd_valid, output wire cmd_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    input wire cmd_read,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    input wire [5:0] cmd_addr,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire [7:0] cmd_wdata,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    output reg [7:0] rsp_rdata,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    output reg rsp_valid,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    output reg spi_sck,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    output reg spi_mosi,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    input wire spi_miso,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    output reg spi_nss</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    localparam [1:0] IDLE=0, LOW=1, HIGH=2, FINISH=3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>24</td><td><code>    reg [1:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>25</td><td><code>    reg [15:0] tx_word;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>26</td><td><code>    reg [7:0] rx_shift;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>27</td><td><code>    reg [4:0] bit_pos;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>28</td><td><code>    reg [31:0] div_count;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>29</td><td><code>    assign cmd_ready = (state == IDLE);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>31</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>32</td><td><code>        if (!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>33</td><td><code>            state &lt;= IDLE; tx_word &lt;= 16'd0; rx_shift &lt;= 8'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>34</td><td><code>            bit_pos &lt;= 5'd0; div_count &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>35</td><td><code>            spi_sck &lt;= 1'b0; spi_mosi &lt;= 1'b0; spi_nss &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>36</td><td><code>            rsp_rdata &lt;= 8'd0; rsp_valid &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>37</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>38</td><td><code>            rsp_valid &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>39</td><td><code>            case (state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>40</td><td><code>            IDLE: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>41</td><td><code>                spi_sck &lt;= 1'b0; spi_nss &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>42</td><td><code>                if (cmd_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>43</td><td><code>                    // First byte [R/W, six-bit register address, 0].</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>44</td><td><code>                    // For reads: MOSI second byte is dummy 8'h00.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>45</td><td><code>                    tx_word &lt;= {{cmd_read,cmd_addr,1'b0},</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>                                (cmd_read ? 8'h00 : cmd_wdata)};</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>47</td><td><code>                    spi_mosi &lt;= cmd_read; // first outgoing bit</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>48</td><td><code>                    spi_nss &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>49</td><td><code>                    bit_pos &lt;= 5'd15; div_count &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>50</td><td><code>                    rx_shift &lt;= 8'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>51</td><td><code>                    state &lt;= LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>52</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>54</td><td><code>            LOW: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>55</td><td><code>                // SCK low for CLK_DIV FPGA cycles; MOSI stable before rising edge.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>56</td><td><code>                if(div_count == CLK_DIV-1) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>57</td><td><code>                    div_count &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>58</td><td><code>                    spi_sck &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>59</td><td><code>                    if(bit_pos &lt; 5'd8)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>60</td><td><code>                        rx_shift &lt;= {rx_shift[6:0], spi_miso};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>61</td><td><code>                    state &lt;= HIGH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>62</td><td><code>                end else div_count &lt;= div_count + 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>63</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>64</td><td><code>            HIGH: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>65</td><td><code>                if(div_count == CLK_DIV-1) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>66</td><td><code>                    div_count &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>67</td><td><code>                    spi_sck &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>68</td><td><code>                    if(bit_pos == 5'd0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>69</td><td><code>                        state &lt;= FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>70</td><td><code>                    end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>71</td><td><code>                        bit_pos &lt;= bit_pos - 5'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>72</td><td><code>                        // Advance output bit at falling edge, sample next rising edge.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>73</td><td><code>                        spi_mosi &lt;= tx_word[bit_pos-5'd1];</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>74</td><td><code>                        state &lt;= LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>75</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>76</td><td><code>                end else div_count &lt;= div_count + 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>            FINISH: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>79</td><td><code>                spi_nss &lt;= 1'b1; spi_sck &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>                rsp_rdata &lt;= rx_shift;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>                rsp_valid &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>82</td><td><code>                state &lt;= IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>83</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>84</td><td><code>            default: state &lt;= IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>85</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>86</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>87</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>88</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/mfrc522_version_probe.v — 전체 소스 코드</summary><div class="codeblock"><div class="codebar"><span>rtl/mfrc522_version_probe.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-13 · VersionReg(0x37) read once per request, independent controller.
+// No card detection or UID authentication performed by this module.
+module mfrc522_version_probe (
+    input wire clk, input wire resetn,
+    input wire start_pulse,
+    output reg [7:0] version,
+    output reg done_pulse, output reg busy,
+    output wire cmd_valid, input wire cmd_ready,
+    output wire cmd_read, output wire [5:0] cmd_addr,
+    output wire [7:0] cmd_wdata,
+    input wire [7:0] rsp_rdata, input wire rsp_valid
+);
+    localparam [1:0] WAIT=0, SEND=1, RESPONSE=2;
+    reg [1:0] state;
+    assign cmd_valid=(state == SEND);
+    assign cmd_read=1'b1;
+    assign cmd_addr=6'h37;
+    assign cmd_wdata=8'h00;
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=WAIT; version&lt;=8'd0; done_pulse&lt;=0; busy&lt;=0;
+        end else begin
+            done_pulse&lt;=0;
+            case(state)
+            WAIT: if(start_pulse) begin busy&lt;=1; state&lt;=SEND; end
+            SEND: if(cmd_ready) state&lt;=RESPONSE;
+            RESPONSE: if(rsp_valid) begin
+                version&lt;=rsp_rdata; done_pulse&lt;=1; busy&lt;=0; state&lt;=WAIT;
+            end
+            default: begin state&lt;=WAIT;busy&lt;=0;end
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (35줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-13 · VersionReg(0x37) read once per request, independent controller.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// No card detection or UID authentication performed by this module.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>module mfrc522_version_probe (</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>5</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>6</td><td><code>    input wire start_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>7</td><td><code>    output reg [7:0] version,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>8</td><td><code>    output reg done_pulse, output reg busy,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>9</td><td><code>    output wire cmd_valid, input wire cmd_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>10</td><td><code>    output wire cmd_read, output wire [5:0] cmd_addr,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    output wire [7:0] cmd_wdata,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire [7:0] rsp_rdata, input wire rsp_valid</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    localparam [1:0] WAIT=0, SEND=1, RESPONSE=2;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    reg [1:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>16</td><td><code>    assign cmd_valid=(state == SEND);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>17</td><td><code>    assign cmd_read=1'b1;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>18</td><td><code>    assign cmd_addr=6'h37;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>19</td><td><code>    assign cmd_wdata=8'h00;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>20</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>21</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>22</td><td><code>            state&lt;=WAIT; version&lt;=8'd0; done_pulse&lt;=0; busy&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>23</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>24</td><td><code>            done_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>25</td><td><code>            case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>26</td><td><code>            WAIT: if(start_pulse) begin busy&lt;=1; state&lt;=SEND; end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>27</td><td><code>            SEND: if(cmd_ready) state&lt;=RESPONSE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>28</td><td><code>            RESPONSE: if(rsp_valid) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>29</td><td><code>                version&lt;=rsp_rdata; done_pulse&lt;=1; busy&lt;=0; state&lt;=WAIT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>30</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>31</td><td><code>            default: begin state&lt;=WAIT;busy&lt;=0;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>32</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>33</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>34</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>35</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/mfrc522_version_system.v — 전체 소스 코드</summary><div class="codeblock"><div class="codebar"><span>rtl/mfrc522_version_system.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-13: reusable SPI + VersionReg probe subsystem.
+// Board-independent: no pin mapping, buttons, LED policy in this module.
+// start_pulse synchronously starts VersionReg(0x37) read.
+module mfrc522_version_system #(
+    parameter integer CLK_DIV=10
+)(
+    input wire clk, input wire resetn, input wire start_pulse,
+    output wire spi_sck, output wire spi_mosi,
+    input wire spi_miso, output wire spi_nss,
+    output wire [7:0] version,
+    output wire done_pulse, output wire busy
+);
+    wire cmd_valid,cmd_ready,cmd_read,rsp_valid;
+    wire [5:0] cmd_addr;
+    wire [7:0] cmd_wdata,rsp_rdata;
+    mfrc522_version_probe u_probe(
+        .clk(clk),.resetn(resetn),.start_pulse(start_pulse),
+        .version(version),.done_pulse(done_pulse),.busy(busy),
+        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),
+        .cmd_read(cmd_read),.cmd_addr(cmd_addr),.cmd_wdata(cmd_wdata),
+        .rsp_rdata(rsp_rdata),.rsp_valid(rsp_valid)
+    );
+    mfrc522_spi_master #(.CLK_DIV(CLK_DIV)) u_spi(
+        .clk(clk),.resetn(resetn),
+        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),
+        .cmd_read(cmd_read),.cmd_addr(cmd_addr),.cmd_wdata(cmd_wdata),
+        .rsp_rdata(rsp_rdata),.rsp_valid(rsp_valid),
+        .spi_sck(spi_sck),.spi_mosi(spi_mosi),
+        .spi_miso(spi_miso),.spi_nss(spi_nss)
+    );
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (32줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-13: reusable SPI + VersionReg probe subsystem.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Board-independent: no pin mapping, buttons, LED policy in this module.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// start_pulse synchronously starts VersionReg(0x37) read.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>module mfrc522_version_system #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>6</td><td><code>    parameter integer CLK_DIV=10</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>    input wire clk, input wire resetn, input wire start_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>9</td><td><code>    output wire spi_sck, output wire spi_mosi,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>10</td><td><code>    input wire spi_miso, output wire spi_nss,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    output wire [7:0] version,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    output wire done_pulse, output wire busy</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    wire cmd_valid,cmd_ready,cmd_read,rsp_valid;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>    wire [5:0] cmd_addr;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>16</td><td><code>    wire [7:0] cmd_wdata,rsp_rdata;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>17</td><td><code>    mfrc522_version_probe u_probe(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>        .clk(clk),.resetn(resetn),.start_pulse(start_pulse),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .version(version),.done_pulse(done_pulse),.busy(busy),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .cmd_read(cmd_read),.cmd_addr(cmd_addr),.cmd_wdata(cmd_wdata),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>        .rsp_rdata(rsp_rdata),.rsp_valid(rsp_valid)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>23</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>    mfrc522_spi_master #(.CLK_DIV(CLK_DIV)) u_spi(</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>27</td><td><code>        .cmd_read(cmd_read),.cmd_addr(cmd_addr),.cmd_wdata(cmd_wdata),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>28</td><td><code>        .rsp_rdata(rsp_rdata),.rsp_valid(rsp_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>29</td><td><code>        .spi_sck(spi_sck),.spi_mosi(spi_mosi),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>30</td><td><code>        .spi_miso(spi_miso),.spi_nss(spi_nss)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>31</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>32</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_mfrc522_spi_master.v — 전체 소스 코드</summary><div class="codeblock"><div class="codebar"><span>tests/tb_mfrc522_spi_master.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+module tb_mfrc522_spi_master;
+    reg clk=0; always #5 clk=~clk;
+    reg resetn=0,cmd_valid=0,cmd_read=0;
+    reg [5:0] addr=0;
+    reg [7:0] wdata=0;
+    wire cmd_ready,rsp_valid,sck,mosi,nss;
+    wire [7:0] rdata;
+    reg miso=0;
+    reg [15:0] actual_tx;
+    reg [15:0] response_pattern=16'h00A5;
+    integer rise_count;
+    integer done_count=0;
+    mfrc522_spi_master #(.CLK_DIV(3)) dut(
+        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),
+        .cmd_ready(cmd_ready),.cmd_read(cmd_read),.cmd_addr(addr),
+        .cmd_wdata(wdata),.rsp_rdata(rdata),.rsp_valid(rsp_valid),
+        .spi_sck(sck),.spi_mosi(mosi),.spi_miso(miso),.spi_nss(nss)
+    );
+    // Slave prepares MISO on falling edge; first response bit already
+    // present before first rising edge (first byte discarded by master).
+    always @(negedge sck) begin
+        if (!nss &amp;&amp; rise_count &lt; 16)
+            miso = response_pattern[15-rise_count];
+    end
+    always @(posedge sck) begin
+        if(nss) $fatal(1,"NSS not low during SCK");
+        actual_tx[15-rise_count]=mosi;
+        rise_count=rise_count+1;
+    end
+    always @(posedge rsp_valid) begin
+        done_count=done_count+1;
+        if(!nss || sck) $fatal(1,"response while bus active");
+    end
+    task transmit;
+        input rd;
+        input [5:0] address;
+        input [7:0] data;
+        input [15:0] expect_tx;
+        input [7:0] expect_rx;
+        begin
+            @(negedge clk);
+            cmd_read=rd;addr=address;wdata=data;cmd_valid=1;
+            rise_count=0;actual_tx=0;
+            response_pattern={8'h00,expect_rx};
+            miso=0;
+            @(negedge clk);cmd_valid=0;
+            wait(rsp_valid);
+            #1;
+            if(rise_count!=16) $fatal(1,"expected 16 SCK rising edges, got %0d",rise_count);
+            if(actual_tx !== expect_tx)
+                $fatal(1,"MOSI expected=%04h got=%04h",expect_tx,actual_tx);
+            if(rdata !== expect_rx)
+                $fatal(1,"MISO expected=%02h got=%02h",expect_rx,rdata);
+            @(negedge clk);
+            if(!cmd_ready || !nss) $fatal(1,"not idle after response");
+        end
+    endtask
+    initial begin
+        repeat(3) @(negedge clk);resetn=1;
+        if(nss!==1 || sck!==0) $fatal(1,"idle polarity");
+        // Read VersionReg 0x37 → address byte EE, dummy 00.
+        transmit(1,6'h37,8'hcc,16'hEE00,8'h92);
+        $display("P2_13_SPI_VERSION_REGISTER_READ PASS");
+        // Write arbitrary test register 0x14: addr=0x28, value=0x5A.
+        transmit(0,6'h14,8'h5A,16'h285A,8'hA5);
+        $display("P2_13_SPI_REGISTER_WRITE PASS");
+        // Busy command request must be ignored.
+        if(done_count!=2) $fatal(1,"unexpected extra response");
+        $display("P2_13_SPI_MASTER_RTL PASS");
+        $finish;
+    end
+    initial begin #200000; $fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (74줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>module tb_mfrc522_spi_master;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>3</td><td><code>    reg clk=0; always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>4</td><td><code>    reg resetn=0,cmd_valid=0,cmd_read=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>5</td><td><code>    reg [5:0] addr=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg [7:0] wdata=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire cmd_ready,rsp_valid,sck,mosi,nss;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    wire [7:0] rdata;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    reg miso=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    reg [15:0] actual_tx;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    reg [15:0] response_pattern=16'h00A5;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    integer rise_count;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>    integer done_count=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>    mfrc522_spi_master #(.CLK_DIV(3)) dut(</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>15</td><td><code>        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>16</td><td><code>        .cmd_ready(cmd_ready),.cmd_read(cmd_read),.cmd_addr(addr),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .cmd_wdata(wdata),.rsp_rdata(rdata),.rsp_valid(rsp_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .spi_sck(sck),.spi_mosi(mosi),.spi_miso(miso),.spi_nss(nss)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>20</td><td><code>    // Slave prepares MISO on falling edge; first response bit already</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>21</td><td><code>    // present before first rising edge (first byte discarded by master).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>22</td><td><code>    always @(negedge sck) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>23</td><td><code>        if (!nss &amp;&amp; rise_count &lt; 16)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>24</td><td><code>            miso = response_pattern[15-rise_count];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>25</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>26</td><td><code>    always @(posedge sck) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>27</td><td><code>        if(nss) $fatal(1,&quot;NSS not low during SCK&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>28</td><td><code>        actual_tx[15-rise_count]=mosi;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>        rise_count=rise_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>31</td><td><code>    always @(posedge rsp_valid) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>32</td><td><code>        done_count=done_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>        if(!nss || sck) $fatal(1,&quot;response while bus active&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>34</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>35</td><td><code>    task transmit;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>36</td><td><code>        input rd;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>37</td><td><code>        input [5:0] address;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>38</td><td><code>        input [7:0] data;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>39</td><td><code>        input [15:0] expect_tx;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>40</td><td><code>        input [7:0] expect_rx;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>41</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>42</td><td><code>            @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>43</td><td><code>            cmd_read=rd;addr=address;wdata=data;cmd_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>            rise_count=0;actual_tx=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>            response_pattern={8'h00,expect_rx};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>            miso=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>            @(negedge clk);cmd_valid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>            wait(rsp_valid);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>49</td><td><code>            #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>            if(rise_count!=16) $fatal(1,&quot;expected 16 SCK rising edges, got %0d&quot;,rise_count);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>51</td><td><code>            if(actual_tx !== expect_tx)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>52</td><td><code>                $fatal(1,&quot;MOSI expected=%04h got=%04h&quot;,expect_tx,actual_tx);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>53</td><td><code>            if(rdata !== expect_rx)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>54</td><td><code>                $fatal(1,&quot;MISO expected=%02h got=%02h&quot;,expect_rx,rdata);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>55</td><td><code>            @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>56</td><td><code>            if(!cmd_ready || !nss) $fatal(1,&quot;not idle after response&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>57</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>58</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>60</td><td><code>        repeat(3) @(negedge clk);resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>        if(nss!==1 || sck!==0) $fatal(1,&quot;idle polarity&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>62</td><td><code>        // Read VersionReg 0x37 → address byte EE, dummy 00.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>63</td><td><code>        transmit(1,6'h37,8'hcc,16'hEE00,8'h92);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>64</td><td><code>        $display(&quot;P2_13_SPI_VERSION_REGISTER_READ PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>65</td><td><code>        // Write arbitrary test register 0x14: addr=0x28, value=0x5A.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>66</td><td><code>        transmit(0,6'h14,8'h5A,16'h285A,8'hA5);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>67</td><td><code>        $display(&quot;P2_13_SPI_REGISTER_WRITE PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>68</td><td><code>        // Busy command request must be ignored.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>69</td><td><code>        if(done_count!=2) $fatal(1,&quot;unexpected extra response&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>70</td><td><code>        $display(&quot;P2_13_SPI_MASTER_RTL PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>71</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>73</td><td><code>    initial begin #200000; $fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>74</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_mfrc522_version_system.v — 전체 소스 코드</summary><div class="codeblock"><div class="codebar"><span>tests/tb_mfrc522_version_system.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// Full register-level path: start → probe → SPI master → modeled MFRC522.
+module tb_mfrc522_version_system;
+    reg clk=0; always #5 clk=~clk;
+    reg resetn=0,start=0,miso=0;
+    wire sck,mosi,nss,done,busy;
+    wire [7:0] version;
+    reg [15:0] observed=16'd0;
+    integer bit_count=0;
+    integer transactions=0;
+    mfrc522_version_system #(.CLK_DIV(4)) dut(
+        .clk(clk),.resetn(resetn),.start_pulse(start),
+        .spi_sck(sck),.spi_mosi(mosi),.spi_miso(miso),.spi_nss(nss),
+        .version(version),.done_pulse(done),.busy(busy)
+    );
+    // Fake MFRC522 VersionReg responds 0x92; status byte ignored.
+    always @(negedge sck)
+        if(!nss &amp;&amp; bit_count&lt;16)
+            miso = (16'h0092 &gt;&gt; (15-bit_count)) &amp; 1'b1;
+    always @(posedge sck) begin
+        observed[15-bit_count]=mosi;
+        bit_count=bit_count+1;
+    end
+    always @(posedge nss) begin
+        if (bit_count==16) transactions=transactions+1;
+    end
+    initial begin
+        repeat(4) @(negedge clk); resetn=1;
+        @(negedge clk);start=1;
+        @(negedge clk);start=0;
+        wait(done); #1;
+        if(version!==8'h92) $fatal(1,"expected VersionReg 92, got %02x",version);
+        if(observed!==16'hee00) $fatal(1,"expected EE00 MOSI, got %04x",observed);
+        if(busy!==0 || nss!==1) $fatal(1,"busy/nss not released");
+        if(transactions!=1 || bit_count!=16) $fatal(1,"expected one transaction");
+        $display("P2_13_VERSION_PROBE_SYSTEM PASS");
+        $finish;
+    end
+    initial begin #300000;$fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (40줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// Full register-level path: start → probe → SPI master → modeled MFRC522.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>module tb_mfrc522_version_system;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>4</td><td><code>    reg clk=0; always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>5</td><td><code>    reg resetn=0,start=0,miso=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    wire sck,mosi,nss,done,busy;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire [7:0] version;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    reg [15:0] observed=16'd0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    integer bit_count=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    integer transactions=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    mfrc522_version_system #(.CLK_DIV(4)) dut(</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>12</td><td><code>        .clk(clk),.resetn(resetn),.start_pulse(start),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>13</td><td><code>        .spi_sck(sck),.spi_mosi(mosi),.spi_miso(miso),.spi_nss(nss),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>14</td><td><code>        .version(version),.done_pulse(done),.busy(busy)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>15</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    // Fake MFRC522 VersionReg responds 0x92; status byte ignored.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>17</td><td><code>    always @(negedge sck)</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>18</td><td><code>        if(!nss &amp;&amp; bit_count&lt;16)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>19</td><td><code>            miso = (16'h0092 &gt;&gt; (15-bit_count)) &amp; 1'b1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    always @(posedge sck) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>21</td><td><code>        observed[15-bit_count]=mosi;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>        bit_count=bit_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>23</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>24</td><td><code>    always @(posedge nss) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>25</td><td><code>        if (bit_count==16) transactions=transactions+1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>26</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>27</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>28</td><td><code>        repeat(4) @(negedge clk); resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>        @(negedge clk);start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>        @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>31</td><td><code>        wait(done); #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>32</td><td><code>        if(version!==8'h92) $fatal(1,&quot;expected VersionReg 92, got %02x&quot;,version);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>33</td><td><code>        if(observed!==16'hee00) $fatal(1,&quot;expected EE00 MOSI, got %04x&quot;,observed);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>34</td><td><code>        if(busy!==0 || nss!==1) $fatal(1,&quot;busy/nss not released&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>35</td><td><code>        if(transactions!=1 || bit_count!=16) $fatal(1,&quot;expected one transaction&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>36</td><td><code>        $display(&quot;P2_13_VERSION_PROBE_SYSTEM PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>37</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>38</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>39</td><td><code>    initial begin #300000;$fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>40</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>13.3 제한형 4바이트 UID 프로토콜 C 실습</h3><p>MFRC522 추상 Register I/O를 통해 <code>REQA → ATQA → 0x93 0x20 Anticollision → UID[4] + BCC</code>를 구현한다. C 호스트 테스트는 가짜 칩 모델에서 UID, BCC 오류, 충돌 확장 바이트(0x88), 응답 타임아웃을 검증한다. <strong>이 코드는 아직 실제 FPGA·카드와 연결되어 있지 않으며, 카드 선택(SELECT)·7/10바이트 UID·다중 카드 충돌 복구는 구현하지 않았다.</strong></p><details><summary>sw/mfrc522_picc.h — 전체 코드</summary><div class="codeblock"><div class="codebar"><span>sw/mfrc522_picc.h · C · 소스 원문</span></div><pre><code>#ifndef P2_13_MFRC522_PICC_H
+#define P2_13_MFRC522_PICC_H
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+
+// 보드에 종속되지 않는 Register I/O 추상 인터페이스.
+// 반환: 0 = 성공, 0이 아니면 SPI/버스 접근 오류.
+typedef int (*rc522_read_fn)(void *ctx, uint8_t reg, uint8_t *value);
+typedef int (*rc522_write_fn)(void *ctx, uint8_t reg, uint8_t value);
+typedef struct {
+    void *ctx;
+    rc522_read_fn read;
+    rc522_write_fn write;
+} rc522_bus_t;
+
+typedef enum {
+    RC522_OK = 0,
+    RC522_IO_ERROR = -1,
+    RC522_TIMEOUT = -2,
+    RC522_PROTOCOL_ERROR = -3,
+    RC522_COLLISION = -4,
+    RC522_UNSUPPORTED_UID = -5
+} rc522_status_t;
+
+// MFRC522 전원이 켜져 있고 Mode/Timer/TxControl 초기화가 끝난 상태에서만.
+// REQA(7-bit) → ATQA(2B) → CL1 Anticollision(5B UID/BCC).
+// 오직 충돌 없는 단일 4바이트 UID 카드 대상으로 실습.
+rc522_status_t rc522_read_uid4(const rc522_bus_t *bus, uint8_t uid[4],
+                                uint8_t atqa[2], uint32_t max_polls);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (27줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_13_MFRC522_PICC_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_13_MFRC522_PICC_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &lt;stddef.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>6</td><td><code>// 보드에 종속되지 않는 Register I/O 추상 인터페이스.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// 반환: 0 = 성공, 0이 아니면 SPI/버스 접근 오류.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>typedef int (*rc522_read_fn)(void *ctx, uint8_t reg, uint8_t *value);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>typedef int (*rc522_write_fn)(void *ctx, uint8_t reg, uint8_t value);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    void *ctx;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    rc522_read_fn read;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>    rc522_write_fn write;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>} rc522_bus_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>typedef enum {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>    RC522_OK = 0,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>    RC522_IO_ERROR = -1,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    RC522_TIMEOUT = -2,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    RC522_PROTOCOL_ERROR = -3,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    RC522_COLLISION = -4,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>    RC522_UNSUPPORTED_UID = -5</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>23</td><td><code>} rc522_status_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>25</td><td><code>// MFRC522 전원이 켜져 있고 Mode/Timer/TxControl 초기화가 끝난 상태에서만.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>26</td><td><code>// REQA(7-bit) → ATQA(2B) → CL1 Anticollision(5B UID/BCC).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>27</td><td><code>// 오직 충돌 없는 단일 4바이트 UID 카드 대상으로 실습.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>28</td><td><code>rc522_status_t rc522_read_uid4(const rc522_bus_t *bus, uint8_t uid[4],</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>                                uint8_t atqa[2], uint32_t max_polls);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>30</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/mfrc522_picc.c — 전체 코드</summary><div class="codeblock"><div class="codebar"><span>sw/mfrc522_picc.c · C · 소스 원문</span></div><pre><code>#include "mfrc522_picc.h"
+// NXP MFRC522 Rev 3.9 Register Addresses.
+enum {
+    CommandReg=0x01, ComIrqReg=0x04, ErrorReg=0x06,
+    FIFODataReg=0x09, FIFOLevelReg=0x0A,
+    ControlReg=0x0C, BitFramingReg=0x0D
+};
+// PCD_Idle=0x00, PCD_Transceive=0x0C; StartSend bit7.
+static rc522_status_t write_reg(const rc522_bus_t *bus,uint8_t reg,uint8_t val)
+{
+    return bus-&gt;write(bus-&gt;ctx,reg,val)==0 ? RC522_OK : RC522_IO_ERROR;
+}
+static rc522_status_t read_reg(const rc522_bus_t *bus,uint8_t reg,uint8_t *val)
+{
+    return bus-&gt;read(bus-&gt;ctx,reg,val)==0 ? RC522_OK : RC522_IO_ERROR;
+}
+
+static rc522_status_t transceive(const rc522_bus_t *bus,
+    const uint8_t *tx,size_t tx_len,uint8_t tx_last_bits,
+    uint8_t *rx,size_t expected_len,uint32_t max_polls)
+{
+    uint8_t irq,err,level,last_bits,byte;
+    size_t i;
+    uint32_t tries;
+    rc522_status_t rc;
+    if(tx_len==0 || tx_len&gt;64 || expected_len==0 || expected_len&gt;64 ||
+       max_polls==0 || tx_last_bits&gt;7) return RC522_PROTOCOL_ERROR;
+#define WR(REG,VALUE) do { rc=write_reg(bus,(REG),(VALUE)); if(rc) return rc; } while(0)
+#define RD(REG,VALUE) do { rc=read_reg(bus,(REG),(VALUE)); if(rc) return rc; } while(0)
+    WR(CommandReg,0x00);       // Idle
+    WR(ComIrqReg,0x7F);        // Clear pending IRQ
+    WR(FIFOLevelReg,0x80);     // Flush FIFO
+    for(i=0;i&lt;tx_len;i++) WR(FIFODataReg,tx[i]);
+    WR(BitFramingReg,tx_last_bits); // BitFramingReg.TxLastBits
+    WR(CommandReg,0x0C);      // Transceive
+    WR(BitFramingReg,(uint8_t)(0x80u|tx_last_bits)); // StartSend
+
+    irq=0;
+    for(tries=0;tries&lt;max_polls;tries++) {
+        RD(ComIrqReg,&amp;irq);
+        if(irq &amp; 0x30) break;    // RxIrq / IdleIrq
+        if(irq &amp; 0x01) break;    // TimerIrq
+    }
+    // Clear StartSend after device completion or timeout.
+    WR(BitFramingReg,tx_last_bits);
+    if(tries==max_polls || (irq &amp; 0x01)) return RC522_TIMEOUT;
+    RD(ErrorReg,&amp;err);
+    if(err &amp; 0x08) return RC522_COLLISION;
+    if(err &amp; 0x13) return RC522_PROTOCOL_ERROR;
+    RD(FIFOLevelReg,&amp;level);
+    RD(ControlReg,&amp;last_bits);
+    if(level!=expected_len || (last_bits &amp; 0x07)!=0)
+        return RC522_PROTOCOL_ERROR;
+    for(i=0;i&lt;expected_len;i++) {
+        RD(FIFODataReg,&amp;byte);
+        rx[i]=byte;
+    }
+#undef WR
+#undef RD
+    return RC522_OK;
+}
+rc522_status_t rc522_read_uid4(const rc522_bus_t *bus,uint8_t uid[4],
+                                uint8_t atqa[2],uint32_t max_polls)
+{
+    const uint8_t reqa=0x26;
+    const uint8_t anticoll[2]={0x93,0x20};
+    uint8_t answer[5];
+    uint8_t bcc;
+    rc522_status_t result;
+    if(!bus || !bus-&gt;read || !bus-&gt;write || !uid || !atqa)
+        return RC522_PROTOCOL_ERROR;
+    result=transceive(bus,&amp;reqa,1,7,atqa,2,max_polls);
+    if(result!=RC522_OK) return result;
+    result=transceive(bus,anticoll,2,0,answer,5,max_polls);
+    if(result!=RC522_OK) return result;
+    // 0x88 Cascade Tag: UID is 7/10 bytes; not supported in this lesson.
+    if(answer[0]==0x88) return RC522_UNSUPPORTED_UID;
+    bcc=(uint8_t)(answer[0]^answer[1]^answer[2]^answer[3]);
+    if(bcc!=answer[4]) return RC522_PROTOCOL_ERROR;
+    for(size_t i=0;i&lt;4;i++) uid[i]=answer[i];
+    return RC522_OK;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 7 (80줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;mfrc522_picc.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>// NXP MFRC522 Rev 3.9 Register Addresses.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>enum {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>4</td><td><code>    CommandReg=0x01, ComIrqReg=0x04, ErrorReg=0x06,</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>5</td><td><code>    FIFODataReg=0x09, FIFOLevelReg=0x0A,</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>6</td><td><code>    ControlReg=0x0C, BitFramingReg=0x0D</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>7</td><td><code>};</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>// PCD_Idle=0x00, PCD_Transceive=0x0C; StartSend bit7.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>static rc522_status_t write_reg(const rc522_bus_t *bus,uint8_t reg,uint8_t val)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>11</td><td><code>    return bus-&gt;write(bus-&gt;ctx,reg,val)==0 ? RC522_OK : RC522_IO_ERROR;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>12</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>13</td><td><code>static rc522_status_t read_reg(const rc522_bus_t *bus,uint8_t reg,uint8_t *val)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>15</td><td><code>    return bus-&gt;read(bus-&gt;ctx,reg,val)==0 ? RC522_OK : RC522_IO_ERROR;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>16</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>18</td><td><code>static rc522_status_t transceive(const rc522_bus_t *bus,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    const uint8_t *tx,size_t tx_len,uint8_t tx_last_bits,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    uint8_t *rx,size_t expected_len,uint32_t max_polls)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>22</td><td><code>    uint8_t irq,err,level,last_bits,byte;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    size_t i;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>    uint32_t tries;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>25</td><td><code>    rc522_status_t rc;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>26</td><td><code>    if(tx_len==0 || tx_len&gt;64 || expected_len==0 || expected_len&gt;64 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>27</td><td><code>       max_polls==0 || tx_last_bits&gt;7) return RC522_PROTOCOL_ERROR;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>#define WR(REG,VALUE) do { rc=write_reg(bus,(REG),(VALUE)); if(rc) return rc; } while(0)</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>29</td><td><code>#define RD(REG,VALUE) do { rc=read_reg(bus,(REG),(VALUE)); if(rc) return rc; } while(0)</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>30</td><td><code>    WR(CommandReg,0x00);       // Idle</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>31</td><td><code>    WR(ComIrqReg,0x7F);        // Clear pending IRQ</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>32</td><td><code>    WR(FIFOLevelReg,0x80);     // Flush FIFO</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>33</td><td><code>    for(i=0;i&lt;tx_len;i++) WR(FIFODataReg,tx[i]);</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>34</td><td><code>    WR(BitFramingReg,tx_last_bits); // BitFramingReg.TxLastBits</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>    WR(CommandReg,0x0C);      // Transceive</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>36</td><td><code>    WR(BitFramingReg,(uint8_t)(0x80u|tx_last_bits)); // StartSend</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>38</td><td><code>    irq=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>39</td><td><code>    for(tries=0;tries&lt;max_polls;tries++) {</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>40</td><td><code>        RD(ComIrqReg,&amp;irq);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>41</td><td><code>        if(irq &amp; 0x30) break;    // RxIrq / IdleIrq</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>42</td><td><code>        if(irq &amp; 0x01) break;    // TimerIrq</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>43</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>44</td><td><code>    // Clear StartSend after device completion or timeout.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>45</td><td><code>    WR(BitFramingReg,tx_last_bits);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>46</td><td><code>    if(tries==max_polls || (irq &amp; 0x01)) return RC522_TIMEOUT;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>47</td><td><code>    RD(ErrorReg,&amp;err);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>    if(err &amp; 0x08) return RC522_COLLISION;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>49</td><td><code>    if(err &amp; 0x13) return RC522_PROTOCOL_ERROR;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>50</td><td><code>    RD(FIFOLevelReg,&amp;level);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>51</td><td><code>    RD(ControlReg,&amp;last_bits);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>52</td><td><code>    if(level!=expected_len || (last_bits &amp; 0x07)!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>53</td><td><code>        return RC522_PROTOCOL_ERROR;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>54</td><td><code>    for(i=0;i&lt;expected_len;i++) {</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>55</td><td><code>        RD(FIFODataReg,&amp;byte);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>        rx[i]=byte;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>57</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>58</td><td><code>#undef WR</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>#undef RD</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>60</td><td><code>    return RC522_OK;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>61</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>62</td><td><code>rc522_status_t rc522_read_uid4(const rc522_bus_t *bus,uint8_t uid[4],</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>63</td><td><code>                                uint8_t atqa[2],uint32_t max_polls)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>64</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>    const uint8_t reqa=0x26;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>66</td><td><code>    const uint8_t anticoll[2]={0x93,0x20};</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>67</td><td><code>    uint8_t answer[5];</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>68</td><td><code>    uint8_t bcc;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>69</td><td><code>    rc522_status_t result;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>70</td><td><code>    if(!bus || !bus-&gt;read || !bus-&gt;write || !uid || !atqa)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>71</td><td><code>        return RC522_PROTOCOL_ERROR;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>72</td><td><code>    result=transceive(bus,&amp;reqa,1,7,atqa,2,max_polls);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>73</td><td><code>    if(result!=RC522_OK) return result;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>74</td><td><code>    result=transceive(bus,anticoll,2,0,answer,5,max_polls);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>75</td><td><code>    if(result!=RC522_OK) return result;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>76</td><td><code>    // 0x88 Cascade Tag: UID is 7/10 bytes; not supported in this lesson.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>77</td><td><code>    if(answer[0]==0x88) return RC522_UNSUPPORTED_UID;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>78</td><td><code>    bcc=(uint8_t)(answer[0]^answer[1]^answer[2]^answer[3]);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>79</td><td><code>    if(bcc!=answer[4]) return RC522_PROTOCOL_ERROR;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>80</td><td><code>    for(size_t i=0;i&lt;4;i++) uid[i]=answer[i];</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>81</td><td><code>    return RC522_OK;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>82</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/test_mfrc522_picc.c — 전체 코드</summary><div class="codeblock"><div class="codebar"><span>tests/test_mfrc522_picc.c · C · 소스 원문</span></div><pre><code>#include "../sw/mfrc522_picc.h"
+#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+// Fake MFRC522 register device. This tests command flow and BCC,
+// NOT real RF link timing or analog antenna behavior.
+typedef struct {
+    uint8_t regs[64];
+    uint8_t fifo_tx[64],fifo_rx[64],tx_len,rx_len,rx_pos;
+    uint8_t bcc_fail, uid_cascade, no_card;
+    unsigned transceive_count;
+} fake_t;
+static int wr(void *context,uint8_t reg,uint8_t value)
+{
+    fake_t *m=(fake_t*)context;
+    if(reg&gt;=64) return -1;
+    m-&gt;regs[reg]=value;
+    if(reg==0x0A &amp;&amp; (value &amp; 0x80)) {
+        m-&gt;tx_len=0;m-&gt;rx_len=0;m-&gt;rx_pos=0;
+    } else if(reg==0x09) {
+        if(m-&gt;tx_len&gt;=64) return -1;
+        m-&gt;fifo_tx[m-&gt;tx_len++]=value;
+    } else if(reg==0x01 &amp;&amp; value==0x0C) {
+        m-&gt;transceive_count++;
+        m-&gt;regs[0x04]=0;
+        if(m-&gt;no_card) return 0;
+        if(m-&gt;tx_len==1 &amp;&amp; m-&gt;fifo_tx[0]==0x26) {
+            m-&gt;fifo_rx[0]=0x04;m-&gt;fifo_rx[1]=0x00;
+            m-&gt;rx_len=2;m-&gt;regs[0x04]=0x30;
+        } else if(m-&gt;tx_len==2 &amp;&amp; m-&gt;fifo_tx[0]==0x93 &amp;&amp;
+                  m-&gt;fifo_tx[1]==0x20) {
+            m-&gt;fifo_rx[0]=m-&gt;uid_cascade ? 0x88 : 0x12;
+            m-&gt;fifo_rx[1]=0x34;m-&gt;fifo_rx[2]=0x56;m-&gt;fifo_rx[3]=0x78;
+            m-&gt;fifo_rx[4]=m-&gt;fifo_rx[0]^m-&gt;fifo_rx[1]^
+                           m-&gt;fifo_rx[2]^m-&gt;fifo_rx[3];
+            if(m-&gt;bcc_fail) m-&gt;fifo_rx[4]^=0x01;
+            m-&gt;rx_len=5;m-&gt;regs[0x04]=0x30;
+        } else return -1;
+    }
+    return 0;
+}
+static int rd(void *context,uint8_t reg,uint8_t *value)
+{
+    fake_t *m=(fake_t*)context;
+    if(reg&gt;=64 || !value) return -1;
+    if(reg==0x09) {
+        if(m-&gt;rx_pos&gt;=m-&gt;rx_len) return -1;
+        *value=m-&gt;fifo_rx[m-&gt;rx_pos++];
+    } else if(reg==0x0A) *value=m-&gt;rx_len;
+    else *value=m-&gt;regs[reg];
+    return 0;
+}
+static rc522_status_t run(fake_t *f,uint8_t uid[4])
+{
+    const rc522_bus_t bus={f,rd,wr};
+    uint8_t atqa[2]={0};
+    rc522_status_t rc=rc522_read_uid4(&amp;bus,uid,atqa,12);
+    if(rc==RC522_OK &amp;&amp; (atqa[0]!=0x04 || atqa[1]!=0x00))
+        return RC522_PROTOCOL_ERROR;
+    return rc;
+}
+int main(void)
+{
+    fake_t f;uint8_t uid[4]={0};
+    memset(&amp;f,0,sizeof(f));
+    assert(run(&amp;f,uid)==RC522_OK);
+    assert(uid[0]==0x12 &amp;&amp; uid[1]==0x34 &amp;&amp; uid[2]==0x56 &amp;&amp; uid[3]==0x78);
+    assert(f.transceive_count==2);
+    printf("P2_13_UID4_MOCK_REQA_ANTICOLL_PASS\n");
+    memset(&amp;f,0,sizeof(f));f.bcc_fail=1;
+    assert(run(&amp;f,uid)==RC522_PROTOCOL_ERROR);
+    printf("P2_13_UID4_MOCK_BCC_REJECT_PASS\n");
+    memset(&amp;f,0,sizeof(f));f.uid_cascade=1;
+    assert(run(&amp;f,uid)==RC522_UNSUPPORTED_UID);
+    printf("P2_13_UID4_MOCK_CASCADE_REJECT_PASS\n");
+    memset(&amp;f,0,sizeof(f));f.no_card=1;
+    assert(run(&amp;f,uid)==RC522_TIMEOUT);
+    printf("P2_13_UID4_MOCK_TIMEOUT_PASS\n");
+    assert(rc522_read_uid4(0,uid,uid,10)==RC522_PROTOCOL_ERROR);
+    printf("P2_13_UID4_C_HOST_PASS\n");
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 8 (82줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;../sw/mfrc522_picc.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;assert.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdio.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &lt;string.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>6</td><td><code>// Fake MFRC522 register device. This tests command flow and BCC,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// NOT real RF link timing or analog antenna behavior.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>    uint8_t regs[64];</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>    uint8_t fifo_tx[64],fifo_rx[64],tx_len,rx_len,rx_pos;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    uint8_t bcc_fail, uid_cascade, no_card;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>    unsigned transceive_count;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>} fake_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>static int wr(void *context,uint8_t reg,uint8_t value)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>16</td><td><code>    fake_t *m=(fake_t*)context;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    if(reg&gt;=64) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>18</td><td><code>    m-&gt;regs[reg]=value;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    if(reg==0x0A &amp;&amp; (value &amp; 0x80)) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>20</td><td><code>        m-&gt;tx_len=0;m-&gt;rx_len=0;m-&gt;rx_pos=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    } else if(reg==0x09) {</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>22</td><td><code>        if(m-&gt;tx_len&gt;=64) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>23</td><td><code>        m-&gt;fifo_tx[m-&gt;tx_len++]=value;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>24</td><td><code>    } else if(reg==0x01 &amp;&amp; value==0x0C) {</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>25</td><td><code>        m-&gt;transceive_count++;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>26</td><td><code>        m-&gt;regs[0x04]=0;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>27</td><td><code>        if(m-&gt;no_card) return 0;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>28</td><td><code>        if(m-&gt;tx_len==1 &amp;&amp; m-&gt;fifo_tx[0]==0x26) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>29</td><td><code>            m-&gt;fifo_rx[0]=0x04;m-&gt;fifo_rx[1]=0x00;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>30</td><td><code>            m-&gt;rx_len=2;m-&gt;regs[0x04]=0x30;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>31</td><td><code>        } else if(m-&gt;tx_len==2 &amp;&amp; m-&gt;fifo_tx[0]==0x93 &amp;&amp;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>32</td><td><code>                  m-&gt;fifo_tx[1]==0x20) {</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>33</td><td><code>            m-&gt;fifo_rx[0]=m-&gt;uid_cascade ? 0x88 : 0x12;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>34</td><td><code>            m-&gt;fifo_rx[1]=0x34;m-&gt;fifo_rx[2]=0x56;m-&gt;fifo_rx[3]=0x78;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>35</td><td><code>            m-&gt;fifo_rx[4]=m-&gt;fifo_rx[0]^m-&gt;fifo_rx[1]^</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>36</td><td><code>                           m-&gt;fifo_rx[2]^m-&gt;fifo_rx[3];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>37</td><td><code>            if(m-&gt;bcc_fail) m-&gt;fifo_rx[4]^=0x01;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>38</td><td><code>            m-&gt;rx_len=5;m-&gt;regs[0x04]=0x30;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>39</td><td><code>        } else return -1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>40</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>41</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>42</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>43</td><td><code>static int rd(void *context,uint8_t reg,uint8_t *value)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>45</td><td><code>    fake_t *m=(fake_t*)context;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>    if(reg&gt;=64 || !value) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>47</td><td><code>    if(reg==0x09) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>48</td><td><code>        if(m-&gt;rx_pos&gt;=m-&gt;rx_len) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>49</td><td><code>        *value=m-&gt;fifo_rx[m-&gt;rx_pos++];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>50</td><td><code>    } else if(reg==0x0A) *value=m-&gt;rx_len;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>51</td><td><code>    else *value=m-&gt;regs[reg];</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>52</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>53</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>54</td><td><code>static rc522_status_t run(fake_t *f,uint8_t uid[4])</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>55</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>56</td><td><code>    const rc522_bus_t bus={f,rd,wr};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>57</td><td><code>    uint8_t atqa[2]={0};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>58</td><td><code>    rc522_status_t rc=rc522_read_uid4(&amp;bus,uid,atqa,12);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>59</td><td><code>    if(rc==RC522_OK &amp;&amp; (atqa[0]!=0x04 || atqa[1]!=0x00))</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>60</td><td><code>        return RC522_PROTOCOL_ERROR;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>61</td><td><code>    return rc;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>62</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>63</td><td><code>int main(void)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>64</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>    fake_t f;uint8_t uid[4]={0};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>66</td><td><code>    memset(&amp;f,0,sizeof(f));</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>67</td><td><code>    assert(run(&amp;f,uid)==RC522_OK);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>68</td><td><code>    assert(uid[0]==0x12 &amp;&amp; uid[1]==0x34 &amp;&amp; uid[2]==0x56 &amp;&amp; uid[3]==0x78);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>69</td><td><code>    assert(f.transceive_count==2);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>70</td><td><code>    printf(&quot;P2_13_UID4_MOCK_REQA_ANTICOLL_PASS\n&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>71</td><td><code>    memset(&amp;f,0,sizeof(f));f.bcc_fail=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>72</td><td><code>    assert(run(&amp;f,uid)==RC522_PROTOCOL_ERROR);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>73</td><td><code>    printf(&quot;P2_13_UID4_MOCK_BCC_REJECT_PASS\n&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>74</td><td><code>    memset(&amp;f,0,sizeof(f));f.uid_cascade=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>75</td><td><code>    assert(run(&amp;f,uid)==RC522_UNSUPPORTED_UID);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>76</td><td><code>    printf(&quot;P2_13_UID4_MOCK_CASCADE_REJECT_PASS\n&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>77</td><td><code>    memset(&amp;f,0,sizeof(f));f.no_card=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>78</td><td><code>    assert(run(&amp;f,uid)==RC522_TIMEOUT);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>79</td><td><code>    printf(&quot;P2_13_UID4_MOCK_TIMEOUT_PASS\n&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>80</td><td><code>    assert(rc522_read_uid4(0,uid,uid,10)==RC522_PROTOCOL_ERROR);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>81</td><td><code>    printf(&quot;P2_13_UID4_C_HOST_PASS\n&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>82</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>83</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details><h3>Ubuntu 테스트 명령</h3><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>cd part02/chapters/P2_13_Lesson
+bash tests/run_rtl_tests.sh
+bash tests/run_host_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 9 (3줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>cd part02/chapters/P2_13_Lesson</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>2</td><td><code>bash tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>bash tests/run_host_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>자가검증 테스트벤치는 실제 RFID 하드웨어가 아니라 <strong>가짜 SPI 슬레이브 응답 0x92</strong>를 생성한다. 레지스터 통신 기능의 논리적 통과와 카드 UID 읽기의 검증을 혼동하지 않는다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>단계별 확장 테크트리</h2>
+<table><tr><th>실습 단계</th><th>과제</th><th>상태</th></tr><tr><td>13.1</td><td>16비트 SPI Master 및 Mode0 파형</td><td>RTL/TB 작성 및 CI 검증</td></tr><tr><td>13.2</td><td>VersionReg(0x37) 읽기, 실제 칩 버전 확인</td><td>시뮬레이션 모델, 실물 미확인</td></tr><tr><td>13.3</td><td>REQA → ATQA → 충돌 없는 CL1 4바이트 UID·BCC 검사</td><td>C 코드/모의칩 단위 검증, 칩 초기화·다중 카드·실물은 후속</td></tr><tr><td>13.4</td><td>AXI4-Lite 사용자 IP, MFRC522 초기화, MicroBlaze V + Vitis C에서 카드 UID 표시</td><td>후속 구현 필요</td></tr></table>
+<p>UID는 카드마다 달라지는 실제 데이터를 수집하는 단계다. VersionReg 값은 리더 칩의 버전 정보이며 카드 UID가 아니다. 인증·출입 제어 용도로 UID 단독 신뢰는 안전하지 않으므로 이 단계에서는 교육용 표시/로깅까지만 취급한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>검증표</h2>
+<table><tr><th>Gate</th><th>현재 상태</th><th>완료 조건</th></tr><tr><td>STATIC</td><td>기초 설계/공식 문서 대조</td><td>주소·프로토콜·코드 일치</td></tr><tr><td>RTL_SIM</td><td>CI 실행 기록 참조</td><td>16비트 클록 수·NSS·MOSI·응답 0x92 검증</td></tr><tr><td>HOST_C (UID mock)</td><td>CI 실행 기록 참조</td><td>REQA/ATQA/CL1/BCC/timeout 모델 검사</td></tr><tr><td>AXI_SIM</td><td>NOT_RUN</td><td>13.4 신규 AXI IP 통합</td></tr><tr><td>SYNTH_TIMING</td><td>보류</td><td>Vivado 실행 근거</td></tr><tr><td>VITIS_TARGET</td><td>보류</td><td>실제 BSP/ELF/레지스터 응답</td></tr><tr><td>BOARD</td><td>보류</td><td>실제 RC522 + 카드 UID</td></tr><tr><td>UVM</td><td>NOT_RUN</td><td>추후 고급 검증에서 구분</td></tr></table>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/actions/workflows/p2-13-spi-verification.yml">GitHub Actions 자동 검증 이력</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_13_Lesson/README.md">제13장 전체 코드 및 검증 설명</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① MFRC522 SPI 프레임·UID4 모의의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"ch13_spi_rfid_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

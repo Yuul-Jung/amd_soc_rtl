@@ -1,0 +1,188 @@
+{
+  "title": "제2부 교수용 1:1 상세 해설서",
+  "part": 2,
+  "count": 20,
+  "sourceHead": "cb057474a9e2cefe9834ebf253e384e5ef5bb511",
+  "chapters": [
+    {
+      "number": 1,
+      "title": "UART 문자열 → AXI 사용자 LED IP",
+      "sourcePath": "part02_1/ch01/P2_01_Study_Guide.html",
+      "sourceBlobSha": "1e9e37377f44dbd1876c10ddcfe539bac3b51700",
+      "guidePath": "easy02/ch01_teacher_v02.html",
+      "guideBlobSha": "c63fac77f524af0196791860b664c9d597ba51c1",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 2,
+      "title": "AXI FND 4자리 표시",
+      "sourcePath": "part02_1/ch02/P2_02_Study_Guide.html",
+      "sourceBlobSha": "36281901e947b738b101da579f95430e803e23e4",
+      "guidePath": "easy02/ch02_teacher_v02.html",
+      "guideBlobSha": "579f02bf6f48285e5fd86eb61cd50672299a216c",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 3,
+      "title": "방향 버튼 Short/Long · AXI IRQ",
+      "sourcePath": "part02_1/ch03/P2_03_Study_Guide.html",
+      "sourceBlobSha": "2b25bf3a01a72f5ea260c9af0f1eebe5294e30ca",
+      "guidePath": "easy02/ch03_teacher_v02.html",
+      "guideBlobSha": "5c8fc39c6151b8f89d73e665aaebcd65cac5e1df",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 4,
+      "title": "사용자 PWM IP · LED 밝기",
+      "sourcePath": "part02_1/ch04/P2_04_Study_Guide.html",
+      "sourceBlobSha": "7d5c52e07bd1a75791e735d094bc81b60fd77bd4",
+      "guidePath": "easy02/ch04_teacher_v02.html",
+      "guideBlobSha": "cb582929d888f5c6e55987d73b676259890f1bac",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 5,
+      "title": "CdS 디지털 자동 조명",
+      "sourcePath": "part02_1/ch05/P2_05_Study_Guide.html",
+      "sourceBlobSha": "8a48106cafb1b8c867abc224002e483eda7c3497",
+      "guidePath": "easy02/ch05_teacher_v02.html",
+      "guideBlobSha": "01c8e23eed24641940a6a2d1d0575b2418cb2171",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 6,
+      "title": "HC-SR04 거리·FND·근접 경고",
+      "sourcePath": "part02_1/ch06/P2_06_Study_Guide.html",
+      "sourceBlobSha": "aa652e2a55da03f4dfe1a697801f6750a9c73ec5",
+      "guidePath": "easy02/ch06_teacher_v02.html",
+      "guideBlobSha": "ff64e8fa957793b05d1fb3720487ca8f07c1be47",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 7,
+      "title": "L298N DC 모터 제어",
+      "sourcePath": "part02_1/ch07/P2_07_Study_Guide.html",
+      "sourceBlobSha": "244105d27ef74801ce85de5e7b22d54c7309b3ce",
+      "guidePath": "easy02/ch07_teacher_v02.html",
+      "guideBlobSha": "03f85a0bd8c873e1391cb4580a8f869e57719ce7",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 8,
+      "title": "XADC 아날로그·PWM 연동",
+      "sourcePath": "part02_1/ch08/P2_08_Study_Guide.html",
+      "sourceBlobSha": "e2d93295b513c2bc271c9aeab3d6b5ecc97c3e53",
+      "guidePath": "easy02/ch08_teacher_v02.html",
+      "guideBlobSha": "6cb3ffcd8b5753508d81eb256e195ddbd09afe92",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 9,
+      "title": "UART·IRQ·자동/수동 모드",
+      "sourcePath": "part02_1/ch09/P2_09_Study_Guide.html",
+      "sourceBlobSha": "42e658ee19de440328384846b78f3e75286cc9a3",
+      "guidePath": "easy02/ch09_teacher_v02.html",
+      "guideBlobSha": "762a52e758429786eddac99924b653ed8916b8db",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 10,
+      "title": "주변장치 종합제어",
+      "sourcePath": "part02_1/ch10/P2_10_Study_Guide.html",
+      "sourceBlobSha": "82395a7e4eed8c395b14ea40714e821ca42ec43f",
+      "guidePath": "easy02/ch10_teacher_v02.html",
+      "guideBlobSha": "bf113b9e159ff14b8968404e215ec96afaf0c1cd",
+      "refType": "P2-front-study-guide"
+    },
+    {
+      "number": 11,
+      "title": "SG90 서보 모터",
+      "sourcePath": "part02_2/guide/ch11_servo_v05.html",
+      "sourceBlobSha": "eebd30d094a1056b22cea7f1640bad2f3c416ccc",
+      "guidePath": "easy02/ch11_teacher_v02.html",
+      "guideBlobSha": "731c4835ffed295e87d65b65365b716c77d2894d",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 12,
+      "title": "28BYJ-48 스테핑 모터",
+      "sourcePath": "part02_2/guide/ch12_stepper_v05.html",
+      "sourceBlobSha": "f51abea93cc385612850866fae1a77baae06fa96",
+      "guidePath": "easy02/ch12_teacher_v02.html",
+      "guideBlobSha": "2ecce8de7003f03150d92a44cb74da71f0ac7f53",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 13,
+      "title": "MFRC522 SPI RFID",
+      "sourcePath": "part02_2/guide/ch13_spi_rfid_v05.html",
+      "sourceBlobSha": "b738ecb761e61765550bb671f290104c8622947f",
+      "guidePath": "easy02/ch13_teacher_v02.html",
+      "guideBlobSha": "6e677f735c1c33c9f02d410fa304ec46de91fb94",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 14,
+      "title": "PCF8574 I²C LCD",
+      "sourcePath": "part02_2/guide/ch14_i2c_lcd_v05.html",
+      "sourceBlobSha": "f569e35c3d332a7339134d9c3d656c6ee8a3b0d9",
+      "guidePath": "easy02/ch14_teacher_v02.html",
+      "guideBlobSha": "1bc6e2cae22140ee60a11f6c5d0962d349dfca79",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 15,
+      "title": "DS18B20 1-Wire",
+      "sourcePath": "part02_2/guide/ch15_ds18b20_v05.html",
+      "sourceBlobSha": "7fc2f20fb0835ebefae2c0e7ec11cf090a1c3d8a",
+      "guidePath": "easy02/ch15_teacher_v02.html",
+      "guideBlobSha": "9d649205dd65365847e8beb9b4eba8d41b30f18e",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 16,
+      "title": "DS3231 I²C RTC",
+      "sourcePath": "part02_2/guide/ch16_ds3231_rtc_v05.html",
+      "sourceBlobSha": "55be64af4aa73c7eef11a9f1db5218ab4260394b",
+      "guidePath": "easy02/ch16_teacher_v02.html",
+      "guideBlobSha": "11f5590ea9efa02895e9d2f54c1ea2045e4069b3",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 17,
+      "title": "DHT22 온습도",
+      "sourcePath": "part02_2/guide/ch17_dht22_v05.html",
+      "sourceBlobSha": "9b030031eaa2dc503c5634a8634a58e3f07ec672",
+      "guidePath": "easy02/ch17_teacher_v02.html",
+      "guideBlobSha": "7576a3e4721884f01eacc674cae07b313600f8d5",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 18,
+      "title": "PIR 센서 IRQ",
+      "sourcePath": "part02_2/guide/ch18_pir_irq_v05.html",
+      "sourceBlobSha": "87b5a1f6084e3d8316b2ded3b2059109e7bc29c8",
+      "guidePath": "easy02/ch18_teacher_v02.html",
+      "guideBlobSha": "e7fb56b6237b4e585a3f10365e12e3de53b3720c",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 19,
+      "title": "BME280 환경 제어",
+      "sourcePath": "part02_2/guide/ch19_bme280_environment_v05.html",
+      "sourceBlobSha": "11fa5ed24ed0181e29cd02c15e4f82ef172e9ecb",
+      "guidePath": "easy02/ch19_teacher_v02.html",
+      "guideBlobSha": "f8a11e2f7b2269e655b1ba4195dda1c6230604fa",
+      "refType": "P2-rear-latest-v05"
+    },
+    {
+      "number": 20,
+      "title": "종합 RTL·안전 인터록",
+      "sourcePath": "part02_2/guide/ch20_integrated_soc_v05.html",
+      "sourceBlobSha": "edf101bbdb8a4ea81041dee0753c9cb4ccf8e4ec",
+      "guidePath": "easy02/ch20_teacher_v02.html",
+      "guideBlobSha": "6cd82b65dd3074eafe2bddb5d9cde146140eb278",
+      "refType": "P2-rear-latest-v05"
+    }
+  ]
+}

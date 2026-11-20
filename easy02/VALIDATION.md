@@ -1,38 +1,29 @@
-# 제02장 교수용 60분×2 해설서 — 적대적 검증 (2026-11-20)
+# 제2부 교수용 해설서 20장 · 1:1 검증 기록
 
-## 검토 대상 및 기준
-- 원본: `part01/legacy/pages/soc/02_clock_reset_processor_system_reset.html` (Git Blob SHA `8e5ecbfeb4c38c5fad150b5092bdc3bd5a69840d`)
-- 원본 이전 실험 근거: `part01/legacy/validation/SOC02_VALIDATION.txt` (Blob SHA `895bcdbb86e0b61d6a045d9178d813609a241963`)
-- 규칙: `AGENTS.md`, `rule_md/web/education-html/STANDARD.md`, `rule_md/fpga-soc/MBV_SOC_rules.md`
-- 제01장 연속성: `soc01_mb_bram.bd` 내 기존 CPU·16 KiB Local BRAM을 보존하고 `clk_wiz_1`와 `rst_clk_wiz_1_100M`의 외부 연결 진행.
+- 기준 저장소: `Yuul-Jung/amd_soc_rtl`, `main` 시작 SHA `cb057474a9e2cefe9834ebf253e384e5ef5bb511`
+- **P2-01~10:** `part02_1/ch01..ch10/P2_NN_Study_Guide.html` 각 1장에 대응.
+- **P2-11~20:** `part02_2/guide/ch11_*_v05.html`~`ch20_*_v05.html` 최신 배포용 학습안내서 각 1장에 대응.
+- 제출: `easy02/ch01_teacher_v02.html` ~ `ch20_teacher_v02.html` 총 20개, 장별 1개.
+- 원본 변경: 없음. 01~10장의 기존 C·RTL 보조 해설 본문과 그림을 해당 장으로 통합함. 11~20장의 전체 코드·SVG 포함.
+- 기존 학생용 사진·SVG 참조: 전반부 이미지와 코드 해설 보조 이미지 36개 `<img>` 유지, 후반부 원본 인라인 SVG 전부 보존하고 교육용 도식 각 장 추가.
+- 장별 실제 신호·함수·주소·핀·출력 조건을 해설. C/RTL 코드와 Tcl/우분투 명령은 원문을 유지하고 줄별 역할을 별도로 추가.
 
-## 결과
-| 파일 | 역할 | 정적 판정 |
-|---|---|---|
-| `easy02/ch02_hour01_teacher_v01.html` | 60분: 프로젝트 인계 → Clock 100 MHz → 외부 포트 → Processor System Reset → 신호 경로 | PASS |
-| `easy02/ch02_hour02_teacher_v01.html` | 60분: XDC 1행씩 → Validate → HDL Wrapper → Synthesis/Implementation/Bitstream → Timing·Warning | PASS |
-| `easy02/index.html` | 제02장 각 교시 탐색 및 제01장·제03장 연결 | PASS |
-| `easy01/index.html` | 기존 제01장 안내에 제02장 1·2교시 링크 추가 | PASS |
+## 적대적 기술 경계
+- 06장 HC-SR04 Echo 5V → FPGA 3.3V 입력 보호 필수.
+- 07장 L298N·11/12장 모터 전원/드라이버는 FPGA 신호선과 구분.
+- 13장 RFID UID4 모의는 실제 보안 인증이 아님.
+- 14/16장 I²C 전체 읽기/Repeated START 실물 연동 미완료.
+- 19장 BME280 온습도·기압 보정계수 처리 미완료, Raw만으로 실측 PASS 금지.
+- 20장 `sample_valid`의 Freshness 갱신이 센서 값의 품질/물리 범위와 연결되지 않은 결함 가능성이 있음. 산업안전용 인증 인터록·실물 모터 제어 성공으로 표시하지 않음.
 
-## 적대적 검증 — 오류·혼동 방지
-
-1. **P0 전기·핀:** Basys3 Clock W5/100 MHz, Reset BTNC U18, LVCMOS33, `clk`/`btnC`의 BD/XDC 이름 대응을 원본과 대조. 수업 중 실제 핀은 재확인(PASS: 문서 일치, 실물 새 검증 없음).
-2. **P1 설계 인스턴스:** `clk_wiz_1/clk_in1`, `clk_out1`, `locked`, `rst_clk_wiz_1_100M/dcm_locked`, `ext_reset_in`, `mb_reset`, `microblaze_riscv_0/Clk`·`Reset` 이름이 원본 02장과 대응(PASS: 문서 대조).
-3. **P1 Reset 극성:** BTNC Active-High와 `peripheral_aresetn` 등 Active-Low 신호를 구분. 일반 버튼 디바운싱을 Processor System Reset이 전부 처리한다고 설명하지 않음(PASS: 문서 대조).
-4. **P1 중복 제약:** 원본 02장 최종 실행 기준의 `create_clock`는 `-add`를 제거하고 `-period 10.00`을 보존함. 중간 상태에서 Clock 제약을 주석 처리한 것을 최종 해결책으로 제시하지 않음(PASS).
-5. **P1 성공 범위:** `Validation successful`·Bitstream 생성과 실제 C/ELF/보드 실행을 구분. 원본의 WNS +1.372 ns, Critical Warning 0·일반 Warning 5건은 과거 실행 기록임을 명시(PASS).
-6. **P2 HTML 구조:** HTML·head·body·header·main·aside·nav·section·table·svg·figure·pre·script 여닫힘 수가 일치, 모든 `href="#..."` 목차 대상 존재(PASS).
-7. **P2 탐색·코드:** INDEX/이전·다음 상대경로, 원본 이미지 `../part01/legacy/images/soc02_vivado_final_2024_2.png` 경로 표기, `data-copy`의 XDC/Tcl 코드와 JavaScript 복사 핸들러 존재(PASS: 정적 점검).
-8. **P2 예제/실행 기록:** 공식 매뉴얼 그림·원본 실제 GUI 캡처·교육용 SVG 개념도·과거 측정값을 서로 구분(PASS).
-
-## 미검증 항목 및 제한
-- GitHub API를 통한 정적 파일 존재/코드/목차 확인과 실제 브라우저에서의 이미지·폰트·반응형 레이아웃 렌더링은 다름. **실브라우저 320/390/768/1024/1366/1920 px 검사 NOT_RUN**.
-- 코드 복사 버튼, 메뉴 닫기(Escape), 키보드 접근성의 **실제 상호작용 테스트 NOT_RUN**.
-- 새 Vivado 2024.2 실행, 합성·구현·비트스트림 재생성, 보드 프로그램, 실제 C 실행 **NOT_RUN**. 원본의 성공 기록을 이번 수행 성공으로 보고하지 않음.
-- 2교시 Synthesis·Implementation·Bitstream 수행 시간은 도구·PC 환경에 따라 변한다. 수업 시간 편성은 운영 예시이며 실측 소요시간 보증 아님.
-- GitHub Pages 배포·실접속 화면 **NOT_RUN**.
+## 실제 정적 검증
+- 20개 안내서 Git Tree 존재: **PASS**.
+- 각 페이지의 `<img>`, `<script>`, 스타일 외부 파일 참조 및 상대 `href`: **누락 0건 PASS**.
+- HTML `section` 개시·종료와 중복 ID: **20/20 PASS**.
+- 후반부 `assets/site.css`, `assets/site.js`를 기존 파일로 연결하고 장간 탐색 매니페스트를 교수용 경로로 조정: **정적 확인 PASS**.
+- 브라우저 반응형/그림·코드 줄넘침, 코드 복사, JS 클릭: **NOT_RUN**.
+- Vivado/Vitis/RTL 재시뮬레이션/실물/새 전기 측정: **NOT_RUN**.
+- Github Pages 실제 배포/URL 확인: **NOT_RUN**.
 
 ## 판정
-- **정적 HTML·원본 설정 정합성: 조건부 통과**
-- **실제 브라우저/실물/새 도구 실행: 미검증**
-- 원본 `soc`, `amd_soc`, `part01/legacy`, 성공 RTL/C/XDC/XPR/BD/Wrapper는 수정하지 않음.
+원본 장과 1:1 대응 및 정적 자료 보존·경로 검사 **조건부 통과**. 실제 UI 동작·실물 하드웨어는 미검증이며 원본에 적힌 과거 실행 증거만 인용함.

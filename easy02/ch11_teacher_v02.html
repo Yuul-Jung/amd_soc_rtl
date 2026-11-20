@@ -1,0 +1,289 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="PWM 펄스폭 계산 → 기존 PWM 재사용 → 각도 지령 검증"><title>교수용 상세 해설서 | 제2부 11장 | SG90 서보의 20ms 주기와 펄스폭 제어</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch11"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 11/20</p><h1>제11장 · SG90 서보 모터 각도 제어</h1><p>PWM 펄스폭 계산 → 기존 PWM 재사용 → 각도 지령 검증</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 11장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> SG90 서보는 일반 LED PWM처럼 Duty 비율만 보는 것이 아니라 정해진 프레임 안에서 HIGH 펄스 폭으로 목표 각도를 전달합니다. 기존 PWM IP를 재사용하고 수치 계산과 기구적 끝점 제한을 구분합니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="MicroBlaze V C → AXI PWM Register → PWM Core → SG90 PWM"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">MicroBlaze V C</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">AXI PWM Register</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">PWM Core</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">SG90 PWM</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 외부 전원 전류·공통 GND와 FPGA 3.3V 신호 허용 여부를 확인합니다. 각도 0~180도/펄스폭 관계는 장치 사양에 따라 편차가 있으므로 실물 검증 전 고정값으로 단정하지 않습니다.</p><p class="prof-small"><a href="../part02_2/guide/ch11_servo_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch10_teacher_v02.html">이전 장</a> · <a href="ch12_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요</h2><p>서보 모터는 PWM(펄스 폭 변조)의 <strong>듀티 비율</strong>보다 HIGH가 지속되는 <strong>펄스 폭</strong>이 중요하다. 기존 P2-04의 PWM RTL·AXI IP를 수정하지 않고 새 IP 인스턴스를 추가하여 SG90을 제어한다. 목표는 각도 0°, 90°, 180° 명령을 20ms PWM 프레임에 대응시키는 것이다.</p><p class="warn">Vivado 합성, Vitis 타깃 빌드, 전기 연결 및 Basys3 실물 시험은 아직 수행되지 않았다. 아래 주파수·핀·각도는 실제 보드에서 검증해야 한다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>전체 시스템 구조</h2>
+<svg viewBox="0 0 970 370" role="img" aria-label="AXI PWM을 이용한 SG90 제어 구조도">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#3a7099"/></marker></defs>
+<rect x="12" y="12" width="946" height="342" rx="12" fill="#f6f9fc" stroke="#b0cde1" stroke-width="2"/>
+<rect x="40" y="43" width="173" height="74" rx="8" fill="#dcecf8" stroke="#4b89b2"/><text x="126" y="75" text-anchor="middle" font-size="17" fill="#173d62">PC 터미널</text><text x="126" y="99" text-anchor="middle" font-size="13">SERVO 90</text>
+<rect x="279" y="43" width="179" height="74" rx="8" fill="#dcecf8" stroke="#4b89b2"/><text x="368" y="75" text-anchor="middle" font-size="16" fill="#173d62">MicroBlaze V</text><text x="368" y="99" text-anchor="middle" font-size="13">UART / Vitis C</text>
+<rect x="524" y="43" width="183" height="74" rx="8" fill="#b8e3dd" stroke="#4b938a"/><text x="615" y="74" text-anchor="middle" font-size="16">서보 전용 AXI IP</text><text x="615" y="98" text-anchor="middle" font-size="13">PWM Core 재사용</text>
+<rect x="776" y="43" width="149" height="74" rx="8" fill="#f7dbb0" stroke="#c08a38"/><text x="850" y="77" text-anchor="middle" font-size="16">SG90</text><text x="850" y="99" text-anchor="middle" font-size="13">별도 신호 핀</text>
+<path d="M213 80H279 M458 80H524 M707 80H776" fill="none" stroke="#3a7099" stroke-width="2.5" marker-end="url(#ar)"/>
+<rect x="305" y="183" width="371" height="118" rx="8" fill="#e9e7f8" stroke="#8a7aba"/>
+<text x="490" y="211" text-anchor="middle" font-size="16">기존 P2-01~10 유지</text><text x="490" y="241" text-anchor="middle" font-size="13">LED1 PWM · 버튼 · FND · 모터</text><text x="490" y="270" text-anchor="middle" font-size="13">기존 AXI 주소 및 I/O 소유권 보존</text>
+<path d="M368 117V183" fill="none" stroke="#3a7099" stroke-width="2" marker-end="url(#ar)"/>
+<text x="728" y="173" font-size="13" fill="#8b5b17">외부 5V 전원</text><text x="727" y="197" font-size="13" fill="#8b5b17">공통 GND</text>
+</svg>
+<p>기존 <code>pwm_core.v</code>와 <code>p2_04_axi_pwm_v1_0*.v</code>를 변경 없이 재사용한다. Block Design(블록 디자인)에 동일 IP의 <strong>두 번째 인스턴스</strong>를 추가하고, 신규 출력만 서보 신호선으로 보낸다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>펄스폭 계산</h2><table><thead><tr><th>각도 명령</th><th>HIGH 펄스폭</th><th>100MHz 주기 카운트</th><th>100MHz HIGH 카운트</th></tr></thead><tbody><tr><td>0°</td><td>1,000μs</td><td>2,000,000</td><td>100,000</td></tr><tr><td>90°</td><td>1,500μs</td><td>2,000,000</td><td>150,000</td></tr><tr><td>180°</td><td>2,000μs</td><td>2,000,000</td><td>200,000</td></tr></tbody></table>
+<p>환산식: <code>period_ticks = clock_hz × 20,000 / 1,000,000</code>, <code>duty_ticks = clock_hz × pulse_us / 1,000,000</code>. 여기서 각도의 증가는 펄스폭의 선형 변화로 정의한 <em>교육용 명령 값</em>이다. 실제 축 각도는 기구 오차와 호환 모터 편차가 있으므로 각도계로 확인한다.</p><p>04장 PWM Core는 설정을 프레임 경계에서 반영하므로 고주파 글리치 없이 다음 주기부터 새 펄스폭을 적용한다.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>준비 및 안전 연결</h2><table><thead><tr><th>SG90 선</th><th>연결</th><th>검증</th></tr></thead><tbody><tr><td>갈색/검정 GND</td><td>외부 5V 전원 GND + Basys3 GND</td><td>공통 접지</td></tr><tr><td>빨간색 V+</td><td>외부 안정화 5V 전원</td><td>서보 전류/전원 용량 확인</td></tr><tr><td>주황색/노란색 SIG</td><td>Basys3 여유 디지털 I/O, 3.3V 신호</td><td>모듈 입력 인식과 실제 핀 제약 확인</td></tr></tbody></table>
+<p class="warn">Basys3 I/O에서 모터 전원을 공급하거나 5V를 입력으로 넣지 않는다. 전원 투입 전에 서보 혼을 분리하고 무부하 중립 위치부터 확인한다. 모터가 끝단에 걸리거나 떨리면 즉시 전원을 차단한다. 실제 SIG 핀은 기존 Pmod 배정 및 XDC와 충돌하지 않는 핀을 확인한 뒤 지정한다.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>Vivado 실습 절차</h2>
+<ol><li>제2부 10장의 <strong>실제 성공·진행 프로젝트</strong>를 <em>File → Project → Save As</em>로 별도 <code>soc_ip_design_11</code>에 저장한다. 기존 원본 경로/소스를 변경하지 않는다.</li>
+<li>04장의 <code>p2_04_axi_pwm_v1_0</code> 사용자 IP가 현행 프로젝트 IP Repository에 등록되어 있는지 확인한다. 없는 경우 04장 RTL 원본을 별도 복제 폴더에서 패키징한다.</li>
+<li>Block Design에 동일 PWM IP의 <strong>신규 인스턴스</strong>를 추가한다. 기존 PWM IP는 LED1 소유권을 유지한다.</li>
+<li>새 IP의 <code>s00_axi_aclk</code>와 <code>s00_axi_aresetn</code>을 기존 AXI 클록·리셋 체계에 연결한다. 실제 주파수를 Block Design에서 확인한다.</li>
+<li>AXI Interconnect 연결 및 Address Editor 신규 주소를 배정한다. 기존 주소를 임의로 재할당하지 않는다.</li>
+<li>신규 IP의 <code>pwm_led_o</code>를 외부로 내보내고 출력 포트 이름을 <code>servo_pwm_o</code>로 정한다. <code>pwm_led_o</code>는 IP 내부 포트 이름이므로 변경할 필요가 없다.</li>
+<li>Validate Design → Generate Output Products → Create HDL Wrapper. 사용자 Top은 <code>servo_pwm_o</code> 출력 포트와 생성 Wrapper의 포트 단순 연결만 추가한다.</li>
+<li>새 출력용 XDC 핀과 <code>LVCMOS33</code>을 실제 사용 가능한 Pmod 핀 기준으로 지정한다. 기존 모터·센서 포트와 충돌 여부를 확인한다.</li>
+<li>Run Synthesis → Run Implementation → Timing Summary를 확인한 뒤 Bitstream 및 XSA를 생성한다.</li></ol>
+<p>Top에서 제어용 산술, 비교, <code>always</code>, PWM 생성 회로를 직접 작성하지 않는다.</p>
+</section>
+<section class="section" id="s05"><h2><span class="num">05</span>기존 PWM IP Register Map 재사용</h2>
+<table><thead><tr><th>Offset</th><th>이름</th><th>90° 예제 값</th><th>의미</th></tr></thead><tbody><tr><td>0x00</td><td>PERIOD_CFG</td><td>2,000,000</td><td>20ms 프레임</td></tr><tr><td>0x04</td><td>DUTY_CFG</td><td>150,000</td><td>1.5ms HIGH</td></tr><tr><td>0x08</td><td>CONTROL_CFG</td><td>1</td><td>enable=1, 정상 극성</td></tr><tr><td>0x0C</td><td>APPLY</td><td>1</td><td>새 설정 요청</td></tr><tr><td>0x10</td><td>STATUS</td><td>읽기</td><td>pending/enable</td></tr><tr><td>0x14/0x18</td><td>ACTIVE_PERIOD/DUTY</td><td>읽기</td><td>실제 적용값</td></tr><tr><td>0x1C</td><td>IP_ID</td><td>0x00040001</td><td>재사용 IP 식별자</td></tr></tbody></table>
+<p><strong>중요:</strong> 새로운 서보 IP는 04장과 레지스터 오프셋이 같지만, <em>AXI 베이스 주소는 반드시 달라야 한다.</em> 두 IP를 잘못 같은 주소로 제어하면 기존 LED1 동작을 침범한다.</p>
+</section>
+<section class="section" id="s06"><h2><span class="num">06</span>Vitis C 코드 결합</h2><p>새 프로젝트의 실제 <code>xparameters.h</code>나 SDT 구성으로 확인한 서보 전용 IP의 Base Address를 전달한다. 아래 호출은 실제 타깃 BSP 헤더를 이용할 때만 링크된다.</p>
+<div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>// 기존 P2-10 메인 코드에 무작정 삽입하지 않는다.
+// UART Command Parser가 "SERVO 90"을 정상 파싱했을 때 호출할 예시.
+#include "servo_axi.h"
+// servo_baseaddr : 새 서보 IP의 실제 메모리 매핑 주소
+// pwm_clock_hz  : 새 IP의 실제 AXI 클록(예: 100000000)
+if (servo_axi_set_angle(servo_baseaddr, pwm_clock_hz, 90) != 0) {
+    // 값/클록 오류 처리
+}
+// 독립 servo_parse_command() 함수 제공 (SERVO 0..180 / SERVO OFF).
+// 기존 P2-10 RUN/MODE 우선순위에 실제 등록하는 작업은 별도 통합 검증 필요.
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (10줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>// 기존 P2-10 메인 코드에 무작정 삽입하지 않는다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>// UART Command Parser가 &quot;SERVO 90&quot;을 정상 파싱했을 때 호출할 예시.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>#include &quot;servo_axi.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>// servo_baseaddr : 새 서보 IP의 실제 메모리 매핑 주소</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// pwm_clock_hz  : 새 IP의 실제 AXI 클록(예: 100000000)</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>if (servo_axi_set_angle(servo_baseaddr, pwm_clock_hz, 90) != 0) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>7</td><td><code>    // 값/클록 오류 처리</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>9</td><td><code>// 독립 servo_parse_command() 함수 제공 (SERVO 0..180 / SERVO OFF).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>10</td><td><code>// 기존 P2-10 RUN/MODE 우선순위에 실제 등록하는 작업은 별도 통합 검증 필요.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr></tbody></table></div></details></div>
+<p>실습용 순서: 90° 중립 → 45° → 135° → 0°/180° 저속 순차 확인. 끝단 명령은 실제 모터가 안전하게 동작하는 경우에만 실시한다. <code>servo_axi_disable()</code>은 PWM 신호를 끊는 것이며 기계적 안전 위치로 이동하는 명령이 아니다.</p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>전체 소스 코드 및 단위 시험</h2><p>아래 신규 C 소스와 RTL 테스트벤치는 GitHub 파일과 동일하다. <code>pwm_core.v</code> 및 AXI 슬레이브의 본문은 04장의 원본을 그대로 사용한다.</p><details><summary>sw/servo_logic.h — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_logic.h · C · 소스 원문</span></div><pre><code>#ifndef P2_11_SERVO_LOGIC_H
+#define P2_11_SERVO_LOGIC_H
+#include &lt;stdint.h&gt;
+// P2-11: 전기적 출력 없이 수행하는 순수 각도 -&gt; PWM 환산 로직.
+// 클록 주파수는 실제 Vivado AXI Clock Frequency를 사용한다.
+typedef struct {
+    uint32_t period_ticks;
+    uint32_t duty_ticks;
+} servo_config_t;
+// 반환: 0=정상, -1=잘못된 입력/범위/클록
+int servo_angle_to_config(uint32_t clock_hz, int angle_deg,
+                          servo_config_t *out);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (13줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_11_SERVO_LOGIC_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_11_SERVO_LOGIC_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>// P2-11: 전기적 출력 없이 수행하는 순수 각도 -&gt; PWM 환산 로직.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// 클록 주파수는 실제 Vivado AXI Clock Frequency를 사용한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>    uint32_t period_ticks;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>    uint32_t duty_ticks;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>} servo_config_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>// 반환: 0=정상, -1=잘못된 입력/범위/클록</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>11</td><td><code>int servo_angle_to_config(uint32_t clock_hz, int angle_deg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>                          servo_config_t *out);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/servo_logic.c — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_logic.c · C · 소스 원문</span></div><pre><code>#include "servo_logic.h"
+#include &lt;limits.h&gt;
+// SG90 초기 교육 범위: 20ms 프레임, 1~2ms HIGH 펄스.
+// 제조사·실물 차이로 실제 기계적 0/180도와 정확히 일치하지 않을 수 있다.
+int servo_angle_to_config(uint32_t clock_hz, int angle_deg,
+                          servo_config_t *out)
+{
+    uint64_t period, pulse_us, duty;
+    if (!out || clock_hz &lt; 1000000u || clock_hz &gt; 200000000u ||
+        angle_deg &lt; 0 || angle_deg &gt; 180)
+        return -1;
+    // round-to-nearest us: 0도 1000us, 90도 1500us, 180도 2000us.
+    // 정수 연산만 사용. 32비트 곱셈 오버플로 방지를 위해 uint64_t 사용.
+    pulse_us = 1000u + (uint64_t)(angle_deg * 1000 + 90) / 180u;
+    period = ((uint64_t)clock_hz * 20000u + 500000u) / 1000000u;
+    duty = ((uint64_t)clock_hz * pulse_us + 500000u) / 1000000u;
+    if (period &lt; 2u || period &gt; UINT32_MAX || duty &gt;= period)
+        return -1;
+    out-&gt;period_ticks = (uint32_t)period;
+    out-&gt;duty_ticks = (uint32_t)duty;
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (22줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;servo_logic.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;limits.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>// SG90 초기 교육 범위: 20ms 프레임, 1~2ms HIGH 펄스.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// 제조사·실물 차이로 실제 기계적 0/180도와 정확히 일치하지 않을 수 있다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>int servo_angle_to_config(uint32_t clock_hz, int angle_deg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>                          servo_config_t *out)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>    uint64_t period, pulse_us, duty;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>    if (!out || clock_hz &lt; 1000000u || clock_hz &gt; 200000000u ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>10</td><td><code>        angle_deg &lt; 0 || angle_deg &gt; 180)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>        return -1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>12</td><td><code>    // round-to-nearest us: 0도 1000us, 90도 1500us, 180도 2000us.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>13</td><td><code>    // 정수 연산만 사용. 32비트 곱셈 오버플로 방지를 위해 uint64_t 사용.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>14</td><td><code>    pulse_us = 1000u + (uint64_t)(angle_deg * 1000 + 90) / 180u;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    period = ((uint64_t)clock_hz * 20000u + 500000u) / 1000000u;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    duty = ((uint64_t)clock_hz * pulse_us + 500000u) / 1000000u;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    if (period &lt; 2u || period &gt; UINT32_MAX || duty &gt;= period)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>18</td><td><code>        return -1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>19</td><td><code>    out-&gt;period_ticks = (uint32_t)period;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    out-&gt;duty_ticks = (uint32_t)duty;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>22</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/servo_axi.h — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_axi.h · C · 소스 원문</span></div><pre><code>#ifndef P2_11_SERVO_AXI_H
+#define P2_11_SERVO_AXI_H
+#include &lt;stdint.h&gt;
+// 반드시 실제 xparameters.h/시스템 Device Tree에서 얻은 베이스 주소를 전달.
+int servo_axi_set_angle(uintptr_t baseaddr, uint32_t clock_hz, int angle_deg);
+int servo_axi_disable(uintptr_t baseaddr);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (7줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_11_SERVO_AXI_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_11_SERVO_AXI_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>// 반드시 실제 xparameters.h/시스템 Device Tree에서 얻은 베이스 주소를 전달.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>int servo_axi_set_angle(uintptr_t baseaddr, uint32_t clock_hz, int angle_deg);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>int servo_axi_disable(uintptr_t baseaddr);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/servo_axi.c — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_axi.c · C · 소스 원문</span></div><pre><code>#include "servo_axi.h"
+#include "servo_logic.h"
+#include "xil_io.h"
+// P2-04 원본 AXI PWM IP의 변경 없는 오프셋 사용.
+// 0x00 PERIOD_CFG / 0x04 DUTY_CFG / 0x08 CONTROL / 0x0C APPLY
+// 0x10 STATUS / 0x14 ACTIVE_PERIOD / 0x18 ACTIVE_DUTY / 0x1C ID
+#define PWM_PERIOD  0x00u
+#define PWM_DUTY    0x04u
+#define PWM_CONTROL 0x08u
+#define PWM_APPLY   0x0Cu
+int servo_axi_set_angle(uintptr_t baseaddr, uint32_t clock_hz, int angle_deg)
+{
+    servo_config_t c;
+    if (servo_angle_to_config(clock_hz, angle_deg, &amp;c) != 0)
+        return -1;
+    // 별도 P2-11 인스턴스에만 접근. 기존 LED1 PWM IP 주소 사용 금지.
+    Xil_Out32(baseaddr + PWM_PERIOD, c.period_ticks);
+    Xil_Out32(baseaddr + PWM_DUTY, c.duty_ticks);
+    Xil_Out32(baseaddr + PWM_CONTROL, 1u); // enable=1, normal polarity
+    Xil_Out32(baseaddr + PWM_APPLY, 1u);   // 다음 PWM 주기 경계 적용
+    return 0;
+}
+int servo_axi_disable(uintptr_t baseaddr)
+{
+    // 모터 신호를 바로 LOW로 만들지 않고 다음 프레임 경계에 적용.
+    Xil_Out32(baseaddr + PWM_CONTROL, 0u);
+    Xil_Out32(baseaddr + PWM_APPLY, 1u);
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (29줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;servo_axi.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &quot;servo_logic.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &quot;xil_io.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>// P2-04 원본 AXI PWM IP의 변경 없는 오프셋 사용.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// 0x00 PERIOD_CFG / 0x04 DUTY_CFG / 0x08 CONTROL / 0x0C APPLY</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// 0x10 STATUS / 0x14 ACTIVE_PERIOD / 0x18 ACTIVE_DUTY / 0x1C ID</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>#define PWM_PERIOD  0x00u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>8</td><td><code>#define PWM_DUTY    0x04u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>9</td><td><code>#define PWM_CONTROL 0x08u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>10</td><td><code>#define PWM_APPLY   0x0Cu</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>11</td><td><code>int servo_axi_set_angle(uintptr_t baseaddr, uint32_t clock_hz, int angle_deg)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>13</td><td><code>    servo_config_t c;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    if (servo_angle_to_config(clock_hz, angle_deg, &amp;c) != 0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>15</td><td><code>        return -1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>16</td><td><code>    // 별도 P2-11 인스턴스에만 접근. 기존 LED1 PWM IP 주소 사용 금지.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>17</td><td><code>    Xil_Out32(baseaddr + PWM_PERIOD, c.period_ticks);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>18</td><td><code>    Xil_Out32(baseaddr + PWM_DUTY, c.duty_ticks);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>19</td><td><code>    Xil_Out32(baseaddr + PWM_CONTROL, 1u); // enable=1, normal polarity</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>20</td><td><code>    Xil_Out32(baseaddr + PWM_APPLY, 1u);   // 다음 PWM 주기 경계 적용</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>21</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>22</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>23</td><td><code>int servo_axi_disable(uintptr_t baseaddr)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>25</td><td><code>    // 모터 신호를 바로 LOW로 만들지 않고 다음 프레임 경계에 적용.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>26</td><td><code>    Xil_Out32(baseaddr + PWM_CONTROL, 0u);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>27</td><td><code>    Xil_Out32(baseaddr + PWM_APPLY, 1u);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>28</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>29</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/test_servo_logic.c — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/test_servo_logic.c · C · 소스 원문</span></div><pre><code>#include &lt;assert.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include "../sw/servo_logic.h"
+static void check(uint32_t hz, int angle, uint32_t period, uint32_t duty)
+{
+    servo_config_t c = {0, 0};
+    assert(servo_angle_to_config(hz, angle, &amp;c) == 0);
+    assert(c.period_ticks == period &amp;&amp; c.duty_ticks == duty);
+}
+int main(void)
+{
+    servo_config_t c;
+    check(100000000u, 0,   2000000u, 100000u);
+    check(100000000u, 90,  2000000u, 150000u);
+    check(100000000u, 180, 2000000u, 200000u);
+    check(50000000u,  90,  1000000u,  75000u);
+    assert(servo_angle_to_config(100000000u, -1, &amp;c) == -1);
+    assert(servo_angle_to_config(100000000u, 181, &amp;c) == -1);
+    assert(servo_angle_to_config(0, 90, &amp;c) == -1);
+    assert(servo_angle_to_config(100000000u, 90, 0) == -1);
+    puts("P2_11_HOST_SERVO_LOGIC PASS");
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (24줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &lt;assert.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdio.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &quot;../sw/servo_logic.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>static void check(uint32_t hz, int angle, uint32_t period, uint32_t duty)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>7</td><td><code>    servo_config_t c = {0, 0};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>    assert(servo_angle_to_config(hz, angle, &amp;c) == 0);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    assert(c.period_ticks == period &amp;&amp; c.duty_ticks == duty);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>11</td><td><code>int main(void)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>13</td><td><code>    servo_config_t c;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    check(100000000u, 0,   2000000u, 100000u);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>    check(100000000u, 90,  2000000u, 150000u);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    check(100000000u, 180, 2000000u, 200000u);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>    check(50000000u,  90,  1000000u,  75000u);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>    assert(servo_angle_to_config(100000000u, -1, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    assert(servo_angle_to_config(100000000u, 181, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    assert(servo_angle_to_config(0, 90, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    assert(servo_angle_to_config(100000000u, 90, 0) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>    puts(&quot;P2_11_HOST_SERVO_LOGIC PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>24</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_servo_pwm_reuse.v — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_servo_pwm_reuse.v · VERILOG · 소스 원문</span></div><pre><code>\`timescale 1ns/1ps
+// P2-11: P2-04 pwm_core.v를 수정 없이 재사용하는 PWM 경계 동작 테스트.
+// 20ms 실제 주기를 200 tick으로 축척한 교육용 시뮬레이션.
+// 실물 설정(100MHz)은 C 함수 단위 테스트에서 별도로 검증.
+module tb_servo_pwm_reuse;
+    reg clk = 1'b0;
+    always #5 clk = ~clk;
+    reg resetn=0, apply=0, enable=0;
+    reg [31:0] period=200, duty=10;
+    wire pwm;
+    wire pending;
+    wire [31:0] active_period, active_duty;
+    wire active_enable, active_polarity;
+    integer highs, i;
+    pwm_core #(.RESET_PERIOD(32'd200)) dut (
+        .clk(clk), .resetn(resetn), .cfg_apply(apply),
+        .cfg_period(period), .cfg_duty(duty),
+        .cfg_enable(enable), .cfg_polarity(1'b0),
+        .pwm_out(pwm), .pending(pending),
+        .active_period(active_period), .active_duty(active_duty),
+        .active_enable(active_enable), .active_polarity(active_polarity)
+    );
+    task request_pwm;
+        input [31:0] new_duty;
+        begin
+            @(negedge clk);
+            duty=new_duty; enable=1; apply=1;
+            @(negedge clk); apply=0;
+            // 설정은 주기 경계에서만 활성화된다.
+            wait(active_enable &amp;&amp; active_duty == new_duty);
+        end
+    endtask
+    task check_frame;
+        input integer expected_high;
+        begin
+            highs=0;
+            // 주기 시작을 동기화하기 위해 high-to-low 후 다음 high 시작 검출.
+            wait(pwm == 1'b0);
+            @(posedge pwm);
+            for (i=0;i&lt;200;i=i+1) begin
+                @(negedge clk);
+                if (pwm) highs=highs+1;
+            end
+            if (highs != expected_high) begin
+                $display("FAIL expected=%0d actual=%0d",expected_high,highs);
+                $fatal(1);
+            end
+        end
+    endtask
+    initial begin
+        repeat(4) @(negedge clk);
+        resetn=1;
+        request_pwm(10);
+        check_frame(10);
+        request_pwm(15);
+        check_frame(15);
+        request_pwm(20);
+        check_frame(20);
+        $display("P2_11_RTL_PWM_REUSE PASS");
+        $finish;
+    end
+    initial begin #200000; $fatal(1,"TIMEOUT"); end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 7 (63줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>\`timescale 1ns/1ps</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>2</td><td><code>// P2-11: P2-04 pwm_core.v를 수정 없이 재사용하는 PWM 경계 동작 테스트.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// 20ms 실제 주기를 200 tick으로 축척한 교육용 시뮬레이션.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// 실물 설정(100MHz)은 C 함수 단위 테스트에서 별도로 검증.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>module tb_servo_pwm_reuse;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>6</td><td><code>    reg clk = 1'b0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    always #5 clk = ~clk;</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>8</td><td><code>    reg resetn=0, apply=0, enable=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    reg [31:0] period=200, duty=10;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    wire pwm;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    wire pending;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    wire [31:0] active_period, active_duty;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    wire active_enable, active_polarity;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    integer highs, i;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>    pwm_core #(.RESET_PERIOD(32'd200)) dut (</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>16</td><td><code>        .clk(clk), .resetn(resetn), .cfg_apply(apply),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .cfg_period(period), .cfg_duty(duty),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .cfg_enable(enable), .cfg_polarity(1'b0),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .pwm_out(pwm), .pending(pending),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .active_period(active_period), .active_duty(active_duty),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .active_enable(active_enable), .active_polarity(active_polarity)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    task request_pwm;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>        input [31:0] new_duty;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>25</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>26</td><td><code>            @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>27</td><td><code>            duty=new_duty; enable=1; apply=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>            @(negedge clk); apply=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>            // 설정은 주기 경계에서만 활성화된다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>30</td><td><code>            wait(active_enable &amp;&amp; active_duty == new_duty);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>31</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>32</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>33</td><td><code>    task check_frame;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>34</td><td><code>        input integer expected_high;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>35</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>36</td><td><code>            highs=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>37</td><td><code>            // 주기 시작을 동기화하기 위해 high-to-low 후 다음 high 시작 검출.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>38</td><td><code>            wait(pwm == 1'b0);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>39</td><td><code>            @(posedge pwm);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>40</td><td><code>            for (i=0;i&lt;200;i=i+1) begin</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>41</td><td><code>                @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>42</td><td><code>                if (pwm) highs=highs+1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>43</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>44</td><td><code>            if (highs != expected_high) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>45</td><td><code>                $display(&quot;FAIL expected=%0d actual=%0d&quot;,expected_high,highs);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>46</td><td><code>                $fatal(1);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>47</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>48</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>49</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>51</td><td><code>        repeat(4) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>52</td><td><code>        resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>53</td><td><code>        request_pwm(10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>54</td><td><code>        check_frame(10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>55</td><td><code>        request_pwm(15);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>56</td><td><code>        check_frame(15);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>        request_pwm(20);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>58</td><td><code>        check_frame(20);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>        $display(&quot;P2_11_RTL_PWM_REUSE PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>60</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>61</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>62</td><td><code>    initial begin #200000; $fatal(1,&quot;TIMEOUT&quot;); end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>63</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/servo_command.h — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_command.h · C · 소스 원문</span></div><pre><code>#ifndef P2_11_SERVO_COMMAND_H
+#define P2_11_SERVO_COMMAND_H
+typedef enum { SERVO_CMD_ANGLE, SERVO_CMD_OFF } servo_cmd_kind_t;
+typedef struct {
+    servo_cmd_kind_t kind;
+    int angle_deg;
+} servo_command_t;
+// 1=서보 명령 파싱 성공, 0=서보 명령 아님, -1=잘못된 서보 명령.
+// UART 수신 라인의 '\0' 종료 문자열을 입력으로 받는다.
+int servo_parse_command(const char *line, servo_command_t *cmd);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 8 (11줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_11_SERVO_COMMAND_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_11_SERVO_COMMAND_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>typedef enum { SERVO_CMD_ANGLE, SERVO_CMD_OFF } servo_cmd_kind_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>4</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>5</td><td><code>    servo_cmd_kind_t kind;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>    int angle_deg;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>} servo_command_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>// 1=서보 명령 파싱 성공, 0=서보 명령 아님, -1=잘못된 서보 명령.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>// UART 수신 라인의 '\0' 종료 문자열을 입력으로 받는다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>10</td><td><code>int servo_parse_command(const char *line, servo_command_t *cmd);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/servo_command.c — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/servo_command.c · C · 소스 원문</span></div><pre><code>#include "servo_command.h"
+#include &lt;string.h&gt;
+// 기존 P2-10 UART Parser는 유지한다. SERVO 명령 전용 독립 Parser.
+// 엄격한 명령 규격: "SERVO 0"~"SERVO 180", "SERVO OFF".
+// 뒤쪽 CR/LF는 기존 Line Receiver에서 제거해야 한다.
+int servo_parse_command(const char *line, servo_command_t *cmd)
+{
+    int deg = 0;
+    const char *p;
+    if (!line || !cmd) return -1;
+    if (strncmp(line, "SERVO", 5) != 0 ||
+        (line[5] != '\0' &amp;&amp; line[5] != ' '))
+        return 0;
+    if (strcmp(line, "SERVO OFF") == 0) {
+        cmd-&gt;kind = SERVO_CMD_OFF;
+        cmd-&gt;angle_deg = 0;
+        return 1;
+    }
+    if (strncmp(line, "SERVO ", 6) != 0) return -1;
+    p = line + 6;
+    if (*p == '\0') return -1;
+    while (*p != '\0') {
+        if (*p &lt; '0' || *p &gt; '9') return -1;
+        deg = deg * 10 + (*p - '0');
+        if (deg &gt; 180) return -1; // 큰 정수 입력도 안전하게 중단
+        ++p;
+    }
+    cmd-&gt;kind = SERVO_CMD_ANGLE;
+    cmd-&gt;angle_deg = deg;
+    return 1;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 9 (31줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;servo_command.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;string.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>// 기존 P2-10 UART Parser는 유지한다. SERVO 명령 전용 독립 Parser.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// 엄격한 명령 규격: &quot;SERVO 0&quot;~&quot;SERVO 180&quot;, &quot;SERVO OFF&quot;.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// 뒤쪽 CR/LF는 기존 Line Receiver에서 제거해야 한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>int servo_parse_command(const char *line, servo_command_t *cmd)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>    int deg = 0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    const char *p;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    if (!line || !cmd) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>11</td><td><code>    if (strncmp(line, &quot;SERVO&quot;, 5) != 0 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>12</td><td><code>        (line[5] != '\0' &amp;&amp; line[5] != ' '))</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>        return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>14</td><td><code>    if (strcmp(line, &quot;SERVO OFF&quot;) == 0) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>15</td><td><code>        cmd-&gt;kind = SERVO_CMD_OFF;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>        cmd-&gt;angle_deg = 0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>        return 1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>18</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>19</td><td><code>    if (strncmp(line, &quot;SERVO &quot;, 6) != 0) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>20</td><td><code>    p = line + 6;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    if (*p == '\0') return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>22</td><td><code>    while (*p != '\0') {</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>23</td><td><code>        if (*p &lt; '0' || *p &gt; '9') return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>24</td><td><code>        deg = deg * 10 + (*p - '0');</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>25</td><td><code>        if (deg &gt; 180) return -1; // 큰 정수 입력도 안전하게 중단</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>26</td><td><code>        ++p;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>27</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>28</td><td><code>    cmd-&gt;kind = SERVO_CMD_ANGLE;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>    cmd-&gt;angle_deg = deg;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>    return 1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>31</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/test_servo_command.c — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/test_servo_command.c · C · 소스 원문</span></div><pre><code>#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include "../sw/servo_command.h"
+int main(void)
+{
+    servo_command_t c;
+    assert(servo_parse_command("SERVO 0", &amp;c) == 1);
+    assert(c.kind == SERVO_CMD_ANGLE &amp;&amp; c.angle_deg == 0);
+    assert(servo_parse_command("SERVO 90", &amp;c) == 1);
+    assert(c.angle_deg == 90);
+    assert(servo_parse_command("SERVO 180", &amp;c) == 1);
+    assert(c.angle_deg == 180);
+    assert(servo_parse_command("SERVO OFF", &amp;c) == 1);
+    assert(c.kind == SERVO_CMD_OFF);
+    assert(servo_parse_command("STATUS", &amp;c) == 0);
+    assert(servo_parse_command("SERVO 181", &amp;c) == -1);
+    assert(servo_parse_command("SERVO -1", &amp;c) == -1);
+    assert(servo_parse_command("SERVO ", &amp;c) == -1);
+    assert(servo_parse_command("SERVO 90\n", &amp;c) == -1);
+    assert(servo_parse_command("SERVO 99999999999999", &amp;c) == -1);
+    puts("P2_11_HOST_SERVO_COMMAND PASS");
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 10 (23줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &lt;assert.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;stdio.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &quot;../sw/servo_command.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>int main(void)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>5</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>6</td><td><code>    servo_command_t c;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>    assert(servo_parse_command(&quot;SERVO 0&quot;, &amp;c) == 1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>    assert(c.kind == SERVO_CMD_ANGLE &amp;&amp; c.angle_deg == 0);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    assert(servo_parse_command(&quot;SERVO 90&quot;, &amp;c) == 1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    assert(c.angle_deg == 90);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    assert(servo_parse_command(&quot;SERVO 180&quot;, &amp;c) == 1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    assert(c.angle_deg == 180);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>    assert(servo_parse_command(&quot;SERVO OFF&quot;, &amp;c) == 1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>    assert(c.kind == SERVO_CMD_OFF);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    assert(servo_parse_command(&quot;STATUS&quot;, &amp;c) == 0);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    assert(servo_parse_command(&quot;SERVO 181&quot;, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    assert(servo_parse_command(&quot;SERVO -1&quot;, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>    assert(servo_parse_command(&quot;SERVO &quot;, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    assert(servo_parse_command(&quot;SERVO 90\n&quot;, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    assert(servo_parse_command(&quot;SERVO 99999999999999&quot;, &amp;c) == -1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    puts(&quot;P2_11_HOST_SERVO_COMMAND PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>23</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>우분투 테스트 명령</h3><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>cd part02/chapters/P2_11_Lesson
+bash tests/run_host_tests.sh
+bash tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 11 (3줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>cd part02/chapters/P2_11_Lesson</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>2</td><td><code>bash tests/run_host_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>bash tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>첫 명령은 gcc로 각도 변환 및 독립 UART SERVO 명령 파서를 호스트에서 시험한다. 두 번째 명령은 Icarus Verilog(아이카루스 베릴로그, RTL 시뮬레이터)로 기존 PWM 코어의 10/15/20 tick 펄스를 축소하여 검증한다. 실제 20ms, AXI 버스 및 타깃 FPGA 실측과는 다른 검증 단계다.</p></section>
+<section class="section" id="s08"><h2><span class="num">08</span>테스트·검증 기록</h2><table><thead><tr><th>검증 구간</th><th>현재 상태</th><th>PASS 조건</th></tr></thead><tbody>
+<tr><td>정적 코드 검토</td><td>초안 작성</td><td>레지스터·포트·모듈 연결 일치</td></tr><tr><td>HOST_C</td><td>PASS · GitHub Actions 42933313146</td><td>각도 및 명령 파서·오류 케이스</td></tr><tr><td>RTL_SIM</td><td>PASS · GitHub Actions 42933313146</td><td>축소 PWM 프레임 테스트(10/15/20 tick)</td></tr><tr><td>AXI_SIM</td><td>기존 P2-04 PWM AXI PASS / 신규 서보 IP SoC AXI 미실행</td><td>기존 AW/W, WSTRB, B/R 및 오류 응답 회귀는 PASS. 신규 AXI 주소 독립성은 별도 확인</td></tr><tr><td>Vivado Synthesis / Timing</td><td>미실행</td><td>합성 및 WNS/TNS·클록 제약 확인</td></tr><tr><td>Vitis Target / XSA</td><td>미실행</td><td>실제 BSP 빌드·UART 제어</td></tr><tr><td>Basys3 BOARD</td><td>미실행</td><td>실제 SG90 움직임, 출력파형, 전기적 안전</td></tr><tr><td>브라우저 HTML</td><td>미실행</td><td>모든 표·코드·그림 및 모바일 표시</td></tr></tbody></table>
+<p class="ok">2026-11-11 실제 GitHub Actions #42933313146에서 HOST_C, RTL_SIM 및 원본 P2-04 AXI_SIM 모두 통과. 기존 04장 AXI 테스트벤치의 초기 프레임 대기 조건만 별도 검토 브랜치에서 수정했다. Vivado·Vitis·보드 검증과 신규 IP의 SoC 통합 검증은 여전히 미실시다.</p><p><a href="https://github.com/Yuul-Jung/amd_soc/actions/runs/42933313146">실제 CI 실행 로그</a></p></section>
+<section class="section" id="s09"><h2><span class="num">09</span>다음 과제와 연결</h2><p>제12장은 28BYJ-48 + ULN2003 유니폴러 스테핑 모터이다. 11장에서 익힌 PWM 펄스폭 제어와 달리, 스텝 모터는 IN1~IN4의 순차 여자 제어와 스텝 타이밍·목표 스텝 수를 설계한다.</p><p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_04_Lesson_20261106/P2_04_Study_Guide.html">04장 PWM 기초 교재</a> · <a href="../part02_2/guide/index.html#tech-tree">11~20장 테크트리 Markdown</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① SG90 서보의 20ms 주기와 펄스폭 제어의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"ch11_servo_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

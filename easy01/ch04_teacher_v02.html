@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta content="width=device-width, initial-scale=1" name="viewport">
+<meta content="Basys3 MicroBlaze V SoC 04장 실습: Local BRAM 주소 확인, Vitis C 배열 쓰기·읽기, Debug WATCH 결과 검증." name="description">
+<title>교수용 상세 해설서 | 제1부 04장 | SoC 04 · Local BRAM Memory Map과 주소 기반 읽기·쓰기</title><style>
+
+:root{
+  --paper:#F1F2EE;--card:#FFFFFF;--ink:#15171C;--ink-2:#4A4F5A;--ink-3:#858B96;
+  --line:#DDDFD8;--line-strong:#C9CCC3;--accent:#4635B1;--accent-soft:#EDEAFA;
+  --yellow:#FFD24A;--good:#1F6F4A;--good-bg:#EEF8F3;--warn:#7A4D14;--warn-bg:#FDF3E7;
+  --maxw:1560px;--sidebar:260px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:22px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.72;-webkit-font-smoothing:antialiased}
+a{color:inherit} code,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+
+/* top */
+.topbar{background:#fff;border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:var(--maxw);margin:0 auto;padding:12px 34px;display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:.88rem;color:var(--ink-2)}
+.breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.breadcrumb a{text-decoration:none;color:var(--ink)}.breadcrumb .sep{color:#B0B4BC}
+.brand{font-family:"SFMono-Regular",Consolas,monospace;font-size:.75rem;color:var(--ink-3)}
+
+/* hero */
+.hero{position:relative;background:var(--ink);color:#F1F2EE;overflow:hidden;border-bottom:1px solid #111}
+.hero-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(255,255,255,.052) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.052) 1px,transparent 1px);background-size:28px 28px}
+.hero-inner{position:relative;max-width:var(--maxw);margin:0 auto;padding:72px 34px 58px}
+.hero-kicker{display:inline-block;margin:0 0 16px;padding-bottom:7px;border-bottom:2px solid var(--yellow);color:var(--yellow);font-weight:700;font-size:.96rem}
+.hero h1{margin:0;max-width:1100px;font-size:clamp(1.9rem,4.2vw,3.15rem);line-height:1.18;letter-spacing:-.03em;word-break:keep-all;overflow-wrap:normal;text-wrap:balance}
+.hero-desc{margin:22px 0 0;max-width:760px;color:#BBC0C8;font-size:1rem;font-weight:300}
+.hero-meta{margin-top:30px;display:flex;flex-wrap:wrap;gap:9px}
+.chip{border:1px solid rgba(255,255,255,.22);padding:5px 10px;border-radius:2px;color:#E6E8EC;font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+.hero-brief{margin-top:38px;padding-top:28px;border-top:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.hero-brief article{padding:15px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11)}
+.hero-brief h2{margin:0 0 6px;color:#fff;font-size:.9rem}.hero-brief p{margin:0;color:#ADB2BA;font-size:.86rem;line-height:1.62}
+
+/* main */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 34px 92px;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);gap:38px;align-items:start}
+.flow-nav{position:sticky;top:0;max-height:100vh;overflow:auto;padding:38px 0;scrollbar-width:thin}
+.nav-title{margin:0 0 7px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;letter-spacing:.08em;color:var(--ink-3);font-weight:700}
+.nav-help{margin:0 0 19px;color:var(--ink-3);font-size:.76rem}.phase{margin:20px 0 7px;font-size:.72rem;font-weight:700;color:var(--ink-3)}
+.timeline{list-style:none;margin:0;padding:0 0 0 10px;position:relative}.timeline::before{content:"";position:absolute;left:20px;top:12px;bottom:12px;width:1px;background:#CFD2CB}
+.timeline li{position:relative;margin:0;padding:0}
+.timeline a{position:relative;display:grid;grid-template-columns:27px 1fr;gap:10px;align-items:start;text-decoration:none;color:var(--ink-2);padding:5px 6px 5px 0;font-size:.80rem;line-height:1.4;transition:color .15s,transform .15s}
+.timeline .n{z-index:1;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:1px solid #C9CDC5;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.64rem;font-weight:700}
+.timeline a:hover{color:var(--accent);transform:translateX(2px)}.timeline a.active{color:var(--accent);font-weight:650}
+.timeline a.active .n{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+main{padding-top:38px;min-width:0}
+.overview-card{background:#FBFBF9;border:1px solid var(--line);margin-bottom:18px;padding:28px 32px}
+.overview-card h2{margin:0 0 16px;font-size:1.24rem}.stage-flow{display:flex;align-items:center;gap:7px;overflow-x:auto;padding:4px 0 8px}
+.stage{min-width:max-content;padding:9px 11px;border:1px solid var(--line);background:#fff;font-size:.82rem;color:var(--ink-2)}.arrow{color:var(--accent);font-weight:800;flex:none}
+
+/* source sections */
+.step-card{background:var(--card);border:1px solid var(--line);padding:32px 40px 36px;margin-bottom:16px;scroll-margin-top:18px}
+.step-card h2{margin:0 0 17px;font-size:1.36rem;letter-spacing:-.025em}.step-card h3{font-size:1rem;margin:24px 0 9px}
+.step-anchor{scroll-margin-top:22px}
+.step{display:inline-block;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:4px 8px;border-radius:2px;margin:3px 0 7px}
+p{color:var(--ink-2)}ul,ol{color:var(--ink-2)}li{margin:5px 0}
+.flow{background:#FBFBF9;border:1px solid var(--line);border-left:3px solid var(--accent);padding:17px 19px;margin:16px 0;font-weight:600;color:#2C2F38;overflow-x:auto}
+.codeblock-pre{margin:12px 0 18px;background:#FBFBF9;color:#282C34;padding:17px 19px;border:1px solid var(--line);border-left:3px solid #B9B2E8;border-radius:0;overflow:auto;line-height:1.72;font-size:.84rem}
+.inline,p code,li code,td code{font-family:"SFMono-Regular",Consolas,monospace;font-size:.87em;background:#F4F4F1;border:1px solid var(--line);padding:1px 5px;border-radius:2px}
+.note,.warn,.ok{padding:14px 16px;border-radius:0;margin:16px 0;border:1px solid var(--line);font-size:.91rem}
+.note{background:var(--accent-soft);border-color:#DAD4F6;color:#3A2F8C}.warn{background:var(--warn-bg);border-color:#F0DCBE;color:var(--warn)}.ok{background:var(--good-bg);border-color:#CFE8DB;color:#18573C}
+.table-wrap{overflow-x:auto;margin:14px 0 20px}table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:680px;table-layout:auto}th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);word-break:keep-all;overflow-wrap:break-word}
+thead th{font-size:.78rem;color:var(--ink-3);font-weight:700;border-bottom:1px solid var(--line-strong)}td:first-child{color:var(--ink);font-weight:600}
+
+/* summary/nav */
+.summary{background:#F8F7FD;border:1px solid #D8D3F2;border-left:5px solid var(--accent);color:var(--ink)}.summary h2{color:var(--ink)}.summary li,.summary p{color:var(--ink-2)}.summary code{background:#fff;border-color:#D8D3F2}
+.chapter-nav{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;margin-top:26px}
+.chapter-nav a,.chapter-nav span{display:flex;align-items:center;padding:13px 14px;background:#fff;border:1px solid var(--line);text-decoration:none;font-size:.88rem;color:var(--ink)}
+.chapter-nav .home{justify-content:center}.chapter-nav .next{justify-content:flex-end;text-align:right}.chapter-nav .disabled{color:#A0A5AD;background:#F7F7F4}
+.site-footer{max-width:var(--maxw);margin:0 auto;padding:0 34px 38px;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+
+/* index compatibility */
+.home-main{max-width:1380px;margin:0 auto;padding:42px 30px 90px}.home-section,.card{background:#fff;border:1px solid var(--line);padding:30px 34px}
+.home-section h2,.card h2{margin-top:0}
+
+@media(max-width:920px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 20px 62px}.flow-nav{position:static;max-height:none;padding:28px 0 8px;border-bottom:1px solid var(--line)}
+  .timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.timeline::before{display:none}
+  main{padding-top:26px}.hero-inner{padding:58px 20px 48px}.hero-brief{grid-template-columns:1fr}.topbar-inner{padding:11px 20px}
+  .step-card,.overview-card{padding:24px 21px 27px}.site-footer{padding:0 20px 34px}
+}
+@media(max-width:600px){.timeline{grid-template-columns:1fr}.brand{display:none}.chapter-nav{grid-template-columns:1fr}.chapter-nav .next,.chapter-nav .home{justify-content:flex-start;text-align:left}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+
+/* technical figures */
+.tech-figure{margin:18px 0 24px;padding:14px;background:#FBFBF9;border:1px solid var(--line);overflow-x:auto}
+.tech-figure img{display:block;width:auto;height:auto;max-width:100%;margin:0 auto}
+.tech-figure figcaption{margin-top:10px;color:var(--ink-3);font-size:.78rem;line-height:1.55;text-align:center}
+.source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:700px){.source-grid{grid-template-columns:1fr}}
+
+/* original-source figure references: no technical redraws */
+.source-figure-ref{margin:18px 0 24px;padding:22px 24px;background:#FBFBF9;border:1px solid var(--line);border-left:4px solid var(--accent)}
+.source-figure-ref .source-kicker{margin:0 0 6px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.source-figure-ref h3{margin:0 0 8px;font-size:1.06rem;color:var(--ink)}
+.source-figure-ref p{margin:6px 0 12px}
+.source-figure-link{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#fff;border:1px solid var(--line-strong);text-decoration:none;font-size:.84rem;font-weight:700;color:var(--accent)}
+.source-figure-link:hover{border-color:var(--accent)}
+.resource-table th:first-child,.resource-table td:first-child{width:28%}
+main,.step-card,.overview-card{max-width:100%;min-width:0}
+
+/* Concise self-contained source presentation. */
+.polished-source{border-top:4px solid var(--accent);}
+.source-group{margin:30px 0 0;}
+.source-group>h2{padding-bottom:9px;border-bottom:2px solid var(--accent);}
+.source-file{margin:18px 0 30px;border:1px solid var(--line);background:#fff;}
+.source-file-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;background:#f4f4f1;border-bottom:1px solid var(--line);font-family:"IBM Plex Mono",monospace;}
+.source-file-header span{font-size:.72rem;font-weight:700;color:var(--accent);}.source-file-header strong{font-size:.84rem;overflow-wrap:anywhere}.source-file-header small{color:var(--ink-3);}
+.full-source-code{margin:0;border:0;border-bottom:1px solid var(--line);}.full-source-code pre{max-height:none;white-space:pre;tab-size:4;}
+.source-explain{padding:18px 20px 20px;}.source-explain h3{margin:0 0 12px}.source-explain p{margin:7px 0}.source-role{display:inline-block;padding:3px 7px;margin-right:5px;background:#eceafc;color:#4635b1;font:700 .7rem/1.2 "IBM Plex Mono",monospace;}
+.source-path{color:var(--ink-3);font-size:.82rem}.external-note{padding:12px 14px;border-left:3px solid #a45a22;background:#fff6ed;}
+.code-repeat-note{padding:9px 12px;border-left:3px solid var(--line);color:var(--ink-3);font-size:.88rem;}
+.verification-link{max-width:1350px;margin:18px auto;padding:0 22px}.verification-link a{display:inline-block;padding:9px 12px;border:1px solid var(--line);background:#fff;text-decoration:none;font-weight:700}
+@media(max-width:760px){.source-file-header{grid-template-columns:1fr}.source-file-header small{text-align:left}}
+
+
+
+/* SoC chapter extensions */
+.lesson-goal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.lesson-goal article{border:1px solid var(--line);background:#FBFBF9;padding:15px 16px}
+.lesson-goal strong{display:block;font-size:.82rem;color:var(--accent);margin-bottom:5px}
+.lesson-goal p{margin:0;font-size:.84rem;line-height:1.55}
+.manual-figure{margin:20px 0 24px;border:1px solid var(--line);background:#fff;padding:14px}
+.manual-figure img{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff}
+.manual-figure figcaption{margin:10px 4px 2px;color:var(--ink-3);font-size:.78rem;line-height:1.58;text-align:center}
+.manual-figure .figure-source{display:block;margin-top:4px;font-size:.74rem}
+.manual-figure .figure-source a{color:var(--accent);font-weight:700;text-decoration:none}
+.manual-figure.compact img{max-height:640px}
+.step-seq{counter-reset:socstep;list-style:none;padding:0;margin:18px 0}
+.step-seq>li{counter-increment:socstep;position:relative;margin:0 0 12px;padding:16px 18px 16px 58px;border:1px solid var(--line);background:#FBFBF9}
+.step-seq>li::before{content:counter(socstep, decimal-leading-zero);position:absolute;left:16px;top:16px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font:700 .7rem/1 "SFMono-Regular",Consolas,monospace}
+.step-seq h3{margin:0 0 7px;font-size:1rem}.step-seq p{margin:5px 0}.step-seq ul{margin:6px 0}
+.gate{border-left:5px solid var(--good);background:var(--good-bg)}
+.danger{border-left:5px solid #A23B3B;background:#FFF2F2;border-top:1px solid #F0CCCC;border-right:1px solid #F0CCCC;border-bottom:1px solid #F0CCCC;padding:14px 16px;margin:16px 0;color:#733}
+.signal-map{font-family:"SFMono-Regular",Consolas,monospace;background:#15171C;color:#E7EAF0;padding:19px 20px;overflow-x:auto;line-height:1.7;margin:16px 0;border-left:4px solid var(--yellow)}
+.acceptance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.acceptance div{padding:13px 15px;border:1px solid var(--line);background:#FBFBF9}.acceptance strong{display:block;margin-bottom:4px}
+.version-badge{display:inline-block;padding:3px 8px;border:1px solid rgba(255,255,255,.22);font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;color:#E8E8EE}
+@media(max-width:900px){.lesson-goal{grid-template-columns:repeat(2,minmax(0,1fr))}.acceptance{grid-template-columns:1fr}}
+@media(max-width:560px){.lesson-goal{grid-template-columns:1fr}}
+
+
+/* Chapters 01-10: shared top navigation */
+.topbar{background:#fff;border-bottom:1px solid #DDDFD8}
+.topbar .topbar-inner,.topbar .top-inner{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 18px}
+.topbar .breadcrumb,.topbar .top-inner>span:first-child{font-size:.86rem;line-height:1.6;color:#4A4F5A}
+.topbar a,.topbar .breadcrumb a{color:#333743;text-decoration:none}
+.topbar a:hover,.topbar .breadcrumb a:hover{text-decoration:underline;color:#4635B1}
+.topbar .breadcrumb strong,.topbar .top-inner b{color:#15171C;font-weight:800}
+.topbar .brand,.topbar .meta{font-size:.76rem;color:#747B86;letter-spacing:0}
+@media(max-width:600px){.topbar .topbar-inner,.topbar .top-inner{padding:10px 14px}}
+</style><style>
+/* MicroBlaze V 배포: 기존 스타일 유지, 좌측 세부 목차와 폭 제한 */
+:root{--sidebar:260px;--maxw:1520px}body{overflow-wrap:anywhere}.wrap{grid-template-columns:260px minmax(0,1fr)}.wrap>main{min-width:0}.flow-nav{position:sticky;top:0;max-height:100vh;overflow-y:auto}.step-card,.card,.section-card{min-width:0}figure{max-width:100%;margin-left:0;margin-right:0}figure img,img{display:block;max-width:100%;height:auto;object-fit:contain;margin-left:auto;margin-right:auto}figure img{max-height:760px}table{min-width:0!important;width:100%;table-layout:fixed}td,th{overflow-wrap:anywhere;white-space:normal!important}pre{max-width:100%;overflow-x:auto;white-space:pre;tab-size:4}.table-wrap{max-width:100%;overflow-x:auto}.resource-table td,.resource-table a{overflow-wrap:anywhere}.runtime-scope{display:none}@media(max-width:1050px){.wrap{grid-template-columns:225px minmax(0,1fr);gap:22px;padding-left:20px;padding-right:20px}.flow-nav{width:auto}td,th{padding:10px!important}}@media(max-width:760px){.wrap{display:block;padding-left:14px;padding-right:14px}.flow-nav{position:relative;max-height:340px;margin-bottom:22px}.hero-inner{padding:34px 20px}.hero-brief{grid-template-columns:1fr}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border:1px solid #d9dce2;margin:12px 0}td{border:0;border-bottom:1px solid #e5e7eb}td:before{content:attr(data-label);display:block;font-size:11px;color:#6b7280;font-weight:650}td:first-child{background:#f3f1fa}.step-card{padding:22px 17px}pre{font-size:12px}}
+
+/* Readability and keyboard access; original chapter layout retained. */
+:root{--ink-3:#626975}
+body{font-family:"Noto Sans KR","Noto Sans CJK KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.skip-link{position:fixed;left:16px;top:12px;z-index:1000;transform:translateY(-180%);padding:10px 16px;background:#fff;color:#33218f;border:3px solid #4635b1;font-weight:700}
+.skip-link:focus{transform:none}
+:focus-visible{outline:3px solid #6547cf;outline-offset:4px}
+.signal-map:focus-visible,pre:focus-visible,.table-wrap:focus-visible{outline-offset:2px}
+.signal-map{white-space:pre;font-family:"SFMono-Regular",Consolas,"Liberation Mono","Noto Sans CJK KR",monospace;font-size:.9375rem;line-height:1.8;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.signal-map.signal-table{white-space:normal}
+.signal-table table{min-width:0;width:100%;font-size:.9rem;color:#e7eaf0;line-height:1.7}
+.signal-table th,.signal-table td{color:inherit;padding:10px 12px;border-color:#414650;overflow-wrap:anywhere;word-break:normal}
+.signal-table thead th{color:#ffd24a;font-size:.84rem}
+.signal-table tbody th{font-weight:600}
+.signal-table td:first-child{color:inherit;font-weight:400}
+.signal-table code{font:inherit;background:none;border:0;padding:0;color:inherit}
+pre{font-size:.9rem;line-height:1.75;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.codeblock-pre{font-size:.9rem}
+.flow,p,li,td,th,.source-path,.source-file-header strong{overflow-wrap:anywhere}
+.timeline a{font-size:.875rem;line-height:1.55;padding-top:7px;padding-bottom:7px}
+.timeline .n{font-size:.75rem}
+.nav-title,.nav-help,.phase{color:#626975}
+.tech-figure figcaption,.manual-figure figcaption{color:#555d69;font-size:.875rem;line-height:1.7}
+.manual-figure .figure-source{font-size:.8125rem}
+.figure-original{display:inline-block;margin-top:8px;padding:4px 9px;border:1px solid var(--line-strong,#c9ccc3);background:#fff;color:var(--accent,#4635b1);font-size:.8125rem;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.figure-image-link{display:block}
+.figure-image-link:focus-visible{outline-offset:5px}
+.manual-figure.compact img{max-height:none}
+thead th{color:#626975;font-size:.84rem}
+.hero-desc{font-weight:400}
+main[tabindex="-1"]:focus{outline:none}
+@media(max-width:600px){
+ .signal-map{padding:15px 12px;font-size:.875rem}
+ .signal-table{padding:10px 8px}.signal-table th,.signal-table td{padding:8px 6px;font-size:.8125rem}
+ .tech-figure,.manual-figure{padding:10px}
+ .step-card h2{line-height:1.5;overflow-wrap:anywhere}
+ .chip{overflow-wrap:anywhere;max-width:100%}
+}
+@media(forced-colors:active){:focus-visible{outline:3px solid Highlight}.signal-map{border:1px solid CanvasText}.figure-original{border:1px solid LinkText}}
+
+
+.signal-map{scrollbar-width:auto;scrollbar-color:#9da6b4 #252a33}
+@media(max-width:760px){
+ table thead{display:block!important;position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);white-space:nowrap!important}
+ .signal-table td:first-child{background:#252a33}
+ .signal-table td::before{color:#ffd24a;font-size:.8125rem;font-weight:700}
+}
+</style><link rel="stylesheet" href="../part01/legacy/pages/soc/../../assets/reader.css"><script defer src="../part01/legacy/pages/soc/../../assets/reader.js"></script><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;border:1px solid #d6d4ea;border-left:4px solid #4635B1;border-radius:8px;padding:18px 20px;margin:18px 0;color:#1b1c22;line-height:1.75}.prof-banner h2,.prof-card h3{margin:0 0 8px;color:#352994}.prof-banner p,.prof-card p,.prof-code p{margin:7px 0}.prof-flow{max-width:100%;overflow-x:auto}.prof-flow svg{min-width:580px;width:100%;height:auto}.prof-code{border-left-color:#3f7768;background:#fafdfa}.prof-code summary{cursor:pointer;font-weight:700;color:#234e44}.prof-table-wrap{max-width:100%;overflow-x:auto}.prof-table{width:100%;border-collapse:collapse;font-size:.86rem;table-layout:auto}.prof-table th,.prof-table td{border:1px solid #dcded9;padding:6px 10px;text-align:left;vertical-align:top}.prof-table th{background:#ececf6}.prof-table td:first-child{white-space:nowrap}.prof-table td code{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.82rem}.prof-source{font-size:.86rem;color:#555}.prof-explain{margin:12px 0 16px 0;padding:11px 14px;background:#f4f2ff;border-left:3px solid #8877cc;border-radius:4px}.prof-explain strong{color:#352994}.prof-mini{font-size:.9rem;color:#494961}.prof-banner a{color:#4635b1}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px;margin:12px 0}.prof-table{font-size:.81rem}}</style></head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 바로가기</a><div class="topbar"><div class="topbar-inner"><div class="breadcrumb"><a href="../part01/legacy/pages/soc/../../index.html">Basys3 SoC + NPU</a><span class="sep">/</span><a href="../part01/legacy/pages/soc/03_microblaze_bram_program_execution.html">SoC 03</a><span class="sep">/</span><strong>SoC 04</strong><span class="sep">/</span><a href="../part01/legacy/pages/soc/05_axi4_axi4lite_axi4stream.html">SoC 05</a></div><div class="brand">BASYS3 · MICROBLAZE V SOC</div></div></div>
+<header class="hero"><div class="hero-grid"></div><div class="hero-inner">
+<p class="hero-kicker">Basys3 SoC + NPU · SoC 04</p><h1>Local BRAM Memory Map과 주소 기반 읽기·쓰기</h1>
+<p class="hero-desc">Vivado에서 16 KiB Local BRAM 주소를 확인하고, Vitis에서 C 프로그램을 빌드·실행한 뒤 WATCH로 실제 주소와 읽기·쓰기 결과를 검증한다.</p>
+<div class="hero-meta"><span class="chip">Memory Map</span><span class="chip">Address Space</span><span class="chip">Base Address</span><span class="chip">Range</span><span class="chip">Address Editor</span><span class="chip">Vitis Debug</span><span class="chip">WATCH 검증</span></div>
+<div class="hero-brief"><article><h2>주소</h2><p>ILMB/DLMB에 연결된 BRAM의 16 KiB 주소 범위를 확인한다.</p></article><article><h2>코드</h2><p>Vitis의 main.c에서 BRAM 데이터를 Write/Read한다.</p></article><article><h2>검증</h2><p>FPGA Debug와 WATCH에서 최종 stage 5를 확인한다.</p></article></div>
+</div></header>
+<div class="wrap"><aside class="flow-nav" aria-label="장별 세부 목차"><div class="reader-tools"><form hidden><label for="chapter-select">장 이동</label><select class="reader-chapter-select" id="chapter-select"><option value="01_microblaze_bram_minimal_soc.html">SoC 01 · MicroBlaze V + BRAM 최소 SoC</option><option value="02_clock_reset_processor_system_reset.html">SoC 02 · Clock / Reset 구조와 Processor System Reset</option><option value="03_microblaze_bram_program_execution.html">SoC 03 · MicroBlaze V 실행 구조와 BRAM 프로그램 실행</option><option value="04_memory_map_memory_mapped_io.html" selected>SoC 04 · Local BRAM Memory Map과 주소 기반 읽기·쓰기</option><option value="05_axi4_axi4lite_axi4stream.html">SoC 05 · AXI4 / AXI4-Lite / AXI4-Stream 구조</option><option value="06_axi_gpio.html">SoC 06 · AXI GPIO</option><option value="07_axi_uart_lite.html">SoC 07 · AXI UART Lite</option><option value="08_axi_timer.html">SoC 08 · AXI Timer</option><option value="09_axi_interrupt_controller.html">SoC 09 · AXI Interrupt Controller</option><option value="10_microblaze_gpio_uart_timer_integration.html">SoC 10 · MicroBlaze V + GPIO + UART + Timer 통합</option><option value="11_register_map_design_principles.html">SoC 11 · Register Map 설계 원칙</option><option value="12_custom_axi4lite_slave_basics.html">SoC 12 · Custom AXI4-Lite Slave 기초</option><option value="13_axi_register_read_write_path.html">SoC 13 · AXI Register Read / Write 경로</option><option value="14_register_bank_rtl_controller.html">SoC 14 · Register Bank + RTL Controller 연결</option><option value="15_microblaze_software_driver.html">SoC 15 · MicroBlaze V Software Driver</option><option value="16_vivado_ip_packaging_reuse.html">SoC 16 · Vivado IP Packaging과 재사용</option><option value="17_existing_verilog_rtl_to_ip.html">SoC 17 · 기존 Verilog RTL을 IP로 변환</option><option value="18_uart_pwm_controller_ip.html">SoC 18 · UART / PWM Controller IP화</option><option value="19_axi_control_status_bridge.html">SoC 19 · AXI Control / Status Bridge</option><option value="20_cdc_reset_safe_design.html">SoC 20 · CDC / Reset 안전 설계</option><option value="21_self_checking_assertion_coverage.html">SoC 21 · Self-Checking Testbench / Assertion / Coverage</option><option value="22_timing_critical_path_wns_tns.html">SoC 22 · Timing / Critical Path / WNS / TNS</option><option value="23_resource_power_thermal.html">SoC 23 · Resource / Power / Thermal</option><option value="24_npu_mac_datapath.html">SoC 24 · NPU Datapath / MAC 기본 구조</option><option value="25_pe_parallel_mac_vector_dot_product.html">SoC 25 · PE / Parallel MAC / Vector Dot Product</option><option value="26_vector_dot_product_controller.html">SoC 26 · Vector Dot Product Controller</option><option value="27_local_bram_address_generator_data_feeding.html">SoC 27 · Local BRAM / Address Generator / Data Feeding</option><option value="28_prefetch_fifo_double_buffer_stall_safe_feeding.html">SoC 28 · Prefetch / FIFO / Double Buffer</option><option value="29_data_reuse_weight_stationary_tiling.html">SoC 29 · Data Reuse / Weight Stationary / Tiling</option><option value="30_bias_requantization_rounding_saturation_int8.html">SoC 30 · Bias / Requantization / Rounding / Saturation / int8 Output</option><option value="31_npu_register_map_microblaze_axi_integration.html">SoC 31 · NPU Register Map / MicroBlaze V Control / Accelerator Integration</option><option value="32_npu_done_interrupt_axi_intc_isr.html">SoC 32 · NPU Done Interrupt / AXI Interrupt Controller / ISR</option><option value="33_axi_bram_tensor_buffer_control_data_plane.html">SoC 33 · AXI BRAM Tensor Buffer / Control Plane &amp; Data Plane</option><option value="34_command_descriptor_job_control.html">SoC 34 · Command / Descriptor / Job Control</option><option value="35_full_npu_accelerator_integration.html">SoC 35 · Full NPU Accelerator Integration</option><option value="36_cpu_npu_end_to_end_software_inference.html">SoC 36 · CPU ↔ NPU End-to-End Software / Inference Flow</option><option value="37_performance_baseline_timing_resource_power_throughput.html">SoC 37 · Performance Baseline / Timing / Resource / Power / Throughput</option><option value="38_bottleneck_analysis_pipelined_bram_read.html">SoC 38 · Bottleneck Analysis / Pipelined BRAM Read Optimization</option><option value="39_parallel4_requantization_optimization.html">SoC 39 · 4-Lane Parallel Requantization Optimization</option><option value="40_prefetch_pingpong_data_compute_overlap.html">SoC 40 · Prefetch / Ping-Pong Buffer / Data-Compute Overlap</option><option value="41_group8_cumulative_signoff_matrix.html">SoC 41 · Group 8 Cumulative Sign-off Matrix</option></select><button type="submit">선택한 장 열기</button></form><div class="reader-links"><a href="../part01/legacy/pages/soc/../../00_overview/START_HERE.html">공통 사양·실습 순서</a><a href="../part01/legacy/pages/soc/../../manifests/soc04_manifest.html">실습 파일</a><a href="../part01/legacy/pages/soc/../../validation/verification.html#soc04">이 장 검증</a></div></div><p class="nav-title">SOC 04 · LEARNING FLOW</p><p class="nav-help">Address → BRAM → Build → Debug → WATCH</p><ol class="timeline"><li><a href="#s01"><span class="n">01</span><span>04장 실습 범위와 하드웨어 구조</span></a></li>
+<li><a href="#s02"><span class="n">02</span><span>Vivado에서 BRAM 주소 확인</span></a></li>
+<li><a href="#s03"><span class="n">03</span><span>Base · Range · High 주소 계산</span></a></li>
+<li><a href="#s04"><span class="n">04</span><span>기존 프로젝트와 새 Application</span></a></li>
+<li><a href="#s05"><span class="n">05</span><span>Vitis Application 생성</span></a></li>
+<li><a href="#s06"><span class="n">06</span><span>main.c 원본 코드 입력</span></a></li>
+<li><a href="#s07"><span class="n">07</span><span>Linker Script의 BRAM 배치</span></a></li>
+<li><a href="#s08"><span class="n">08</span><span>Build와 ELF 생성 결과</span></a></li>
+<li><a href="#s09"><span class="n">09</span><span>launch.json 확인 및 Debug 진입</span></a></li>
+<li><a href="#s10"><span class="n">10</span><span>WATCH 중간 검증 — stage 2</span></a></li>
+<li><a href="#s11"><span class="n">11</span><span>WATCH 최종 검증 — stage 5</span></a></li>
+<li><a href="#s12"><span class="n">12</span><span>주소와 32비트 데이터 관계</span></a></li>
+<li><a href="#s13"><span class="n">13</span><span>04장 실습 결과와 다음 장 경계</span></a></li>
+<li><a href="#s14"><span class="n">14</span><span>오류 점검</span></a></li><li><a href="#summary"><span class="n">15</span><span>최종 확인 결과</span></a></li><li><a href="#sources"><span class="n">16</span><span>공식 자료</span></a></li></ol></aside>
+<main id="main-content" tabindex="-1"><section class="prof-banner" id="prof-intro"><h2>교수용 추가 해설 · 제1부 04장</h2><p><strong>이 장에서 설명할 핵심:</strong> 주소·BRAM·포인터 읽기/쓰기</p><p>주소는 데이터가 놓인 위치이며 Base Address는 시작 위치, Range는 확보한 크기입니다. 32비트 읽기·쓰기는 한 번에 4바이트를 다룹니다.</p><p><strong>쉽게 풀어 말하기:</strong> volatile은 컴파일러에 외부에서 값이 바뀔 수 있는 메모리 접근임을 알립니다. 주소 계산 시 크기와 정렬을 함께 봅니다.</p><div class="prof-flow" role="img" aria-label="CPU 주소 → ILMB/DLMB → BRAM → 읽기/쓰기 결과"><svg viewBox="0 0 910 130" xmlns="http://www.w3.org/2000/svg"><title>현재 장의 데이터·제어 흐름</title><rect x="18" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="114" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="114" dy="0">CPU 주소</tspan></text><path d="M210 67 H238" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M234 60 L242 67 L234 74" stroke="#4635b1" fill="none"/><rect x="238" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="334" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="334" dy="0">ILMB/DLMB</tspan></text><path d="M430 67 H458" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M454 60 L462 67 L454 74" stroke="#4635b1" fill="none"/><rect x="458" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="554" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="554" dy="0">BRAM</tspan></text><path d="M650 67 H678" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M674 60 L682 67 L674 74" stroke="#4635b1" fill="none"/><rect x="678" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="774" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="774" dy="0">읽기/쓰기 결과</tspan></text></svg></div><p class="prof-mini"><strong>수업의 판정 기준:</strong> Vitis 변수 값은 해당 주소에 정확하게 읽고 쓴 결과인지 검사합니다. 테스트 코드의 출력과 메모리 매핑을 대조합니다.</p><p class="prof-source"><a href="../part01/legacy/pages/soc/04_memory_map_memory_mapped_io.html">기존 학습안내서 원문 열기</a> · 기존 사진·도표·원본 코드 및 실습 순서는 이 페이지 안에 그대로 유지하였습니다.</p><nav aria-label="교수용 인접 장 탐색"><a href="index.html">교수용 전체 목차</a> · <a href="ch03_teacher_v02.html">이전 장</a> · <a href="ch05_teacher_v02.html">다음 장</a></nav></section>
+<div class="overview-card"><h2>전체 학습 위치</h2><div class="stage-flow"><span class="stage">SoC 03 BRAM 실행</span><span class="arrow">→</span><span class="stage"><strong>SoC 04 Memory Map</strong></span><span class="arrow">→</span><span class="stage">SoC 05 AXI</span><span class="arrow">→</span><span class="stage">SoC 06 AXI GPIO</span></div></div>
+
+<section class="step-card" id="s01"><span class="step">SECTION 01</span><h2>04장 실습 범위와 하드웨어 구조</h2>
+<p>이번 장은 <strong>이미 구성한 MicroBlaze V + 16 KiB Local BRAM</strong>을 그대로 사용한다. CPU가 메모리 주소를 생성하고, 해당 위치에 값을 쓰고 다시 읽는 과정을 Vitis Debugger(디버거)에서 확인한다.</p>
+<figure class="manual-figure"><svg viewBox="0 0 730 270" width="100%" role="img" aria-label="실제 MicroBlaze V의 ILMB와 DLMB가 16 KiB Local BRAM에 연결되고 M_AXI_DP는 미연결인 구조도" xmlns="http://www.w3.org/2000/svg">
+<rect x="1" y="1" width="728" height="268" rx="10" fill="#fff" stroke="#d6dadd"/>
+<rect x="30" y="65" width="175" height="95" rx="9" fill="#ecf4ff" stroke="#6b9bc3" stroke-width="2"/>
+<text x="117" y="103" text-anchor="middle" font-size="18" font-weight="700" fill="#1b4367">microblaze_riscv_0</text><text x="117" y="127" text-anchor="middle" font-size="14" fill="#1b4367">MicroBlaze V</text>
+<rect x="265" y="32" width="160" height="55" rx="7" fill="#f4f2fe" stroke="#8b80bf"/>
+<text x="345" y="54" text-anchor="middle" font-size="15" font-weight="700" fill="#373071">ILMB</text><text x="345" y="73" text-anchor="middle" font-size="12" fill="#373071">Instruction 경로</text>
+<rect x="265" y="122" width="160" height="55" rx="7" fill="#f4f2fe" stroke="#8b80bf"/>
+<text x="345" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#373071">DLMB</text><text x="345" y="164" text-anchor="middle" font-size="12" fill="#373071">Data 경로</text>
+<rect x="486" y="65" width="207" height="110" rx="9" fill="#e9f6ee" stroke="#67a783" stroke-width="2"/>
+<text x="590" y="95" text-anchor="middle" font-size="19" font-weight="700" fill="#215c3c">Local BRAM</text>
+<text x="590" y="122" text-anchor="middle" font-size="15" fill="#215c3c">0x00000000</text><text x="590" y="145" text-anchor="middle" font-size="15" fill="#215c3c">~ 0x00003FFF</text><text x="590" y="163" text-anchor="middle" font-size="12" fill="#215c3c">16 KiB</text>
+<g fill="none" stroke="#61647c" stroke-width="2.4"><path d="M205 95 H230 V59 H265"/><path d="M205 130 H230 V150 H265"/><path d="M425 59 H450 V95 H486"/><path d="M425 150 H450 V145 H486"/></g>
+<g fill="#61647c"><path d="M265 59 l-9 -5 v10z"/><path d="M265 150 l-9 -5 v10z"/><path d="M486 95 l-9 -5 v10z"/><path d="M486 145 l-9 -5 v10z"/></g>
+<path d="M115 160 V213 H265" fill="none" stroke="#a46c29" stroke-dasharray="7 5" stroke-width="2"/>
+<text x="275" y="218" font-size="14" font-weight="700" fill="#7a5525">M_AXI_DP</text><text x="365" y="218" font-size="13" fill="#7a5525">미연결 · 이번 장에서 사용하지 않음</text>
+</svg><figcaption>실제 Vivado Block Design과 Address Editor에서 확인한 연결을 바탕으로 재구성한 구조도. 설명용 그림이며 GUI 스크린샷이 아니다.</figcaption></figure>
+<div class="table-wrap" tabindex="0" role="region" aria-label="구분 / 이번 장의 실제 범위 확인 표"><table><thead><tr><th scope="col">구분</th><th scope="col">이번 장의 실제 범위</th></tr></thead><tbody><tr><td data-label="구분">Instruction 경로</td><td data-label="이번 장의 실제 범위"><code>ILMB → Local BRAM</code></td></tr>
+<tr><td data-label="구분">Data 경로</td><td data-label="이번 장의 실제 범위"><code>DLMB → Local BRAM</code></td></tr>
+<tr><td data-label="구분">검증 대상</td><td data-label="이번 장의 실제 범위"><code>bram_word[4]</code> 배열의 주소와 값</td></tr>
+<tr><td data-label="구분">미구현</td><td data-label="이번 장의 실제 범위"><code>M_AXI_DP</code>의 AXI 주변장치 연결</td></tr></tbody></table></div>
+<div class="note">04장에는 AXI GPIO·UART·Timer를 추가하지 않는다. AXI 구조는 05장, 실제 AXI GPIO 제어는 06장에서 다룬다.</div>
+</section>
+
+<section class="step-card" id="s02"><span class="step">SECTION 02</span><h2>Vivado에서 BRAM 주소 확인</h2><aside class="prof-explain"><strong>교수용 보충 — Vivado에서 BRAM 주소 확인</strong><p>BRAM은 FPGA 내부 블록 메모리입니다. 용량·주소 범위·메모리 연결을 실제 설계 창에서 확인합니다.</p></aside>
+<ol class="step-seq"><li><h3>기존 Vivado 프로젝트 열기</h3><p><code>~/soc/hw/soc01_microblaze_bram/soc01_microblaze_bram.xpr</code>을 연다.</p></li><li><h3>Block Design 열기</h3><p><code>soc01_mb_bram</code>을 열고 상단 <strong>Address Editor</strong> 탭을 선택한다.</p></li><li><h3>ILMB와 DLMB 주소 확인</h3><p>두 SLMB 경로의 Base가 <code>0x00000000</code>, Range가 <code>16K</code>, High가 <code>0x00003FFF</code>인지 확인한다.</p></li><li><h3>미연결 경로 구분</h3><p><code>Incomplete Paths (1)</code>의 <code>/microblaze_riscv_0/M_AXI_DP</code>는 이번 장에서 미사용하는 경로이므로 별도로 주소를 할당하지 않는다.</p></li></ol>
+<div class="table-wrap" tabindex="0" role="region" aria-label="실제 Address Editor 항목 / 확인값 확인 표"><table><thead><tr><th scope="col">실제 Address Editor 항목</th><th scope="col">확인값</th></tr></thead><tbody><tr><td data-label="실제 Address Editor 항목"><code>/microblaze_riscv_0_local_memory/ilmb_bram_if_cntlr/SLMB</code></td><td data-label="확인값">Base <code>0x00000000</code> · Range <code>16K</code> · High <code>0x00003FFF</code></td></tr>
+<tr><td data-label="실제 Address Editor 항목"><code>/microblaze_riscv_0_local_memory/dlmb_bram_if_cntlr/SLMB</code></td><td data-label="확인값">Base <code>0x00000000</code> · Range <code>16K</code> · High <code>0x00003FFF</code></td></tr>
+<tr><td data-label="실제 Address Editor 항목">Assigned / Unassigned</td><td data-label="확인값"><code>2 / 0</code></td></tr>
+<tr><td data-label="실제 Address Editor 항목">Incomplete Paths</td><td data-label="확인값"><code>1</code> — <code>M_AXI_DP</code> 미연결</td></tr></tbody></table></div>
+<div class="note">Instruction과 Data가 동일한 물리 BRAM을 보는 구성에서는 두 주소 범위가 같아도 오류가 아니다. 실습에서 정상 검증된 설계를 임의로 바꾸지 않는다.</div><div class="note"><strong>실제 확인값과 계산값 구분:</strong> Base <code>0x00000000</code>, High <code>0x00003FFF</code>는 Vivado Address Editor에서 확인했다. 아래 표에 등장하는 <code>0x00001460</code>은 Vitis Watch에서 확인한 <code>bram_word[0]</code>의 실행 주소이다. 두 주소는 서로 다른 개념이다.</div>
+</section>
+
+<section class="step-card" id="s03"><span class="step">SECTION 03</span><h2>Base · Range · High 주소 계산</h2>
+<p>주소 범위는 <strong>Base Address(시작 주소)</strong>, <strong>Range(크기)</strong>, <strong>High Address(마지막 주소)</strong>로 계산한다.</p>
+<div class="signal-map">Base   : 0x00000000
+Range  : 0x00004000 = 16 × 1024 byte = 16 KiB
+High   : Base + Range - 1 → 0x00003FFF</div>
+<figure class="manual-figure"><svg viewBox="0 0 730 164" width="100%" role="img" aria-label="16 KiB BRAM 범위 0x0부터 0x3FFF와 실제 확인한 bram_word 첫 주소 0x1460" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="728" height="162" rx="10" fill="#fff" stroke="#d6dadd"/><text x="22" y="30" font-size="14" font-weight="700" fill="#20232b">Local BRAM 주소 범위 (16 KiB)</text><rect x="25" y="55" width="680" height="47" rx="6" fill="#edf1f8" stroke="#7f91ad"/><rect x="242" y="55" width="40" height="47" fill="#b6e5c9" stroke="#317e54"/><path d="M262 53 V38" stroke="#317e54" stroke-width="2"/><text x="262" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#245b3d">0x1460</text><text x="25" y="120" font-size="13" fill="#303747">0x00000000</text><text x="705" y="120" font-size="13" text-anchor="end" fill="#303747">0x00003FFF</text><text x="365" y="146" font-size="13" text-anchor="middle" fill="#576274">bram_word[0]의 실제 확인 주소: 0x00001460</text></svg><figcaption>표시 위치는 설명용 비례도이며 주소 0x00001460 자체는 실습 WATCH에서 확인한 실제 값이다.</figcaption></figure>
+<p>32비트 주소로 표현할 수 있는 전체 이론적 범위는 <code>0x00000000 ~ 0xFFFFFFFF</code>(4 GiB)이다. <strong>이 실습에서 실제로 연결된 메모리 영역은 그중 16 KiB뿐</strong>이다.</p>
+</section>
+
+<section class="step-card" id="s04"><span class="step">SECTION 04</span><h2>기존 프로젝트와 새 Application</h2>
+<p>하드웨어 프로젝트와 기존 Vitis Application은 그대로 유지한다. 04장 C 프로그램만 새 Application으로 분리한다.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="구분 / 실습 경로 / 이름 확인 표"><table><thead><tr><th scope="col">구분</th><th scope="col">실습 경로 / 이름</th></tr></thead><tbody><tr><td data-label="구분">Vivado Project</td><td data-label="실습 경로 / 이름"><code>~/soc/hw/soc01_microblaze_bram/soc01_microblaze_bram.xpr</code></td></tr>
+<tr><td data-label="구분">Vitis Workspace</td><td data-label="실습 경로 / 이름"><code>~/soc/sw</code></td></tr>
+<tr><td data-label="구분">기존 Platform</td><td data-label="실습 경로 / 이름"><code>soc_01_platform</code></td></tr>
+<tr><td data-label="구분">기존 03장 Application</td><td data-label="실습 경로 / 이름"><code>soc03_bram_run</code> — 변경하지 않음</td></tr>
+<tr><td data-label="구분">신규 04장 Application</td><td data-label="실습 경로 / 이름"><code>soc04_memory_map</code></td></tr></tbody></table></div>
+<div class="note">이 실습은 새로운 AXI IP를 추가하지 않으므로 Vivado Block Design을 수정하거나 Bitstream을 새로 생성할 필요가 없다.</div>
+</section>
+
+<section class="step-card" id="s05"><span class="step">SECTION 05</span><h2>Vitis Application 생성</h2><aside class="prof-explain"><strong>교수용 보충 — Vitis Application 생성</strong><p>XSA는 하드웨어 기술 정보, ELF는 CPU가 실행할 프로그램입니다. 각각의 생성 단계와 보드 동작을 구별합니다.</p></aside>
+<ol class="step-seq"><li><h3>Vitis 2024.2 실행</h3><p>Workspace <code>~/soc/sw</code>를 열고 <strong>New Application</strong> 생성 화면으로 이동한다.</p></li><li><h3>Application Name 입력</h3><p><code>soc04_memory_map</code>을 입력한다.</p></li><li><h3>Platform 선택</h3><p>기존 <code>soc_01_platform</code>을 선택한다. Board는 <code>basys3</code>, Processor는 <code>microblaze_riscv_0</code>이다.</p></li><li><h3>Domain 확인</h3><p><code>standalone_microblaze_riscv_0</code>을 선택한다.</p></li><li><h3>Template 및 Finish</h3><p><strong>Empty Application</strong>을 선택하고 Finish로 생성한다. 기존 <code>soc03_bram_run</code>은 유지한다.</p></li><li><h3>main.c 생성</h3><p><code>~/soc/sw/soc04_memory_map/src/main.c</code>를 생성하고 다음 절의 코드를 입력한다.</p></li></ol>
+</section>
+
+<section class="step-card" id="s06"><span class="step">SECTION 06</span><h2>main.c 원본 코드 입력</h2>
+<p>저장소의 <code>code/soc04/main.c</code>와 <strong>내용이 동일한 원본 코드</strong>다. 검증된 변수명과 실행 순서를 변경하지 않는다. 절대 메모리 주소를 하드코딩하지 않고 Linker가 배열 주소를 배치하도록 한다.</p>
+<pre class="codeblock-pre" tabindex="0" role="region" aria-label="04장 main.c 전체 소스 코드"><code>#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+
+/*
+ * SoC 04 교육용 Memory Map / BRAM 주소 확인 코드
+ * 특정 BRAM 절대주소를 임의로 고정하지 않는다.
+ */
+
+volatile uint32_t bram_word[4] = {0, 0, 0, 0};
+
+volatile uintptr_t addr_0 = 0;
+volatile uintptr_t addr_1 = 0;
+volatile uintptr_t addr_2 = 0;
+volatile uintptr_t addr_3 = 0;
+
+volatile uint32_t read_0 = 0;
+volatile uint32_t read_1 = 0;
+volatile uint32_t read_2 = 0;
+volatile uint32_t read_3 = 0;
+
+volatile uint32_t stage = 0;
+
+int main(void)
+{
+    addr_0 = (uintptr_t)&amp;bram_word[0];
+    addr_1 = (uintptr_t)&amp;bram_word[1];
+    addr_2 = (uintptr_t)&amp;bram_word[2];
+    addr_3 = (uintptr_t)&amp;bram_word[3];
+    stage = 1;
+
+    bram_word[0] = 0x11111111U;
+    bram_word[1] = 0x22222222U;
+    bram_word[2] = 0x33333333U;
+    bram_word[3] = 0x44444444U;
+    stage = 2;
+
+    read_0 = bram_word[0];
+    read_1 = bram_word[1];
+    read_2 = bram_word[2];
+    read_3 = bram_word[3];
+    stage = 3;
+
+    bram_word[1] = 0xA5A5A5A5U;
+    stage = 4;
+
+    read_1 = bram_word[1];
+    stage = 5;
+
+    while (1) {
+    }
+
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 1 (41개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>#include &lt;stdint.h&gt;</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>2</td><td><code>#include &lt;stddef.h&gt;</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>4</td><td><code>/*</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>5</td><td><code> * SoC 04 교육용 Memory Map / BRAM 주소 확인 코드</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>6</td><td><code> * 특정 BRAM 절대주소를 임의로 고정하지 않는다.</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>7</td><td><code> */</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>9</td><td><code>volatile uint32_t bram_word[4] = {0, 0, 0, 0};</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>11</td><td><code>volatile uintptr_t addr_0 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>12</td><td><code>volatile uintptr_t addr_1 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>13</td><td><code>volatile uintptr_t addr_2 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>14</td><td><code>volatile uintptr_t addr_3 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>16</td><td><code>volatile uint32_t read_0 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>17</td><td><code>volatile uint32_t read_1 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>18</td><td><code>volatile uint32_t read_2 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>19</td><td><code>volatile uint32_t read_3 = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>21</td><td><code>volatile uint32_t stage = 0;</code></td><td>이 값은 외부 회로나 메모리 접근으로 달라질 수 있으므로 컴파일러의 임의 생략을 막습니다.</td></tr><tr><td>23</td><td><code>int main(void)</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr><tr><td>24</td><td><code>{</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr><tr><td>25</td><td><code>    addr_0 = (uintptr_t)&amp;bram_word[0];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>26</td><td><code>    addr_1 = (uintptr_t)&amp;bram_word[1];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>27</td><td><code>    addr_2 = (uintptr_t)&amp;bram_word[2];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>28</td><td><code>    addr_3 = (uintptr_t)&amp;bram_word[3];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>29</td><td><code>    stage = 1;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>31</td><td><code>    bram_word[0] = 0x11111111U;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>32</td><td><code>    bram_word[1] = 0x22222222U;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>33</td><td><code>    bram_word[2] = 0x33333333U;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>34</td><td><code>    bram_word[3] = 0x44444444U;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>35</td><td><code>    stage = 2;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>37</td><td><code>    read_0 = bram_word[0];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>38</td><td><code>    read_1 = bram_word[1];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>39</td><td><code>    read_2 = bram_word[2];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>40</td><td><code>    read_3 = bram_word[3];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>41</td><td><code>    stage = 3;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>43</td><td><code>    bram_word[1] = 0xA5A5A5A5U;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>44</td><td><code>    stage = 4;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>46</td><td><code>    read_1 = bram_word[1];</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>47</td><td><code>    stage = 5;</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>49</td><td><code>    while (1) {</code></td><td>조건이 참인 동안 반복합니다. 종료 조건과 블로킹 가능성을 확인합니다.</td></tr><tr><td>50</td><td><code>    }</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr><tr><td>52</td><td><code>    return 0;</code></td><td>현재 함수를 종료하고, 값이 있으면 호출한 쪽으로 돌려줍니다.</td></tr><tr><td>53</td><td><code>}</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr></tbody></table></div></details>
+<div class="note"><code>volatile</code>(볼러타일, 최적화 시에도 관찰 가능한 메모리 접근 지정)은 배열과 검증 변수의 실제 접근을 유지하도록 돕는다. <code>uintptr_t</code>는 포인터 주소를 보관할 수 있는 정수형이다. 각 <code>uint32_t</code> 요소는 4바이트를 차지한다.</div>
+</section>
+
+<section class="step-card" id="s07"><span class="step">SECTION 07</span><h2>Linker Script의 BRAM 배치</h2><aside class="prof-explain"><strong>교수용 보충 — Linker Script의 BRAM 배치</strong><p>BRAM은 FPGA 내부 블록 메모리입니다. 용량·주소 범위·메모리 연결을 실제 설계 창에서 확인합니다.</p></aside>
+<ol class="step-seq"><li><h3>Linker Script 열기</h3><p>Application의 <code>lscript.ld</code>를 열어 Memory Regions를 확인한다.</p></li><li><h3>BRAM 영역 확인</h3><p><code>lmb_bram_0</code>의 Base가 <code>0x00000000</code>, Size가 <code>0x00004000</code>인지 확인한다.</p></li><li><h3>Stack과 Heap 확인</h3><p>Stack <code>0x400</code>(1 KiB), Heap <code>0x800</code>(2 KiB) 설정을 확인한다.</p></li><li><h3>Section 배치 확인</h3><p><code>.text</code>, <code>.data</code>, <code>.bss</code> 등 프로그램 섹션이 Local BRAM에 배치되도록 설정되어 있는지 확인한다.</p></li></ol>
+<div class="table-wrap" tabindex="0" role="region" aria-label="설정 항목 / 실제 실습값 확인 표"><table><thead><tr><th scope="col">설정 항목</th><th scope="col">실제 실습값</th></tr></thead><tbody><tr><td data-label="설정 항목">Memory Region</td><td data-label="실제 실습값"><code>lmb_bram_0</code></td></tr>
+<tr><td data-label="설정 항목">Base / Size</td><td data-label="실제 실습값"><code>0x00000000 / 0x00004000</code></td></tr>
+<tr><td data-label="설정 항목">Stack</td><td data-label="실제 실습값"><code>0x400</code></td></tr>
+<tr><td data-label="설정 항목">Heap</td><td data-label="실제 실습값"><code>0x800</code></td></tr></tbody></table></div>
+<div class="note">배열의 세부 주소는 Linker 배치 결과에 따라 결정되므로 <code>0x00001460</code>을 소스 코드에 고정하지 않는다. 실제 위치는 Debugger WATCH에서 확인한다.</div>
+</section>
+
+<section class="step-card" id="s08"><span class="step">SECTION 08</span><h2>Build와 ELF 생성 결과</h2>
+<ol class="step-seq"><li><h3>Application Build</h3><p>Vitis에서 <code>soc04_memory_map</code> Application을 Build한다.</p></li><li><h3>성공 메시지 확인</h3><p>Console에 <strong>Build Finished successfully</strong>가 나타나는지 확인한다.</p></li><li><h3>ELF 생성 확인</h3><p><code>~/soc/sw/soc04_memory_map/build/soc04_memory_map.elf</code>가 생성되었는지 확인한다.</p></li></ol>
+<div class="table-wrap" tabindex="0" role="region" aria-label="실제 Build 결과 / 값 확인 표"><table><thead><tr><th scope="col">실제 Build 결과</th><th scope="col">값</th></tr></thead><tbody><tr><td data-label="실제 Build 결과">Compiler</td><td data-label="값">GNU 13.3.0</td></tr>
+<tr><td data-label="실제 Build 결과">주요 옵션</td><td data-label="값"><code>-O2 -march=rv32i_zicsr_zifencei -mabi=ilp32</code></td></tr>
+<tr><td data-label="실제 Build 결과">text</td><td data-label="값">4,984 B</td></tr>
+<tr><td data-label="실제 Build 결과">data</td><td data-label="값">204 B</td></tr>
+<tr><td data-label="실제 Build 결과">bss</td><td data-label="값">3,564 B</td></tr>
+<tr><td data-label="실제 Build 결과">text + data + bss</td><td data-label="값">8,752 B</td></tr></tbody></table></div>
+<div class="note">8,752바이트는 세 섹션 크기의 합계이며, Heap·Stack 예약 영역을 합산한 전체 사용량을 뜻하지 않는다. 메모리 영역 배치의 자세한 검사는 Linker Map에서 수행한다.</div>
+</section>
+
+<section class="step-card" id="s09"><span class="step">SECTION 09</span><h2>launch.json 확인 및 Debug 진입</h2>
+<ol class="step-seq"><li><h3>04장 Launch 설정 열기</h3><p>Vitis 중앙 편집 영역의 상단 <code>launch.json</code> 탭을 <strong>직접 클릭하여 연다</strong>. 왼쪽 목록에서 단순히 다른 항목을 선택하라는 뜻이 아니다.</p></li><li><h3>Launch 설정 확인</h3><p>Launch Config Name <code>soc04_memory_map_app_hw_1</code>, Target Connection <code>Local [default]</code>, Target Setup Mode <code>Baremetal Debug</code>를 확인한다.</p></li><li><h3>Bitstream과 ELF 경로 확인</h3><p>Bitstream은 <code>${workspaceFolder}/soc04_memory_map/_ide/bitstream/soc01_mb_bram_wrapper.bit</code>, Application은 <code>${workspaceFolder}/soc04_memory_map/build/soc04_memory_map.elf</code>를 사용한다.</p></li><li><h3>Reset / Program 설정</h3><p><strong>Reset Entire System</strong>, <strong>Program Device</strong>, <code>microblaze_riscv_0</code>의 <strong>Reset Processor</strong>가 선택된 상태를 확인한다.</p></li><li><h3>Debug 실행</h3><p><code>main()</code>에 Breakpoint를 설정한 다음 Debug를 실행하고 <code>RISC-V → Hart #0 PAUSED ON BREAKPOINT</code> 상태를 확인한다.</p></li></ol>
+<div class="note">실제 환경에서 <code>launch.json</code> 탭을 연 뒤 Debug하면 진입에 성공했다. 탭을 열지 않았을 때 발생한 오류의 근본 원인은 확인되지 않았으므로 원인을 특정하지 않는다. 해당 절차는 확인된 우회 순서다.</div>
+</section>
+
+<section class="step-card" id="s10"><span class="step">SECTION 10</span><h2>WATCH 중간 검증 — stage 2</h2>
+<p>WATCH(워치, 변수 관찰)에 먼저 <code>stage</code>, <code>addr_0</code>, <code>bram_word</code>, <code>read_1</code> 네 항목만 추가한다. <code>bram_word</code> 옆 펼침 버튼을 누르면 네 배열 요소를 한 번에 확인할 수 있다.</p>
+<ol class="step-seq"><li><h3>기존 03장 변수 정리</h3><p>WATCH에 남아 있는 <code>memory_data</code>, <code>read_value_1</code> 등 03장 변수는 04장 코드에 없으므로 N/A가 표시될 수 있다. 제거하고 04장 변수를 등록한다.</p></li><li><h3>실행하여 중간값 확인</h3><p>F10(Step Over) 또는 Continue와 Breakpoint를 사용해 <code>stage</code>가 2인 시점을 확인한다.</p></li><li><h3>읽기 결과 확인</h3><p><code>read_1</code>이 <code>0x22222222</code>가 되고 배열의 네 요소가 초기 기록값인지 확인한다.</p></li></ol>
+<div class="table-wrap" tabindex="0" role="region" aria-label="WATCH 변수 / 실제로 확인한 중간값 확인 표"><table><thead><tr><th scope="col">WATCH 변수</th><th scope="col">실제로 확인한 중간값</th></tr></thead><tbody><tr><td data-label="WATCH 변수"><code>stage</code></td><td data-label="실제로 확인한 중간값"><code>0x00000002</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>addr_0</code></td><td data-label="실제로 확인한 중간값"><code>0x00001460</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[0]</code></td><td data-label="실제로 확인한 중간값"><code>0x11111111</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[1]</code></td><td data-label="실제로 확인한 중간값"><code>0x22222222</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[2]</code></td><td data-label="실제로 확인한 중간값"><code>0x33333333</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[3]</code></td><td data-label="실제로 확인한 중간값"><code>0x44444444</code></td></tr>
+<tr><td data-label="WATCH 변수"><code>read_1</code></td><td data-label="실제로 확인한 중간값"><code>0x22222222</code></td></tr></tbody></table></div>
+<div class="note">실습 스크린샷에서는 <code>main.c</code> 34행에서 일시 정지했다. <code>stage = 3;</code> 문장이 실행되기 전이므로 <code>stage</code>가 2인 것은 정상이다.</div>
+</section>
+
+<section class="step-card" id="s11"><span class="step">SECTION 11</span><h2>WATCH 최종 검증 — stage 5</h2>
+<p><code>bram_word[1]</code>에 <code>0xA5A5A5A5</code>를 다시 기록한 뒤 같은 위치에서 재읽기하여 값이 바뀌었는지 확인한다. 실행을 <code>while (1) {}</code> 위치까지 진행하면 <code>stage</code>가 5가 된다.</p>
+<div class="note"><strong>WATCH 최종 결과:</strong> <code>stage=5</code>, <code>read_1=0xA5A5A5A5</code>, <code>bram_word[1]=0xA5A5A5A5</code>를 확인했습니다. 아래 값은 실제 BRAM 데이터 접근의 Debug 결과이며 AXI 주변장치 MMIO 접근 검증과는 구분합니다.</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="WATCH 변수 / 최종 검증값 / 판정 확인 표"><table><thead><tr><th scope="col">WATCH 변수</th><th scope="col">최종 검증값</th><th scope="col">판정</th></tr></thead><tbody><tr><td data-label="WATCH 변수"><code>stage</code></td><td data-label="최종 검증값"><code>0x00000005</code></td><td data-label="판정">정상</td></tr>
+<tr><td data-label="WATCH 변수"><code>addr_0</code></td><td data-label="최종 검증값"><code>0x00001460</code></td><td data-label="판정">BRAM 내부 주소</td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[0]</code></td><td data-label="최종 검증값"><code>0x11111111</code></td><td data-label="판정">유지</td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[1]</code></td><td data-label="최종 검증값"><code>0xA5A5A5A5</code></td><td data-label="판정">재기록 성공</td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[2]</code></td><td data-label="최종 검증값"><code>0x33333333</code></td><td data-label="판정">유지</td></tr>
+<tr><td data-label="WATCH 변수"><code>bram_word[3]</code></td><td data-label="최종 검증값"><code>0x44444444</code></td><td data-label="판정">유지</td></tr>
+<tr><td data-label="WATCH 변수"><code>read_1</code></td><td data-label="최종 검증값"><code>0xA5A5A5A5</code></td><td data-label="판정">재읽기 성공</td></tr></tbody></table></div>
+<div class="flow"><strong>검증 결과: PASS</strong> — <code>bram_word[1]</code>에 <code>0xA5A5A5A5</code>를 다시 쓴 후 <code>read_1</code>로 재읽었을 때 동일한 값이 나왔다. CPU → DLMB → Local BRAM 접근 성공이며 AXI 주변장치 MMIO는 이 결과로 검증되지 않는다.</div>
+<div class="note">실제 성공 화면에서 <code>main.c</code> 44행의 무한 루프 위치와 <code>stage = 5</code>가 확인되었다. 이는 실제 FPGA 다운로드 및 실행 결과이며, AXI 주변장치 검증 결과는 아니다.</div>
+</section>
+
+<section class="step-card" id="s12"><span class="step">SECTION 12</span><h2>주소와 32비트 데이터 관계</h2><p><strong>검증한 시작 주소와 배열 간격을 구분합니다.</strong> <code>addr_0</code>는 Watch 관측값이며, 나머지 주소는 4바이트 배열 규칙으로 산출했습니다.</p><div class="table-wrap" tabindex="0" role="region" aria-label="BRAM 배열 요소별 주소 계산"><table><thead><tr><th>배열 요소</th><th>주소</th><th>값의 근거</th></tr></thead><tbody><tr><td><code>bram_word[0]</code></td><td><code>0x00001460</code></td><td>실제 Vitis WATCH에서 확인</td></tr><tr><td><code>bram_word[1]</code></td><td><code>0x00001464</code></td><td>32비트 배열 요소 간격 4바이트를 적용한 계산값</td></tr><tr><td><code>bram_word[2]</code></td><td><code>0x00001468</code></td><td>계산값</td></tr><tr><td><code>bram_word[3]</code></td><td><code>0x0000146C</code></td><td>계산값</td></tr></tbody></table></div>
+<p><code>bram_word</code>는 각 요소가 32비트(4바이트)인 배열이므로 연속 주소에 4바이트씩 배치된다. <code>addr_0</code>가 실제로 <code>0x00001460</code>임을 확인했다.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="요소 / 주소 / 근거 확인 표"><table><thead><tr><th scope="col">요소</th><th scope="col">주소</th><th scope="col">근거</th></tr></thead><tbody><tr><td data-label="요소"><code>bram_word[0]</code></td><td data-label="주소"><code>0x00001460</code></td><td data-label="근거">WATCH에서 실제 확인</td></tr>
+<tr><td data-label="요소"><code>bram_word[1]</code></td><td data-label="주소"><code>0x00001464</code></td><td data-label="근거">32비트 요소 간 4바이트 간격으로 계산</td></tr>
+<tr><td data-label="요소"><code>bram_word[2]</code></td><td data-label="주소"><code>0x00001468</code></td><td data-label="근거">같은 규칙으로 계산</td></tr>
+<tr><td data-label="요소"><code>bram_word[3]</code></td><td data-label="주소"><code>0x0000146C</code></td><td data-label="근거">같은 규칙으로 계산</td></tr></tbody></table></div>
+<figure class="manual-figure"><svg viewBox="0 0 730 220" width="100%" role="img" aria-label="MicroBlaze V와 Local BRAM의 0xA5A5A5A5 재기록과 재읽기 검증 구조" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="728" height="218" rx="10" fill="#fff" stroke="#d6dadd"/><rect x="24" y="65" width="196" height="105" rx="9" fill="#eaf2ff" stroke="#6596c5" stroke-width="2"/><text x="122" y="102" text-anchor="middle" font-weight="700" font-size="18" fill="#184873">MicroBlaze V</text><text x="122" y="132" text-anchor="middle" font-size="14" fill="#184873">Write / Read</text><rect x="485" y="54" width="221" height="126" rx="9" fill="#eaf6ee" stroke="#77b48c" stroke-width="2"/><text x="595" y="87" text-anchor="middle" font-weight="700" font-size="18" fill="#225d3c">Local BRAM</text><text x="595" y="117" text-anchor="middle" font-size="14" fill="#225d3c">bram_word[1]</text><text x="595" y="144" text-anchor="middle" font-size="14" fill="#225d3c">주소 0x00001464*</text><path d="M220 95 H480" stroke="#51657e" fill="none" stroke-width="2.5"/><path d="M480 95 l-10 -6 v12z" fill="#51657e"/><text x="348" y="83" text-anchor="middle" font-size="14" fill="#253e5b">Write 0xA5A5A5A5</text><path d="M485 146 H225" stroke="#51657e" fill="none" stroke-width="2.5"/><path d="M225 146 l10 -6 v12z" fill="#51657e"/><text x="348" y="169" text-anchor="middle" font-size="14" fill="#253e5b">Read 0xA5A5A5A5</text><text x="365" y="203" text-anchor="middle" font-size="12" fill="#5a646e">* addr_0의 확인값과 배열 요소 크기에서 산출한 주소</text></svg><figcaption>04장 성공 결과를 바탕으로 재구성한 데이터 이동도. 녹색 상자의 0x00001464는 WATCH로 직접 확인한 값이 아니라 계산한 주소다.</figcaption></figure>
+</section>
+
+<section class="step-card" id="s13"><span class="step">SECTION 13</span><h2>04장 실습 결과와 다음 장 경계</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="구분 / 04장에서 확인한 결과 확인 표"><table><thead><tr><th scope="col">구분</th><th scope="col">04장에서 확인한 결과</th></tr></thead><tbody><tr><td data-label="구분">Hardware</td><td data-label="04장에서 확인한 결과">MicroBlaze V의 ILMB/DLMB → 16 KiB Local BRAM</td></tr>
+<tr><td data-label="구분">Software</td><td data-label="04장에서 확인한 결과"><code>soc04_memory_map</code>의 C 배열에 Write / Read / Re-Write / Re-Read</td></tr>
+<tr><td data-label="구분">Address</td><td data-label="04장에서 확인한 결과"><code>addr_0 = 0x00001460</code> 실제 확인</td></tr>
+<tr><td data-label="구분">Data</td><td data-label="04장에서 확인한 결과"><code>bram_word[1]</code>과 <code>read_1</code>의 최종값 <code>0xA5A5A5A5</code> 일치</td></tr>
+<tr><td data-label="구분">Debug</td><td data-label="04장에서 확인한 결과">FPGA 다운로드와 RISC-V Hart 일시 정지 및 WATCH 값 확인</td></tr></tbody></table></div>
+<p>이번 장에서 다룬 것은 <strong>BRAM에 대한 Memory Map</strong>이다. 주변장치의 Memory-Mapped I/O는 CPU가 특정 장치 레지스터 주소에 접근한다는 공통 원리를 갖지만, 실제 AXI 연결과 동작은 아직 구현하지 않았다.</p>
+<div class="flow">04장 BRAM 주소 접근 검증 완료 → 05장 AXI 전송 구조 → 06장 AXI GPIO 실제 주변장치 연결</div>
+</section>
+
+<section class="step-card" id="s14"><span class="step">SECTION 14</span><h2>오류 점검</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="증상 / 확인 및 조치 확인 표"><table><thead><tr><th scope="col">증상</th><th scope="col">확인 및 조치</th></tr></thead><tbody><tr><td data-label="증상">Address Editor에 <code>M_AXI_DP</code> Incomplete Paths (1)</td><td data-label="확인 및 조치">이번 장에서 미연결인 경로로, BRAM 검증을 막는 오류로 판정하지 않는다.</td></tr>
+<tr><td data-label="증상">Build 실패</td><td data-label="확인 및 조치"><code>soc04_memory_map/src/main.c</code>의 입력과 <code>lscript.ld</code>의 <code>lmb_bram_0</code> 16 KiB 설정을 확인한다.</td></tr>
+<tr><td data-label="증상">Debug 진입 실패 또는 설정 오류</td><td data-label="확인 및 조치">중앙 상단 <code>launch.json</code> 탭을 클릭해 열고 Bitstream·ELF 경로와 Program/Reset 설정을 확인한 뒤 재시도한다.</td></tr>
+<tr><td data-label="증상">WATCH의 03장 변수에 N/A 표시</td><td data-label="확인 및 조치"><code>memory_data</code> 등 이전 Application 변수명을 제거하고 04장 변수명을 추가한다.</td></tr>
+<tr><td data-label="증상"><code>stage</code>가 예상보다 작음</td><td data-label="확인 및 조치">Breakpoint가 대입문 실행 <strong>이전</strong>에 멈춘 것인지 확인한다. 최종값은 <code>while(1)</code> 위치에서 확인한다.</td></tr>
+<tr><td data-label="증상">배열 주소가 <code>0x1460</code>과 다름</td><td data-label="확인 및 조치">주소는 Linker가 결정한다. 실제 WATCH의 주소가 BRAM 범위 내이고 데이터가 올바르면 무조건 오류로 보지 않는다.</td></tr></tbody></table></div>
+</section>
+
+<section class="step-card summary" id="summary"><span class="step">SUMMARY</span><h2>SoC 04 최종 확인 결과</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="검증 항목 / 실제 확인 확인 표"><table><thead><tr><th scope="col">검증 항목</th><th scope="col">실제 확인</th></tr></thead><tbody><tr><td data-label="검증 항목">Vivado Local BRAM</td><td data-label="실제 확인">Base <code>0x00000000</code> · High <code>0x00003FFF</code> · 16 KiB</td></tr>
+<tr><td data-label="검증 항목">Vitis Build</td><td data-label="실제 확인"><code>soc04_memory_map.elf</code> 생성 성공</td></tr>
+<tr><td data-label="검증 항목">FPGA Debug</td><td data-label="실제 확인">RISC-V Hart #0 일시 정지 확인</td></tr>
+<tr><td data-label="검증 항목">실제 배열 주소</td><td data-label="실제 확인"><code>addr_0 = 0x00001460</code></td></tr>
+<tr><td data-label="검증 항목">데이터 재기록 및 재읽기</td><td data-label="실제 확인"><code>bram_word[1] = read_1 = 0xA5A5A5A5</code></td></tr>
+<tr><td data-label="검증 항목">최종 실행 단계</td><td data-label="실제 확인"><code>stage = 5</code></td></tr></tbody></table></div>
+<p>검증의 기준은 <a href="../part01/legacy/pages/soc/../../validation/SOC04_VALIDATION.txt">SoC 04 검증 기록</a>과 저장소의 <a href="../part01/legacy/pages/soc/../../code/soc04/main.c">실습 소스 원본</a>이다. 검증되지 않은 합성 자원량·Timing 결과·AXI Peripheral 구동 결과는 이 장의 성과로 기록하지 않는다.</p>
+<div class="flow">SoC 04 완료 → SoC 05 AXI4 / AXI4-Lite / AXI4-Stream 구조</div></section>
+
+<section class="step-card" id="sources"><span class="step">SOURCE</span><h2>공식 자료</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="공식 매뉴얼 및 원본 근거 · 표"><table class="resource-table" role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">문서</th><th scope="col" role="columnheader">확인 항목</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/ug994-vivado-ip-subsystems/Addressing-Structure" target="_blank" rel="noopener">AMD UG994 · Addressing Structure</a></td><td data-label="확인 항목" role="cell">Address Space의 기본 개념</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/ug994-vivado-ip-subsystems/Using-the-Address-Editor" target="_blank" rel="noopener">AMD UG994 · Using the Address Editor</a></td><td data-label="확인 항목" role="cell">Vivado에서 주소 범위 확인</td></tr>
+
+
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/ug1629-microblaze-v-user-guide/Memory-Architecture" target="_blank" rel="noopener">AMD UG1629 · Memory Architecture</a></td><td data-label="확인 항목" role="cell">32비트 메모리 주소 개념</td></tr>
+
+</tbody></table></div></section>
+
+<nav class="chapter-nav"><a href="../part01/legacy/pages/soc/03_microblaze_bram_program_execution.html">← SoC 03</a><a href="../part01/legacy/pages/soc/../../index.html">전체 목차</a><a href="../part01/legacy/pages/soc/05_axi4_axi4lite_axi4stream.html">SoC 05 →</a></nav>
+<section class="prof-card" id="prof-end"><h3>교수용 마무리 질문</h3><p>① 이 장에서 CPU·메모리·IP·외부 장치 중 어느 부분을 추가하거나 연결했나요?</p><p>② 실제 코드의 변수·포트·주소 중 한 개를 골라 입력에서 출력까지 추적해 보세요.</p><p>③ 화면·시뮬레이션·Bitstream·실물 중 어떤 결과를 확인했고 무엇은 미검증인지 구분해 보세요.</p><p>기존 원본의 실습 성공 기록은 신규 재실행 결과와 구분합니다.</p></section></main></div>
+<footer class="site-footer">BASYS3 SOC + NPU · PRACTICAL TEXTBOOK</footer>
+</body></html>

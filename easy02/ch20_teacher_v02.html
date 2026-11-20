@@ -1,0 +1,399 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="원본 PIR·환경·모터 RTL 재사용 → 인터록 → 통합 시뮬레이션"><title>교수용 상세 해설서 | 제2부 20장 | 종합 RTL 통합·안전 인터록의 검증 경계</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch20"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 20/20</p><h1>제20장 · 종합 RTL 통합·안전 인터록</h1><p>원본 PIR·환경·모터 RTL 재사용 → 인터록 → 통합 시뮬레이션</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 20장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> 서로 다른 센서의 유효 신호와 PIR 이벤트를 합쳐 모터 허가 여부를 판단합니다. Freshness 타이머는 데이터의 시간적 신선도를 보여 주지만, 값 자체가 물리적으로 말이 되는지와는 별도입니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="PIR + ENV Samples → Quality / Age → 인터록 정책 → Stepper Permit"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">PIR + ENV Samples</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">Quality / Age</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">인터록 정책</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">Stepper Permit</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 원본의 sample_valid(dht_valid||ds_valid||bme_valid) 경로는 품질·물리 범위에 관계없이 Freshness가 갱신될 위험이 남아 있습니다. 현재 통합은 제한적 RTL 시뮬레이션이며 인증된 안전 시스템·전체 AXI SoC·실물 모터 안전 PASS가 아닙니다.</p><p class="prof-small"><a href="../part02_2/guide/ch20_integrated_soc_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch19_teacher_v02.html">이전 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요와 완료 기준</h2><p>제20장은 제2부 11~19장의 개별 RTL 기능을 결합하여 독립 기능 제어에서 <strong>시스템 단위 이벤트·표시·구동 제어</strong>로 확장하는 종합 과제다. 기존 성공 프로젝트·RTL을 변경하지 않고, 이미 만든 모듈을 상위에서 연결하는 방식으로 진행한다.</p><p>이번 실습은 실제 12.4장 스테핑 모터, 18장 PIR 입력/IRQ, 19장 환경 정책 RTL 파일을 그대로 컴파일하고 새 <code>soc20_safety_supervisor.v</code>를 연결해 종합 동작을 검증한다.</p><p class="warn"><strong>완료 범위 한정:</strong> 세 기존 RTL의 기능 통합 <strong>RTL_SIM PASS</strong>. RFID·LCD·RTC·BME280의 통신 회로 및 실제 AXI4-Lite/MicroBlaze V 전체 SoC 결합, Vivado 합성·타이밍·Vitis 타깃·실물 동작은 미구현 또는 미검증 상태다. Full SoC 검증은 완료되지 않았다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>계층별 복합 SoC 구조도</h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1070 548" role="img" aria-label="P2-20 모의 상류 센서와 실제 PIR/환경/모터/안전 RTL 통합 계층 구조"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3f7d9e"/></marker></defs><rect x="12" y="12" width="1046" height="523" rx="12" fill="#f8fafc" stroke="#b9d2e1" stroke-width="2"/>
+<g text-anchor="middle" fill="#19445c">
+<rect x="27" y="53" width="246" height="74" rx="10" fill="#e0ebf7" stroke="#709cbe"/><text x="150" y="83" font-size="17">기존 센서 정상 샘플</text><text x="150" y="105" font-size="12">DHT22·DS18B20·BME280·RTC</text>
+<rect x="313" y="53" width="190" height="74" rx="10" fill="#f3dfb6" stroke="#c79c58"/><text x="408" y="83" font-size="18">HC-SR501 OUT</text><text x="408" y="105" font-size="12">비동기 PIR 입력</text>
+<rect x="539" y="53" width="208" height="74" rx="10" fill="#dceafa" stroke="#72a2bc"/><text x="643" y="83" font-size="18">P2-18 원본 RTL</text><text x="643" y="105" font-size="12">pir_irq_controller</text>
+<rect x="783" y="53" width="242" height="74" rx="10" fill="#ede8f5" stroke="#b2a1c8"/><text x="904" y="83" font-size="17">MicroBlaze V / AXI</text><text x="904" y="105" font-size="12">실제 SoC 연결 미검증</text>
+
+<rect x="120" y="190" width="370" height="86" rx="10" fill="#c9e7de" stroke="#67a994" stroke-width="2"/><text x="305" y="222" font-size="18">P2-19 원본 환경 Policy</text><text x="305" y="246" font-size="13">environment_policy · alarm / display</text>
+<rect x="579" y="190" width="370" height="86" rx="10" fill="#c9e7de" stroke="#67a994" stroke-width="2"/><text x="764" y="222" font-size="18">P2-20 신규 Safety Supervisor</text><text x="764" y="246" font-size="13">fresh / fault_latched / actuator_permit</text>
+
+<rect x="122" y="342" width="365" height="87" rx="10" fill="#e5e9f6" stroke="#a5afd1"/><text x="304" y="372" font-size="18">FND / LCD / UART 상태 표시</text><text x="304" y="399" font-size="13">출력 규약만 정의 · 물리 연결 미구현</text>
+<rect x="580" y="342" width="367" height="87" rx="10" fill="#c9e7de" stroke="#67a994" stroke-width="2"/><text x="763" y="371" font-size="18">P2-12.4 원본 Stepper RTL</text><text x="763" y="398" font-size="13">stepper_ramp_core → motor_coil[3:0]</text>
+<rect x="580" y="466" width="367" height="48" rx="9" fill="#f4dfba" stroke="#c7a069"/><text x="763" y="495" font-size="15">ULN2003 · 28BYJ-48 실물 연결 보류</text>
+<path d="M150 127V164H305V190" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M503 89H539" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M643 127V161H447V190" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M643 161H764V190" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M490 233H579" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M305 276V342" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M764 276V342" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+<path d="M763 429V466" stroke="#3f7d9e" stroke-width="2.5" fill="none" marker-end="url(#arr)"/></g>
+<text x="29" y="31" fill="#4c6e83" font-size="13" font-weight="700">파란색·보라색은 외부 계약/미통합, 녹색은 실제 시뮬레이션한 RTL 인스턴스</text></svg>
+<p>그림의 <code>environment_policy</code>, <code>pir_irq_controller</code>, <code>stepper_ramp_core</code>는 각각 기존 19장·18장·12.4장의 RTL 원본이며, <code>soc20_integrated_core</code>가 이를 한 클록 도메인에서 직접 결합한다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>기존 장별 실제 재사용과 미연결 구분</h2><table><tr><th>장</th><th>기능</th><th>제20장 검증 상태</th></tr>
+<tr><td>11</td><td>SG90 Servo PWM</td><td>개별 실습 자산 보존, 제20장 물리 PWM 통합 미실시</td></tr>
+<tr><td>12.4</td><td>28BYJ-48 가감속 스테핑 모터</td><td><strong>원본 RTL 인스턴스/실제 코일 변화 검증 PASS</strong></td></tr>
+<tr><td>13</td><td>MFRC522 SPI RFID</td><td>기본 레지스터 RTL 보유, 실제 UID 수신·SoC 연동 미구현</td></tr>
+<tr><td>14</td><td>PCF8574 I²C LCD</td><td>단독 출력 시퀀스 검증 보유, 종합 표시 연결 미구현</td></tr>
+<tr><td>15</td><td>DS18B20 온도</td><td>검증 완료값 입력을 가정, 실제 센서 RTL 직접 인스턴스 미실시</td></tr>
+<tr><td>16</td><td>DS3231 RTC</td><td>정규화된 HH:MM 샘플 입력 가정, 실제 I²C 읽기 미구현</td></tr>
+<tr><td>17</td><td>DHT22 온습도</td><td>검증 완료값 입력을 가정, 실제 센서 RTL 직접 인스턴스 미실시</td></tr>
+<tr><td>18</td><td>PIR 입력/IRQ</td><td><strong>원본 RTL 인스턴스/실제 IRQ 이벤트 검증 PASS</strong></td></tr>
+<tr><td>19</td><td>환경 Policy·BME280</td><td><strong>원본 Policy RTL 인스턴스 PASS</strong>; BME280 보정·I²C 통신 미구현</td></tr>
+<tr><td>20</td><td>종합 안전 인터록</td><td><strong>신규 Safety RTL과 위 3개 기존 RTL의 종합 시뮬레이션 PASS</strong></td></tr></table>
+<p>검증된 하위 기능의 <strong>실제 RTL 컴파일·인스턴스</strong>와 논리적 입력 계약만 연결한 모듈을 명확히 구분한다. 따라서 제20장 테스트만으로 RFID/LCD/RTC가 모두 보드에서 함께 동작한다고 판단하면 안 된다.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>종합 Controller 핵심 I/O와 동작 계약</h2><table><tr><th>핵심 신호</th><th>의미·단위</th></tr>
+<tr><td><code>dht_valid / ds_valid / bme_valid</code></td><td>상위에서 CRC/Checksum·품질을 검증한 순간 유효 샘플 펄스</td></tr>
+<tr><td><code>rtc_valid / rtc_hour / rtc_minute</code></td><td>유효 시각 입력, 24시간제 시·분</td></tr>
+<tr><td><code>pir_in_async / pir_ack</code></td><td>HC-SR501 비동기 감지 입력, CPU 인터럽트 ACK</td></tr>
+<tr><td><code>alarm_reason / pir_irq</code></td><td>PIR→고온→고습 경보 우선순위, Level-high IRQ</td></tr>
+<tr><td><code>display_page / display_value / display_source</code></td><td>LCD/FND 상위 표시 계약(ASCII/자리별 표시 실제 구현 제외)</td></tr>
+<tr><td><code>actuator_arm / actuator_disarm</code></td><td>사용자의 출력 허용·차단 명령</td></tr>
+<tr><td><code>sensor_fresh</code></td><td>정해진 시간 이내 유효 센서값 갱신됨</td></tr>
+<tr><td><code>fault_latched / fault_clear</code></td><td>이전 오류 보존 및 명시적 수동 해제</td></tr>
+<tr><td><code>actuator_permit</code></td><td>유효 샘플·경보 없음·ARM·Fault 없음이 모두 만족된 경우만 1</td></tr>
+<tr><td><code>motor_coil[3:0] / motor_busy</code></td><td>기존 12.4장 Stepper 출력과 진행 상태</td></tr></table></section>
+<section class="section" id="s04"><h2><span class="num">04</span>데이터 유효기간·인터록 안전 흐름</h2><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 실행 예시</span></div><pre><code>Reset → ActuatorPermit = 0
+      ↓ 정상 센서 데이터 *_valid
+Fresh = 1  ← 매번 유효 센서 갱신 시 Age 리셋
+      ↓ CPU/User Arm(명시적)
+ActuatorPermit = 1 → Stepper Start 허용
+      ├ PIR Pending HIGH
+      ├ High Temperature (>= 30.0°C)
+      ├ High Humidity (>= 80.0%RH)
+      └ Sensor sample age 만료
+                  ↓
+           Permit 즉시 0
+                  ↓
+          Motor STOP + Coil 0
+                  ↓
+           fault_latched = 1
+                  ↓
+   알람/센서 오류 해제만으로 자동 재시작 금지
+                  ↓
+       Fault Clear → Manual Arm → Motor Start</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (19줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>Reset → ActuatorPermit = 0</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>2</td><td><code>      ↓ 정상 센서 데이터 *_valid</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>3</td><td><code>Fresh = 1  ← 매번 유효 센서 갱신 시 Age 리셋</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>4</td><td><code>      ↓ CPU/User Arm(명시적)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>5</td><td><code>ActuatorPermit = 1 → Stepper Start 허용</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>6</td><td><code>      ├ PIR Pending HIGH</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>      ├ High Temperature (&gt;= 30.0°C)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>      ├ High Humidity (&gt;= 80.0%RH)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>      └ Sensor sample age 만료</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>                  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>           Permit 즉시 0</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>                  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>          Motor STOP + Coil 0</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>                  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>           fault_latched = 1</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>                  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>   알람/센서 오류 해제만으로 자동 재시작 금지</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>                  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>       Fault Clear → Manual Arm → Motor Start</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div>
+<p><strong>Sample Age</strong>는 정상 센서 갱신 사이의 시간이며, 상위 유효 데이터가 들어오지 않으면 `MAX_AGE_CYCLES` 기준으로 만료된다. 이번 테스트는 55 시스템 클록으로 축소했다. 실제 100MHz 기준의 장시간 센서 갱신 정책과 타임아웃 값은 물리 센서의 변환 주기에 맞춰 별도 검증해야 한다.</p>
+<p class="warn"><strong>교육용 안전 인터록의 한계:</strong> 실제 회로의 Emergency Stop(비상 정지)이나 Fail-Safe 인증 장치가 아니다. 전원이 끊기는 경우의 모터 코일·전원 구동, 데이터 지연·통신 오류, 모듈 손상과 다중 고장, 센서별 품질은 별도 안전 설계가 필요하다. 산업 현장 보호 기능으로 사용하면 안 된다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>통합 RTL·테스트벤치 전체 코드</h2><p>실제 기존 12.4장·18장·19장 RTL을 컴파일 경로에서 참조하므로 중복 정의 없이 설계가 누적된다. 아래에 P2-20 신규 계층과 자가검증 테스트벤치의 전체 원본을 모았다.</p><details><summary>rtl/soc20_safety_supervisor.v — 전체 소스 보기</summary><div class="codeblock"><div class="codebar"><span>rtl/soc20_safety_supervisor.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-20: Safety DEMO policy, NOT a certified safety function.
+// Freshness applies to valid temperature sources, not to RTC/PIR.
+// Fail-safe: no valid sample, stale sample, or active environment
+// alarm disables actuator permit. Arm must be re-asserted after a
+// loss of permit (latched trip) and a fresh sample must be present.
+module soc20_safety_supervisor #(
+    parameter integer MAX_AGE_CYCLES=100000000
+)(
+    input wire clk,input wire resetn,
+    input wire sample_valid,
+    input wire arm_request,
+    input wire disarm_request,
+    input wire fault_clear_pulse,
+    input wire alarm_active,
+    output wire actuator_permit,
+    output reg fresh,
+    output reg fault_latched,
+    output reg [31:0] sample_age
+);
+    reg armed;
+    assign actuator_permit = resetn &amp;&amp; armed &amp;&amp; fresh &amp;&amp;
+                             !fault_latched &amp;&amp; !alarm_active;
+    always @(posedge clk) begin
+        if(!resetn)begin
+            armed&lt;=0;fresh&lt;=0;fault_latched&lt;=0;sample_age&lt;=0;
+        end else begin
+            if(sample_valid)begin
+                fresh&lt;=1;sample_age&lt;=0;
+            end else if(fresh)begin
+                if(sample_age&gt;=MAX_AGE_CYCLES-1)begin
+                    fresh&lt;=0;
+                    fault_latched&lt;=1;
+                end else sample_age&lt;=sample_age+1;
+            end
+            if(alarm_active) fault_latched&lt;=1;
+            // Clear a trip does not automatically restart actuators.
+            // Need a separate arm_request after fault_clear.
+            if(fault_clear_pulse &amp;&amp; !alarm_active &amp;&amp; fresh)begin
+                fault_latched&lt;=0;armed&lt;=0;
+            end
+            if(disarm_request)armed&lt;=0;
+            else if(arm_request &amp;&amp; fresh &amp;&amp; !fault_latched &amp;&amp;
+                    !alarm_active &amp;&amp; !fault_clear_pulse)armed&lt;=1;
+            if(!fresh)armed&lt;=0;
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (48줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-20: Safety DEMO policy, NOT a certified safety function.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Freshness applies to valid temperature sources, not to RTC/PIR.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Fail-safe: no valid sample, stale sample, or active environment</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// alarm disables actuator permit. Arm must be re-asserted after a</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// loss of permit (latched trip) and a fresh sample must be present.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>module soc20_safety_supervisor #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>8</td><td><code>    parameter integer MAX_AGE_CYCLES=100000000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>    input wire clk,input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    input wire sample_valid,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire arm_request,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    input wire disarm_request,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    input wire fault_clear_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire alarm_active,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    output wire actuator_permit,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    output reg fresh,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    output reg fault_latched,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    output reg [31:0] sample_age</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>    reg armed;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    assign actuator_permit = resetn &amp;&amp; armed &amp;&amp; fresh &amp;&amp;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>23</td><td><code>                             !fault_latched &amp;&amp; !alarm_active;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>24</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>25</td><td><code>        if(!resetn)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>26</td><td><code>            armed&lt;=0;fresh&lt;=0;fault_latched&lt;=0;sample_age&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>27</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>28</td><td><code>            if(sample_valid)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>29</td><td><code>                fresh&lt;=1;sample_age&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>30</td><td><code>            end else if(fresh)begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>31</td><td><code>                if(sample_age&gt;=MAX_AGE_CYCLES-1)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>32</td><td><code>                    fresh&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>33</td><td><code>                    fault_latched&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>34</td><td><code>                end else sample_age&lt;=sample_age+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>35</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>36</td><td><code>            if(alarm_active) fault_latched&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>37</td><td><code>            // Clear a trip does not automatically restart actuators.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>38</td><td><code>            // Need a separate arm_request after fault_clear.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>39</td><td><code>            if(fault_clear_pulse &amp;&amp; !alarm_active &amp;&amp; fresh)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>40</td><td><code>                fault_latched&lt;=0;armed&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>41</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>42</td><td><code>            if(disarm_request)armed&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>43</td><td><code>            else if(arm_request &amp;&amp; fresh &amp;&amp; !fault_latched &amp;&amp;</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>44</td><td><code>                    !alarm_active &amp;&amp; !fault_clear_pulse)armed&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>45</td><td><code>            if(!fresh)armed&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>46</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>47</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>48</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/soc20_integrated_core.v — 전체 소스 보기</summary><div class="codeblock"><div class="codebar"><span>rtl/soc20_integrated_core.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-20 REAL RTL integration of existing P2-18 + P2-19 + P2-12.4 cores.
+// No invented AXI bridge. External decoded/validated sensor samples only.
+// UART/RFID/LCD/RTC hardware drivers and AXI addresses remain OUT OF SCOPE.
+// Top shell has no functional logic: put policy and interlock HERE.
+module soc20_integrated_core #(
+    parameter [63:0] PIR_WARMUP_CYCLES=64'd6000000000,
+    parameter integer PIR_FILTER_CYCLES=3,
+    parameter integer MAX_AGE_CYCLES=100000000,
+    parameter [31:0] MOTOR_MIN_STEP_CYCLES=32'd200000
+)(
+    input wire clk,input wire resetn,
+    input wire pir_in_async,input wire pir_arm,input wire pir_irq_enable,
+    input wire pir_ack,input wire pir_count_clear,
+    input wire dht_valid,input wire signed [15:0] dht_temp_tenths,
+    input wire [15:0] dht_hum_tenths,
+    input wire ds_valid,input wire signed [15:0] ds_temp_raw,
+    input wire bme_valid,input wire signed [31:0] bme_temp_centi,
+    input wire [31:0] bme_hum_milli,input wire [31:0] bme_pressure_pa,
+    input wire rtc_valid,input wire [4:0] rtc_hour,
+    input wire [5:0] rtc_minute,input wire page_next_pulse,
+    input wire actuator_arm,input wire actuator_disarm,
+    input wire fault_clear,
+    input wire motor_start,input wire motor_stop,
+    input wire [31:0] motor_steps,input wire [31:0] motor_start_period,
+    input wire [31:0] motor_cruise_period,
+    input wire [31:0] motor_delta_period,input wire [31:0] motor_ramp_steps,
+    input wire motor_reverse,input wire motor_half_step,
+    output wire pir_irq,output wire pir_pending,
+    output wire [31:0] pir_count,
+    output wire [2:0] display_page,output wire display_valid,
+    output wire signed [31:0] display_value,
+    output wire [2:0] display_source,
+    output wire [2:0] alarm_reason,
+    output wire actuator_permit,output wire sensor_fresh,
+    output wire fault_latched,
+    output wire [3:0] motor_coil,
+    output wire motor_busy,output wire motor_done,output wire motor_error,
+    output wire [31:0] motor_steps_done,
+    output wire [31:0] updates_accepted
+);
+    wire pir_warmup_ready,pir_level,pir_motion_pulse;
+    wire policy_alarm_active;
+    wire [31:0] motor_active_period;
+    // (추가) Reference existing chapter 18 exactly; no duplicate RTL.
+    pir_irq_controller #(
+        .WARMUP_CYCLES(PIR_WARMUP_CYCLES),
+        .FILTER_CYCLES(PIR_FILTER_CYCLES)
+    ) u_pir (
+        .clk(clk),.resetn(resetn),.pir_in_async(pir_in_async),
+        .arm(pir_arm),.irq_enable(pir_irq_enable),
+        .irq_ack_pulse(pir_ack),.count_clear_pulse(pir_count_clear),
+        .irq(pir_irq),.warmup_ready(pir_warmup_ready),
+        .pir_level(pir_level),.motion_pulse(pir_motion_pulse),
+        .event_pending(pir_pending),.event_count(pir_count)
+    );
+    // (추가) Reference existing chapter 19, unchanged.
+    environment_policy u_env (
+        .clk(clk),.resetn(resetn),
+        .dht_valid(dht_valid),.dht_temp_tenths(dht_temp_tenths),
+        .dht_hum_tenths(dht_hum_tenths),.ds_valid(ds_valid),
+        .ds_temp_raw(ds_temp_raw),
+        .bme_valid(bme_valid),.bme_temp_centi(bme_temp_centi),
+        .bme_hum_milli(bme_hum_milli),.bme_pressure_pa(bme_pressure_pa),
+        .rtc_valid(rtc_valid),.rtc_hour(rtc_hour),
+        .rtc_minute(rtc_minute),.pir_event_pending(pir_pending),
+        .page_next_pulse(page_next_pulse),
+        .display_page(display_page),.display_valid(display_valid),
+        .display_value(display_value),.display_source(display_source),
+        .alarm_reason(alarm_reason),.alarm_active(policy_alarm_active),
+        .accepted_updates(updates_accepted)
+    );
+    // (추가) Freshness timeout disables actuator even if old policy
+    // retains a formerly normal reading.
+    soc20_safety_supervisor #(
+        .MAX_AGE_CYCLES(MAX_AGE_CYCLES)
+    ) u_safety (
+        .clk(clk),.resetn(resetn),
+        .sample_valid(dht_valid||ds_valid||bme_valid),
+        .arm_request(actuator_arm),.disarm_request(actuator_disarm),
+        .fault_clear_pulse(fault_clear),
+        .alarm_active(policy_alarm_active),
+        .actuator_permit(actuator_permit),.fresh(sensor_fresh),
+        .fault_latched(fault_latched),.sample_age()
+    );
+    // (추가) P2-12.4 actual stepper ramp instantiated. Permit revocation
+    // forces the stop input and coil LOW, no automatic restart after ACK.
+    stepper_ramp_core #(
+        .MIN_STEP_CYCLES(MOTOR_MIN_STEP_CYCLES)
+    ) u_motor (
+        .clk(clk),.resetn(resetn),
+        .start_pulse(motor_start &amp;&amp; actuator_permit),
+        .stop_pulse(motor_stop || !actuator_permit),
+        .cfg_steps(motor_steps),
+        .cfg_start_period(motor_start_period),
+        .cfg_cruise_period(motor_cruise_period),
+        .cfg_delta_period(motor_delta_period),
+        .cfg_ramp_steps(motor_ramp_steps),
+        .cfg_reverse(motor_reverse),.cfg_half_step(motor_half_step),
+        .coil_o(motor_coil),.busy(motor_busy),
+        .done_pulse(motor_done),.error_pulse(motor_error),
+        .steps_done(motor_steps_done),.active_period(motor_active_period)
+    );
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (104줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-20 REAL RTL integration of existing P2-18 + P2-19 + P2-12.4 cores.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// No invented AXI bridge. External decoded/validated sensor samples only.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// UART/RFID/LCD/RTC hardware drivers and AXI addresses remain OUT OF SCOPE.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// Top shell has no functional logic: put policy and interlock HERE.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>module soc20_integrated_core #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>7</td><td><code>    parameter [63:0] PIR_WARMUP_CYCLES=64'd6000000000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>    parameter integer PIR_FILTER_CYCLES=3,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    parameter integer MAX_AGE_CYCLES=100000000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    parameter [31:0] MOTOR_MIN_STEP_CYCLES=32'd200000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>    input wire clk,input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    input wire pir_in_async,input wire pir_arm,input wire pir_irq_enable,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    input wire pir_ack,input wire pir_count_clear,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire dht_valid,input wire signed [15:0] dht_temp_tenths,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    input wire [15:0] dht_hum_tenths,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    input wire ds_valid,input wire signed [15:0] ds_temp_raw,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    input wire bme_valid,input wire signed [31:0] bme_temp_centi,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    input wire [31:0] bme_hum_milli,input wire [31:0] bme_pressure_pa,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    input wire rtc_valid,input wire [4:0] rtc_hour,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    input wire [5:0] rtc_minute,input wire page_next_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>    input wire actuator_arm,input wire actuator_disarm,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>    input wire fault_clear,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>24</td><td><code>    input wire motor_start,input wire motor_stop,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>25</td><td><code>    input wire [31:0] motor_steps,input wire [31:0] motor_start_period,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>26</td><td><code>    input wire [31:0] motor_cruise_period,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>27</td><td><code>    input wire [31:0] motor_delta_period,input wire [31:0] motor_ramp_steps,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>28</td><td><code>    input wire motor_reverse,input wire motor_half_step,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>29</td><td><code>    output wire pir_irq,output wire pir_pending,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>30</td><td><code>    output wire [31:0] pir_count,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>31</td><td><code>    output wire [2:0] display_page,output wire display_valid,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>32</td><td><code>    output wire signed [31:0] display_value,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>33</td><td><code>    output wire [2:0] display_source,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>34</td><td><code>    output wire [2:0] alarm_reason,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>35</td><td><code>    output wire actuator_permit,output wire sensor_fresh,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>36</td><td><code>    output wire fault_latched,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>37</td><td><code>    output wire [3:0] motor_coil,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>38</td><td><code>    output wire motor_busy,output wire motor_done,output wire motor_error,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>39</td><td><code>    output wire [31:0] motor_steps_done,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>40</td><td><code>    output wire [31:0] updates_accepted</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>41</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>42</td><td><code>    wire pir_warmup_ready,pir_level,pir_motion_pulse;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>43</td><td><code>    wire policy_alarm_active;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>44</td><td><code>    wire [31:0] motor_active_period;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>45</td><td><code>    // (추가) Reference existing chapter 18 exactly; no duplicate RTL.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>46</td><td><code>    pir_irq_controller #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>47</td><td><code>        .WARMUP_CYCLES(PIR_WARMUP_CYCLES),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>48</td><td><code>        .FILTER_CYCLES(PIR_FILTER_CYCLES)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>49</td><td><code>    ) u_pir (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>        .clk(clk),.resetn(resetn),.pir_in_async(pir_in_async),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>51</td><td><code>        .arm(pir_arm),.irq_enable(pir_irq_enable),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>52</td><td><code>        .irq_ack_pulse(pir_ack),.count_clear_pulse(pir_count_clear),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>53</td><td><code>        .irq(pir_irq),.warmup_ready(pir_warmup_ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>54</td><td><code>        .pir_level(pir_level),.motion_pulse(pir_motion_pulse),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>55</td><td><code>        .event_pending(pir_pending),.event_count(pir_count)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>56</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>    // (추가) Reference existing chapter 19, unchanged.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>58</td><td><code>    environment_policy u_env (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>60</td><td><code>        .dht_valid(dht_valid),.dht_temp_tenths(dht_temp_tenths),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>61</td><td><code>        .dht_hum_tenths(dht_hum_tenths),.ds_valid(ds_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>62</td><td><code>        .ds_temp_raw(ds_temp_raw),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>63</td><td><code>        .bme_valid(bme_valid),.bme_temp_centi(bme_temp_centi),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>64</td><td><code>        .bme_hum_milli(bme_hum_milli),.bme_pressure_pa(bme_pressure_pa),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>65</td><td><code>        .rtc_valid(rtc_valid),.rtc_hour(rtc_hour),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>66</td><td><code>        .rtc_minute(rtc_minute),.pir_event_pending(pir_pending),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>67</td><td><code>        .page_next_pulse(page_next_pulse),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>68</td><td><code>        .display_page(display_page),.display_valid(display_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>69</td><td><code>        .display_value(display_value),.display_source(display_source),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>70</td><td><code>        .alarm_reason(alarm_reason),.alarm_active(policy_alarm_active),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>71</td><td><code>        .accepted_updates(updates_accepted)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>72</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>73</td><td><code>    // (추가) Freshness timeout disables actuator even if old policy</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>74</td><td><code>    // retains a formerly normal reading.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>75</td><td><code>    soc20_safety_supervisor #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>76</td><td><code>        .MAX_AGE_CYCLES(MAX_AGE_CYCLES)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>77</td><td><code>    ) u_safety (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>78</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>79</td><td><code>        .sample_valid(dht_valid||ds_valid||bme_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>80</td><td><code>        .arm_request(actuator_arm),.disarm_request(actuator_disarm),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>81</td><td><code>        .fault_clear_pulse(fault_clear),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>82</td><td><code>        .alarm_active(policy_alarm_active),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>83</td><td><code>        .actuator_permit(actuator_permit),.fresh(sensor_fresh),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>84</td><td><code>        .fault_latched(fault_latched),.sample_age()</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>85</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>86</td><td><code>    // (추가) P2-12.4 actual stepper ramp instantiated. Permit revocation</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>87</td><td><code>    // forces the stop input and coil LOW, no automatic restart after ACK.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>88</td><td><code>    stepper_ramp_core #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>89</td><td><code>        .MIN_STEP_CYCLES(MOTOR_MIN_STEP_CYCLES)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>90</td><td><code>    ) u_motor (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>91</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>92</td><td><code>        .start_pulse(motor_start &amp;&amp; actuator_permit),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>93</td><td><code>        .stop_pulse(motor_stop || !actuator_permit),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>94</td><td><code>        .cfg_steps(motor_steps),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>95</td><td><code>        .cfg_start_period(motor_start_period),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>96</td><td><code>        .cfg_cruise_period(motor_cruise_period),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>97</td><td><code>        .cfg_delta_period(motor_delta_period),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>98</td><td><code>        .cfg_ramp_steps(motor_ramp_steps),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>99</td><td><code>        .cfg_reverse(motor_reverse),.cfg_half_step(motor_half_step),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>100</td><td><code>        .coil_o(motor_coil),.busy(motor_busy),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>101</td><td><code>        .done_pulse(motor_done),.error_pulse(motor_error),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>102</td><td><code>        .steps_done(motor_steps_done),.active_period(motor_active_period)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>103</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>104</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_soc20_integrated_core.v — 전체 소스 보기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_soc20_integrated_core.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-20 REAL three-chapter RTL integration test: P2-18 PIR + P2-19
+// environment_policy + P2-12.4 stepper, plus new fail-safe supervisor.
+// Simulated sensor readings are already validated input events.
+// No fake AXI bus, no physical I2C/SPI, no Vivado or board here.
+module tb_soc20_integrated_core;
+    reg clk=0;always #5 clk=~clk;
+    reg resetn=0,pir=0,pir_arm=1,irq_enable=1,pir_ack=0,clear_pir=0;
+    reg dht_valid=0,ds_valid=0,bme_valid=0,rtc_valid=0;
+    reg signed [15:0] dht_t=0,ds_t=0;
+    reg [15:0] dht_h=0;
+    reg signed [31:0] bme_t=0;
+    reg [31:0] bme_h=0,bme_p=0;
+    reg [4:0] hour=0;reg [5:0] minute=0;
+    reg page_next=0,arm=0,disarm=0,clear_fault=0;
+    reg motor_start=0,motor_stop=0;
+    wire pir_irq,pir_pending,display_valid,permit,fresh,fault;
+    wire [31:0] pir_count,steps_done,updates;
+    wire [2:0] page,source,alarm;
+    wire signed [31:0] display_value;
+    wire [3:0] coil;
+    wire motor_busy,motor_done,motor_error;
+    soc20_integrated_core #(
+        .PIR_WARMUP_CYCLES(64'd5),.PIR_FILTER_CYCLES(2),
+        .MAX_AGE_CYCLES(55),.MOTOR_MIN_STEP_CYCLES(3)
+    ) dut(
+        .clk(clk),.resetn(resetn),
+        .pir_in_async(pir),.pir_arm(pir_arm),.pir_irq_enable(irq_enable),
+        .pir_ack(pir_ack),.pir_count_clear(clear_pir),
+        .dht_valid(dht_valid),.dht_temp_tenths(dht_t),
+        .dht_hum_tenths(dht_h),.ds_valid(ds_valid),.ds_temp_raw(ds_t),
+        .bme_valid(bme_valid),.bme_temp_centi(bme_t),
+        .bme_hum_milli(bme_h),.bme_pressure_pa(bme_p),
+        .rtc_valid(rtc_valid),.rtc_hour(hour),.rtc_minute(minute),
+        .page_next_pulse(page_next),.actuator_arm(arm),
+        .actuator_disarm(disarm),.fault_clear(clear_fault),
+        .motor_start(motor_start),.motor_stop(motor_stop),
+        .motor_steps(32'd30),.motor_start_period(32'd12),
+        .motor_cruise_period(32'd6),.motor_delta_period(32'd3),
+        .motor_ramp_steps(32'd2),.motor_reverse(1'b0),
+        .motor_half_step(1'b1),
+        .pir_irq(pir_irq),.pir_pending(pir_pending),
+        .pir_count(pir_count),.display_page(page),
+        .display_valid(display_valid),.display_value(display_value),
+        .display_source(source),.alarm_reason(alarm),
+        .actuator_permit(permit),.sensor_fresh(fresh),
+        .fault_latched(fault),.motor_coil(coil),.motor_busy(motor_busy),
+        .motor_done(motor_done),.motor_error(motor_error),
+        .motor_steps_done(steps_done),.updates_accepted(updates)
+    );
+    task cycles;input integer n;integer i;
+        begin for(i=0;i&lt;n;i=i+1) @(negedge clk);end
+    endtask
+    task pulse_arm;
+        begin @(negedge clk);arm=1;@(negedge clk);arm=0;end
+    endtask
+    task pulse_start;
+        begin @(negedge clk);motor_start=1;
+              @(negedge clk);motor_start=0;end
+    endtask
+    task good_sample;
+        begin @(negedge clk);dht_t=16'sd240;dht_h=16'd500;
+              dht_valid=1;
+              @(negedge clk);dht_valid=0;end
+    endtask
+    initial begin
+        cycles(4);resetn=1;cycles(8);
+        if(permit || fresh || fault || motor_busy || coil)
+            $fatal(1,"P2-20 reset interlock failed");
+        pulse_start();cycles(2);
+        if(motor_busy || coil) $fatal(1,"unarmed motor started");
+        $display("P2_20_DEFAULT_SAFE_INTERLOCK_PASS");
+
+        good_sample();cycles(2);
+        if(!fresh || alarm) $fatal(1,"validated DHT not accepted");
+        pulse_arm();cycles(2);
+        if(!permit) $fatal(1,"valid sample could not arm");
+        pulse_start();cycles(18);
+        if(!motor_busy || steps_done==0 || coil==0)
+            $fatal(1,"P2-12.4 stepper not actually progressing");
+        $display("P2_20_EXISTING_STEPPER_INTEGRATION_PASS");
+
+        @(negedge clk);pir=1;
+        cycles(9);
+        if(!pir_pending || !pir_irq || alarm!=1 || permit || coil!=0)
+            $fatal(1,"PIR interrupt failed to shut off motor");
+        cycles(2);
+        if(motor_busy) $fatal(1,"motor busy after PIR interlock");
+        $display("P2_20_PIR_IRQ_MOTOR_STOP_PASS");
+
+        @(negedge clk);pir_ack=1;@(negedge clk);pir_ack=0;
+        cycles(2);
+        if(pir_pending || pir_irq || !fault || permit)
+            $fatal(1,"IRQ ACK incorrectly rearmed actuator");
+        $display("P2_20_LATCHED_FAULT_NO_AUTO_RESTART_PASS");
+
+        good_sample();
+        @(negedge clk);clear_fault=1;
+        @(negedge clk);clear_fault=0;
+        cycles(2);
+        if(fault || permit) $fatal(1,"fault clear must disarm");
+        pulse_arm();cycles(2);
+        if(!permit) $fatal(1,"explicit rearm failed");
+        $display("P2_20_MANUAL_REARM_PASS");
+
+        pulse_start();cycles(16);
+        if(!motor_busy || !coil) $fatal(1,"restarted stepper stopped early");
+        cycles(65);
+        if(fresh || !fault || permit || coil!=0 || motor_busy)
+            $fatal(1,"stale sample failed to shut down motor");
+        $display("P2_20_STALE_SENSOR_FAIL_SAFE_PASS");
+
+        // Fresh sample alone must not clear a latched trip.
+        good_sample();cycles(2);
+        if(!fresh || !fault || permit)
+            $fatal(1,"new sample implicitly cleared fault");
+        $display("P2_20_FRESH_SAMPLE_DOES_NOT_AUTO_REARM_PASS");
+
+        // Existing P2-19 policy also consumes normalized BME/RTC data.
+        // BME values here are MOCK ALREADY-COMPENSATED, not raw ADC.
+        @(negedge clk);bme_t=32'sd2250;bme_h=32'd45000;
+        bme_p=32'd101000;bme_valid=1;
+        @(negedge clk);bme_valid=0;
+        cycles(2);
+        if(page!=0 || !display_valid ||
+           display_value!=225 || source!=3)
+            $fatal(1,"BME source priority failed");
+        @(negedge clk);rtc_valid=1;hour=5'd14;minute=6'd35;
+        @(negedge clk);rtc_valid=0;
+        // temp -&gt; hum -&gt; pressure -&gt; clock
+        repeat(3)begin
+            @(negedge clk);page_next=1;
+            @(negedge clk);page_next=0;
+        end
+        cycles(2);
+        if(page!=3 || !display_valid || display_value!=1435 ||
+           source!=4)
+            $fatal(1,"P2-19 policy RTC page not integrated");
+        if(permit || !fault)
+            $fatal(1,"new BME/RTC events bypassed latched stop");
+        $display("P2_20_EXISTING_POLICY_BME_RTC_PASS");
+        $display("P2_20_INTEGRATED_SOC_RTL PASS");
+        $finish;
+    end
+    initial begin #250000;$fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (139줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-20 REAL three-chapter RTL integration test: P2-18 PIR + P2-19</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// environment_policy + P2-12.4 stepper, plus new fail-safe supervisor.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Simulated sensor readings are already validated input events.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// No fake AXI bus, no physical I2C/SPI, no Vivado or board here.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>module tb_soc20_integrated_core;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>7</td><td><code>    reg clk=0;always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    reg resetn=0,pir=0,pir_arm=1,irq_enable=1,pir_ack=0,clear_pir=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    reg dht_valid=0,ds_valid=0,bme_valid=0,rtc_valid=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    reg signed [15:0] dht_t=0,ds_t=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    reg [15:0] dht_h=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    reg signed [31:0] bme_t=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    reg [31:0] bme_h=0,bme_p=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    reg [4:0] hour=0;reg [5:0] minute=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>    reg page_next=0,arm=0,disarm=0,clear_fault=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>16</td><td><code>    reg motor_start=0,motor_stop=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>17</td><td><code>    wire pir_irq,pir_pending,display_valid,permit,fresh,fault;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>18</td><td><code>    wire [31:0] pir_count,steps_done,updates;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>19</td><td><code>    wire [2:0] page,source,alarm;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>20</td><td><code>    wire signed [31:0] display_value;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    wire [3:0] coil;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    wire motor_busy,motor_done,motor_error;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>23</td><td><code>    soc20_integrated_core #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>        .PIR_WARMUP_CYCLES(64'd5),.PIR_FILTER_CYCLES(2),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .MAX_AGE_CYCLES(55),.MOTOR_MIN_STEP_CYCLES(3)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>    ) dut(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>27</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>28</td><td><code>        .pir_in_async(pir),.pir_arm(pir_arm),.pir_irq_enable(irq_enable),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>29</td><td><code>        .pir_ack(pir_ack),.pir_count_clear(clear_pir),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>30</td><td><code>        .dht_valid(dht_valid),.dht_temp_tenths(dht_t),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>31</td><td><code>        .dht_hum_tenths(dht_h),.ds_valid(ds_valid),.ds_temp_raw(ds_t),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>32</td><td><code>        .bme_valid(bme_valid),.bme_temp_centi(bme_t),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>33</td><td><code>        .bme_hum_milli(bme_h),.bme_pressure_pa(bme_p),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>34</td><td><code>        .rtc_valid(rtc_valid),.rtc_hour(hour),.rtc_minute(minute),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>35</td><td><code>        .page_next_pulse(page_next),.actuator_arm(arm),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>36</td><td><code>        .actuator_disarm(disarm),.fault_clear(clear_fault),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>37</td><td><code>        .motor_start(motor_start),.motor_stop(motor_stop),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>38</td><td><code>        .motor_steps(32'd30),.motor_start_period(32'd12),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>39</td><td><code>        .motor_cruise_period(32'd6),.motor_delta_period(32'd3),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>40</td><td><code>        .motor_ramp_steps(32'd2),.motor_reverse(1'b0),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>41</td><td><code>        .motor_half_step(1'b1),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>42</td><td><code>        .pir_irq(pir_irq),.pir_pending(pir_pending),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>43</td><td><code>        .pir_count(pir_count),.display_page(page),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>44</td><td><code>        .display_valid(display_valid),.display_value(display_value),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>45</td><td><code>        .display_source(source),.alarm_reason(alarm),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>46</td><td><code>        .actuator_permit(permit),.sensor_fresh(fresh),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>47</td><td><code>        .fault_latched(fault),.motor_coil(coil),.motor_busy(motor_busy),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>48</td><td><code>        .motor_done(motor_done),.motor_error(motor_error),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>49</td><td><code>        .motor_steps_done(steps_done),.updates_accepted(updates)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>50</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>51</td><td><code>    task cycles;input integer n;integer i;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>52</td><td><code>        begin for(i=0;i&lt;n;i=i+1) @(negedge clk);end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>54</td><td><code>    task pulse_arm;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>55</td><td><code>        begin @(negedge clk);arm=1;@(negedge clk);arm=0;end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>56</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>    task pulse_start;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>58</td><td><code>        begin @(negedge clk);motor_start=1;</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>59</td><td><code>              @(negedge clk);motor_start=0;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>60</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>61</td><td><code>    task good_sample;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>62</td><td><code>        begin @(negedge clk);dht_t=16'sd240;dht_h=16'd500;</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>63</td><td><code>              dht_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>64</td><td><code>              @(negedge clk);dht_valid=0;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>65</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>67</td><td><code>        cycles(4);resetn=1;cycles(8);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>68</td><td><code>        if(permit || fresh || fault || motor_busy || coil)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>69</td><td><code>            $fatal(1,&quot;P2-20 reset interlock failed&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>70</td><td><code>        pulse_start();cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>71</td><td><code>        if(motor_busy || coil) $fatal(1,&quot;unarmed motor started&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>72</td><td><code>        $display(&quot;P2_20_DEFAULT_SAFE_INTERLOCK_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>74</td><td><code>        good_sample();cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>75</td><td><code>        if(!fresh || alarm) $fatal(1,&quot;validated DHT not accepted&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>76</td><td><code>        pulse_arm();cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>77</td><td><code>        if(!permit) $fatal(1,&quot;valid sample could not arm&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>78</td><td><code>        pulse_start();cycles(18);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>79</td><td><code>        if(!motor_busy || steps_done==0 || coil==0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>80</td><td><code>            $fatal(1,&quot;P2-12.4 stepper not actually progressing&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>81</td><td><code>        $display(&quot;P2_20_EXISTING_STEPPER_INTEGRATION_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>83</td><td><code>        @(negedge clk);pir=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>84</td><td><code>        cycles(9);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>85</td><td><code>        if(!pir_pending || !pir_irq || alarm!=1 || permit || coil!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>86</td><td><code>            $fatal(1,&quot;PIR interrupt failed to shut off motor&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>87</td><td><code>        cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>88</td><td><code>        if(motor_busy) $fatal(1,&quot;motor busy after PIR interlock&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>89</td><td><code>        $display(&quot;P2_20_PIR_IRQ_MOTOR_STOP_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>91</td><td><code>        @(negedge clk);pir_ack=1;@(negedge clk);pir_ack=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>92</td><td><code>        cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>        if(pir_pending || pir_irq || !fault || permit)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>94</td><td><code>            $fatal(1,&quot;IRQ ACK incorrectly rearmed actuator&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>95</td><td><code>        $display(&quot;P2_20_LATCHED_FAULT_NO_AUTO_RESTART_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>97</td><td><code>        good_sample();</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>98</td><td><code>        @(negedge clk);clear_fault=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>99</td><td><code>        @(negedge clk);clear_fault=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>100</td><td><code>        cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>101</td><td><code>        if(fault || permit) $fatal(1,&quot;fault clear must disarm&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>102</td><td><code>        pulse_arm();cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>103</td><td><code>        if(!permit) $fatal(1,&quot;explicit rearm failed&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>104</td><td><code>        $display(&quot;P2_20_MANUAL_REARM_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>106</td><td><code>        pulse_start();cycles(16);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>107</td><td><code>        if(!motor_busy || !coil) $fatal(1,&quot;restarted stepper stopped early&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>108</td><td><code>        cycles(65);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>109</td><td><code>        if(fresh || !fault || permit || coil!=0 || motor_busy)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>110</td><td><code>            $fatal(1,&quot;stale sample failed to shut down motor&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>111</td><td><code>        $display(&quot;P2_20_STALE_SENSOR_FAIL_SAFE_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>113</td><td><code>        // Fresh sample alone must not clear a latched trip.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>114</td><td><code>        good_sample();cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>115</td><td><code>        if(!fresh || !fault || permit)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>116</td><td><code>            $fatal(1,&quot;new sample implicitly cleared fault&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>117</td><td><code>        $display(&quot;P2_20_FRESH_SAMPLE_DOES_NOT_AUTO_REARM_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>119</td><td><code>        // Existing P2-19 policy also consumes normalized BME/RTC data.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>120</td><td><code>        // BME values here are MOCK ALREADY-COMPENSATED, not raw ADC.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>121</td><td><code>        @(negedge clk);bme_t=32'sd2250;bme_h=32'd45000;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>122</td><td><code>        bme_p=32'd101000;bme_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>123</td><td><code>        @(negedge clk);bme_valid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>124</td><td><code>        cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>125</td><td><code>        if(page!=0 || !display_valid ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>126</td><td><code>           display_value!=225 || source!=3)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>127</td><td><code>            $fatal(1,&quot;BME source priority failed&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>128</td><td><code>        @(negedge clk);rtc_valid=1;hour=5'd14;minute=6'd35;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>129</td><td><code>        @(negedge clk);rtc_valid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>130</td><td><code>        // temp -&gt; hum -&gt; pressure -&gt; clock</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>131</td><td><code>        repeat(3)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>132</td><td><code>            @(negedge clk);page_next=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>133</td><td><code>            @(negedge clk);page_next=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>134</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>135</td><td><code>        cycles(2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>136</td><td><code>        if(page!=3 || !display_valid || display_value!=1435 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>137</td><td><code>           source!=4)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>138</td><td><code>            $fatal(1,&quot;P2-19 policy RTC page not integrated&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>139</td><td><code>        if(permit || !fault)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>140</td><td><code>            $fatal(1,&quot;new BME/RTC events bypassed latched stop&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>141</td><td><code>        $display(&quot;P2_20_EXISTING_POLICY_BME_RTC_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>142</td><td><code>        $display(&quot;P2_20_INTEGRATED_SOC_RTL PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>143</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>144</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>145</td><td><code>    initial begin #250000;$fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>146</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>Ubuntu에서 검증하기</h3><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 실행 예시</span></div><pre><code># 1. 최초 1회: Ubuntu 패키지 목록 갱신
+sudo apt update
+
+# 2. Icarus Verilog RTL 시뮬레이터 설치
+sudo apt install -y iverilog
+
+# 3. 저장소 루트에서 종합 RTL 시뮬레이션
+bash part02/chapters/P2_20_Lesson/tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (6줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code># 1. 최초 1회: Ubuntu 패키지 목록 갱신</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>sudo apt update</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>4</td><td><code># 2. Icarus Verilog RTL 시뮬레이터 설치</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>sudo apt install -y iverilog</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>7</td><td><code># 3. 저장소 루트에서 종합 RTL 시뮬레이션</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>bash part02/chapters/P2_20_Lesson/tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>`run_rtl_tests.sh`는 12.4, 18, 19장 원본 RTL과 제20장 신규 RTL을 함께 컴파일하고 가상의 센서 입력·PIR 변화를 주어 시뮬레이션한다. 기존 RTL 자체를 수정하지 않고 재사용 가능한 계층만 확장한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>통합 검증 결과</h2><table><tr><th>검증 항목</th><th>결과</th></tr>
+<tr><td>Reset 후 출력 안전 차단 및 무허가 Motor Start 거부</td><td>RTL_SIM PASS</td></tr>
+<tr><td>12.4장 기존 Stepper Ramp 실제 인스턴스의 스텝·코일 진행</td><td>RTL_SIM PASS</td></tr>
+<tr><td>18장 PIR IRQ 인스턴스의 이벤트 → Motor Stop 및 Coil Off</td><td>RTL_SIM PASS</td></tr>
+<tr><td>IRQ ACK 후 오류 Latched 및 자동 재가동 방지</td><td>RTL_SIM PASS</td></tr>
+<tr><td>Fault Clear 후 별도 Arm + Start로 재가동</td><td>RTL_SIM PASS</td></tr>
+<tr><td>온도 샘플 갱신 중단 시 Age Timeout 및 Stop</td><td>RTL_SIM PASS</td></tr>
+<tr><td>새 센서 샘플만으로 오류 해제 금지</td><td>RTL_SIM PASS</td></tr>
+<tr><td>19장 환경 정책 RTL의 BME 우선순위·RTC HHMM 표시</td><td>RTL_SIM PASS</td></tr>
+<tr><td>RFID·LCD·RTC·I²C/AXI 전체 실제 SoC 결합</td><td>NOT_RUN / 미구현</td></tr>
+<tr><td>Vivado 합성·타이밍, Vitis, Basys3 실물</td><td>요청에 따라 보류</td></tr>
+<tr><td>UVM</td><td>NOT_RUN</td></tr></table>
+<p class="ok"><a href="https://github.com/Yuul-Jung/amd_soc/actions/runs/42955226763">P2-20 기존 3개 장 재사용·인터록 RTL 실제 PASS 로그</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/docs/P2_20_SIM_VERIFICATION_20261111.md">독립 검증 결과 보고서</a></p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>추가 통합 작업 Gate</h2><table><tr><th>통합 Gate</th><th>완성에 필요한 작업</th><th>상태</th></tr>
+<tr><td>20.1 · 환경·PIR·Stepper 실제 RTL 재사용</td><td>기존 12.4·18·19 코어를 직접 인스턴스, Sensor Age 인터록 추가</td><td>RTL_SIM PASS</td></tr>
+<tr><td>20.2 · I²C 공용 마스터</td><td>14장 LCD·16장 DS3231·19장 BME280의 Read/Write/Repeated START, 중재·응답·타임아웃</td><td>미구현</td></tr>
+<tr><td>20.3 · 센서별 정식 데이터 경로</td><td>DHT22/DS18B20 Valid, BME280 Bosch 보정, 실제 RTC 시간값, RFID 실제 UID 처리, 센서 샘플 Age</td><td>미완료</td></tr>
+<tr><td>20.4 · AXI4-Lite/CPU 통합</td><td>각 IP BaseAddr·IRQ·CPU 등록/해제, C/Vitis 제어, UART Command/Response, FND/LCD 문자 인코딩</td><td>미구현</td></tr>
+<tr><td>20.5 · 물리 장치/합성·실물</td><td>Vivado 타이밍/IOBUF/XDC/3.3V/외부 전원, Basys3 보드 실제 종합 동작</td><td>요청에 따라 보류</td></tr></table>
+<p><strong>필수 보존 원칙:</strong> 기존 `soc_hw.xpr` 및 01~19장 성공 파일, LED/FND 의미·기존 핀 배치를 임의 변경하지 않는다. 20.4 이후 실제 SoC 주소는 Vivado Address Editor의 확인된 결과만 사용한다.</p><p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_20_Lesson/README.md">20장 모듈 구성·실행 방법</a> · <a href="../part02_2/guide/ch19_bme280_environment_v05.html">19장 복합 환경 제어</a> · <a href="../part02_2/guide/index.html#tech-tree">제2부 11~20장 전체 편성표</a></p></section>
+<section class="section" id="s08"><h2><span class="num">08</span>핵심 정리</h2><p><strong>① 기존 RTL을 실제 재사용한다.</strong> 단계별로 합격한 개별 Core를 변경하지 않고 통합 계층에서 결합한다.</p><p><strong>② 센서 Valid만으로 안전하다고 가정하지 않는다.</strong> 새 데이터의 유효기간, 인터럽트, 경보, 출력 재시작 정책을 구별한다.</p><p><strong>③ 모의 통합과 실제 전체 SoC를 구분한다.</strong> 이번 시뮬레이션의 PASS는 3개 기존 RTL + 1개 신규 감독 정책의 제한된 범위다. RFID/LCD/RTC/I²C/AXI와 실물 전체는 통합 전 Gate로 남아 있다.</p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① 종합 RTL 통합·안전 인터록의 검증 경계의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

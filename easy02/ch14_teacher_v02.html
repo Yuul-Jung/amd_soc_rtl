@@ -1,0 +1,511 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="I²C 오픈드레인 → LCD 4비트 초기화 → 문자 시퀀스"><title>교수용 상세 해설서 | 제2부 14장 | PCF8574 I²C 백팩·LCD 4비트</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch14"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 14/20</p><h1>제14장 · PCF8574 I²C 문자 LCD</h1><p>I²C 오픈드레인 → LCD 4비트 초기화 → 문자 시퀀스</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 14장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> I²C는 SDA 데이터선과 SCL Clock선으로 여러 장치를 연결합니다. PCF8574가 I²C로 받은 포트 비트를 LCD의 RS·E·D4~D7로 바꾸며, LCD는 상위/하위 니블을 순서대로 받습니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="문자/ASCII → I2C Write RTL → PCF8574 → LCD 4bit"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">문자/ASCII</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">I2C Write RTL</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">PCF8574</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">LCD 4bit</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 본 장의 구현은 쓰기 중심입니다. 일반적인 I²C 읽기·반복 START·공용 버스 관리까지 완료된 시스템으로 간주하지 않습니다. LCD 모듈 전압·풀업 전압을 확인합니다.</p><p class="prof-small"><a href="../part02_2/guide/ch14_i2c_lcd_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch13_teacher_v02.html">이전 장</a> · <a href="ch15_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요</h2>
+<p>I²C(아이투씨, 두 선을 이용하는 직렬 버스)는 SDA(데이터)와 SCL(클록)을 이용한다. FPGA(재구성 가능한 디지털 회로 칩)의 <strong>I²C Master</strong>가 PCF8574(아이투씨 입출력 확장기)에 8비트 데이터를 보내면, PCF8574가 캐릭터 LCD의 RS·RW·E·D4~D7 핀을 대신 구동한다.</p>
+<p>한 단계 더 나아가, HD44780 계열 LCD의 4비트 초기화 규격을 따른 뒤 첫 번째 줄에 ASCII 문자열 <strong>HELLO</strong>를 쓰는 과제다. LCD1602의 2줄과 LCD2004의 4줄 출력은 공통으로 첫 줄 DDRAM 주소 0x00을 이용한다.</p>
+<p class="warn"><strong>이번 장의 검증 범위는 RTL 시뮬레이션이다.</strong> PCF8574 가짜 ACK 응답으로 I²C 주소·데이터 및 LCD 명령 72회를 확인한다. 실제 보드의 합성·타이밍·Vitis/AXI 전체 연결·LCD 문자 출력은 현 단계에서 보류한다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>전체 구조</h2>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 315" role="img" aria-label="MicroBlaze V AXI, I2C LCD 제어 코어와 PCF8574 연결 구조">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#4b829b"/></marker></defs>
+<rect x="13" y="12" width="994" height="288" rx="13" fill="#f7fafc" stroke="#b9d3e1" stroke-width="2"/>
+<g font-size="17" text-anchor="middle" fill="#163a57">
+<rect x="33" y="58" width="176" height="91" rx="8" fill="#deecfa" stroke="#6997b8"/><text x="121" y="94">MicroBlaze V</text><text x="121" y="119" font-size="13">AXI 제어 확장 예정</text>
+<rect x="272" y="58" width="188" height="91" rx="8" fill="#c8e9e0" stroke="#63a997"/><text x="366" y="90">LCD Controller</text><text x="366" y="115" font-size="13">lcd_pcf8574_hello</text>
+<rect x="512" y="58" width="187" height="91" rx="8" fill="#c8e9e0" stroke="#63a997"/><text x="605" y="90">I²C Write Master</text><text x="605" y="115" font-size="13">i2c_write_byte_master</text>
+<rect x="770" y="58" width="220" height="91" rx="8" fill="#f4deb8" stroke="#c59b55"/><text x="880" y="91">PCF8574</text><text x="880" y="117" font-size="13">LCD1602 / LCD2004</text>
+<path d="M209 101H272M460 101H512M699 101H770" fill="none" stroke="#4b829b" stroke-width="3" marker-end="url(#arr)"/>
+<text x="730" y="91" font-size="11">SCL/SDA</text>
+<rect x="272" y="208" width="427" height="61" rx="8" fill="#e7e9f7" stroke="#abb2d8"/>
+<text x="485" y="235" font-size="16">i2c_open_drain_io · IOBUF</text><text x="485" y="254" font-size="12">물리 핀 경계, 상위 Top은 단순 연결</text>
+<path d="M605 149V208" fill="none" stroke="#4b829b" stroke-width="2" marker-end="url(#arr)"/>
+</g></svg>
+<p>세 계층은 <strong>LCD 명령 처리 → I²C 전송 → 물리 오픈드레인 핀</strong>으로 분리한다. 기존 Top에 LCD 상태 머신이나 프로토콜 비교·산술을 넣지 않는다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>I²C 기본 프로토콜</h2>
+<table><tr><th>신호</th><th>뜻</th><th>FPGA 기준</th></tr>
+<tr><td>SCL</td><td>Serial Clock(직렬 클록)</td><td>LOW 구동 또는 High-Z 해제</td></tr>
+<tr><td>SDA</td><td>Serial Data(직렬 데이터)</td><td>LOW 구동 또는 High-Z 해제, ACK 입력 읽기</td></tr>
+<tr><td>START</td><td>SCL HIGH 상태에서 SDA가 HIGH→LOW</td><td>슬레이브 시작 통보</td></tr>
+<tr><td>ACK</td><td>9번째 SCL 구간에서 슬레이브가 SDA LOW</td><td>수신 성공</td></tr>
+<tr><td>NACK</td><td>9번째 SCL 구간에서 SDA HIGH</td><td>주소 미응답/쓰기 실패</td></tr>
+<tr><td>STOP</td><td>SCL HIGH 상태에서 SDA가 LOW→HIGH</td><td>트랜잭션 종료</td></tr></table>
+<p>한 번의 명령은 <code>START → 주소+W → ACK → DATA → ACK → STOP</code>으로 구성한다. 기본 7비트 슬레이브 주소는 <code>0x27</code>이며 실제 모듈에 따라 <code>0x3F</code> 등으로 바뀔 수 있다.</p>
+<p>100MHz 시스템 클록·<code>CLK_DIV=400</code> 기준 설계된 SCL은 기본 바이트 전송에서 약 83kHz이며, PCF8574의 최대 100kHz Standard-mode 규격에 맞춘 보수적인 예제다. Clock Stretching(슬레이브의 클록 연장)과 Arbitration(다중 마스터 중재)은 지원하지 않는다.</p>
+<p><a href="https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf">NXP PCF8574/74A 공식 데이터시트</a></p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>PCF8574 Backpack 핀 매핑</h2>
+<table><tr><th>PCF8574</th><th>LCD 측 연결</th><th>기능</th></tr>
+<tr><td>P7..P4</td><td>D7..D4</td><td>데이터 상위 4비트</td></tr>
+<tr><td>P3</td><td>Backlight</td><td>백라이트 제어</td></tr>
+<tr><td>P2</td><td>E</td><td>LCD 데이터 래치 펄스</td></tr>
+<tr><td>P1</td><td>RW</td><td>읽기/쓰기 (0=Write)</td></tr>
+<tr><td>P0</td><td>RS</td><td>0=명령, 1=문자 데이터</td></tr></table>
+<p>이 배치는 흔한 PCF8574 LCD 백팩을 가정한 것이며 모든 제조사의 모듈에 동일하게 적용된다고 단정할 수 없다. <strong>RS가 0인 명령</strong>과 <strong>RS가 1인 문자 출력</strong>을 구분한다. LCD의 1개 4비트 니블을 실제로 출력할 때는 PCF8574에 E=0 → E=1 → E=0의 세 바이트를 연속 전송한다.</p>
+<p class="warn">일부 LCD 모듈은 5V로 구동하면서 SDA/SCL을 5V에 풀업한다. Basys3는 3.3V I/O 기준이므로 **5V 풀업된 SDA/SCL을 직접 연결하면 안 된다.** LCD 모듈·백팩의 회로 및 입력 로직 임계값을 확인하고 필요하면 양방향 I²C 레벨 시프터를 사용한다.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>LCD 4비트 초기화 및 문자 출력</h2>
+<table><tr><th>순서</th><th>LCD 명령</th><th>역할</th></tr>
+<tr><td>0</td><td>전원 후 50ms</td><td>HD44780 초기 안정화</td></tr>
+<tr><td>1~4</td><td>니블 3, 3, 3, 2</td><td>8비트 기본 상태에서 4비트 모드로 전환</td></tr>
+<tr><td>5</td><td><code>0x28</code></td><td>4비트, 2라인 인터페이스, 5×8 폰트</td></tr>
+<tr><td>6</td><td><code>0x0C</code></td><td>Display ON, Cursor OFF</td></tr>
+<tr><td>7</td><td><code>0x06</code></td><td>문자 출력 후 주소 증가</td></tr>
+<tr><td>8</td><td><code>0x01</code></td><td>Clear Display, 2ms 대기</td></tr>
+<tr><td>9</td><td><code>0x80</code></td><td>첫 번째 줄 시작 주소</td></tr>
+<tr><td>10~14</td><td><code>H E L L O</code></td><td>ASCII 문자 5개</td></tr></table>
+<p>첫 번째 3 니블 이후 5ms, 다음 초기화 단계에는 200µs를 기본 적용한다. LCD Clear 뒤에는 2ms를 준다. 초기화 규칙은 <a href="https://cdn-shop.adafruit.com/datasheets/HD44780.pdf">Hitachi HD44780U 공식 4-bit 초기화 그림</a>을 따른다.</p>
+<p>초기 니블 4개는 각 3회 I²C 쓰기, 이어지는 완전한 바이트 10개는 각각 6회 쓰기이므로 전체 PCF8574 전송 횟수는 <strong>12 + 60 = 72</strong>회다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>RTL 파일 구성과 전체 소스</h2>
+<p>아래 RTL·테스트벤치는 GitHub에 저장한 소스 그대로이며, 신호명과 모듈명을 구조도와 일치시킨다.</p><details><summary>rtl/i2c_write_byte_master.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>rtl/i2c_write_byte_master.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-14: I2C single-byte write (START + 7-bit address/W + DATA + STOP).
+// Both *_drive_low outputs are open-drain controls: 1=pull low, 0=release.
+// External 3.3V pullups required; clock stretching/arbitration unsupported.
+// FPGA clk is the only clock domain. SCL is an output, not an FPGA clock.
+module i2c_write_byte_master #(
+    parameter integer CLK_DIV = 400
+)(
+    input wire clk, input wire resetn,
+    input wire cmd_valid, output wire cmd_ready,
+    input wire [6:0] cmd_addr, input wire [7:0] cmd_data,
+    input wire sda_in,
+    output reg scl_drive_low, output reg sda_drive_low,
+    output reg done_pulse, output reg nack_pulse
+);
+    localparam [3:0] IDLE=0, START=1, BIT_LOW=2, BIT_UP=3,
+        BIT_END=4, ACK_LOW=5, ACK_UP=6, ACK_END=7,
+        STOP_LOW=8, STOP_UP=9, STOP_END=10, COMPLETE=11;
+    reg [3:0] state;
+    reg [7:0] tx_byte, data_latched;
+    reg [2:0] bit_index;
+    reg byte_index;
+    reg nack_seen;
+    reg [31:0] ticks;
+    wire tick = (ticks == CLK_DIV-1);
+    assign cmd_ready = (state == IDLE);
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=IDLE;tx_byte&lt;=0;data_latched&lt;=0;
+            bit_index&lt;=0;byte_index&lt;=0;nack_seen&lt;=0;ticks&lt;=0;
+            scl_drive_low&lt;=0;sda_drive_low&lt;=0;
+            done_pulse&lt;=0;nack_pulse&lt;=0;
+        end else begin
+            done_pulse&lt;=0;nack_pulse&lt;=0;
+            if(state==IDLE || tick) ticks&lt;=0;
+            else ticks&lt;=ticks+1;
+            case(state)
+            IDLE: begin
+                scl_drive_low&lt;=0;sda_drive_low&lt;=0;
+                if(cmd_valid) begin
+                    tx_byte&lt;={cmd_addr,1'b0};
+                    data_latched&lt;=cmd_data;
+                    bit_index&lt;=3'd7;byte_index&lt;=0;nack_seen&lt;=0;
+                    state&lt;=START;
+                end
+            end
+            START: if(tick) begin
+                // SDA falls while SCL is high: START.
+                sda_drive_low&lt;=1;
+                state&lt;=BIT_LOW;
+            end
+            BIT_LOW: if(tick) begin
+                scl_drive_low&lt;=1;
+                sda_drive_low&lt;=~tx_byte[bit_index];
+                state&lt;=BIT_UP;
+            end
+            BIT_UP: if(tick) begin
+                scl_drive_low&lt;=0;state&lt;=BIT_END;
+            end
+            BIT_END: if(tick) begin
+                scl_drive_low&lt;=1;
+                if(bit_index==0) state&lt;=ACK_LOW;
+                else begin bit_index&lt;=bit_index-1;state&lt;=BIT_LOW;end
+            end
+            ACK_LOW: if(tick) begin
+                sda_drive_low&lt;=0;state&lt;=ACK_UP;
+            end
+            ACK_UP: if(tick) begin
+                scl_drive_low&lt;=0;state&lt;=ACK_END;
+            end
+            ACK_END: if(tick) begin
+                if(sda_in) nack_seen&lt;=1;
+                scl_drive_low&lt;=1;
+                // (변경) Address NACK 이후에는 data byte를 보내지 않고
+                // 즉시 STOP을 생성한다. Data NACK도 STOP으로 종료.
+                if(sda_in) state&lt;=STOP_LOW;
+                else if(!byte_index) begin
+                    byte_index&lt;=1;tx_byte&lt;=data_latched;
+                    bit_index&lt;=3'd7;state&lt;=BIT_LOW;
+                end else state&lt;=STOP_LOW;
+            end
+            STOP_LOW: if(tick) begin
+                sda_drive_low&lt;=1;state&lt;=STOP_UP;
+            end
+            STOP_UP: if(tick) begin
+                scl_drive_low&lt;=0;state&lt;=STOP_END;
+            end
+            STOP_END: if(tick) begin
+                // SDA rising with SCL HIGH: STOP.
+                sda_drive_low&lt;=0;state&lt;=COMPLETE;
+            end
+            COMPLETE: if(tick) begin
+                done_pulse&lt;=1;nack_pulse&lt;=nack_seen;state&lt;=IDLE;
+            end
+            default: state&lt;=IDLE;
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (99줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-14: I2C single-byte write (START + 7-bit address/W + DATA + STOP).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Both *_drive_low outputs are open-drain controls: 1=pull low, 0=release.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// External 3.3V pullups required; clock stretching/arbitration unsupported.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// FPGA clk is the only clock domain. SCL is an output, not an FPGA clock.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>module i2c_write_byte_master #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>7</td><td><code>    parameter integer CLK_DIV = 400</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>10</td><td><code>    input wire cmd_valid, output wire cmd_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    input wire [6:0] cmd_addr, input wire [7:0] cmd_data,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire sda_in,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    output reg scl_drive_low, output reg sda_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    output reg done_pulse, output reg nack_pulse</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    localparam [3:0] IDLE=0, START=1, BIT_LOW=2, BIT_UP=3,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>        BIT_END=4, ACK_LOW=5, ACK_UP=6, ACK_END=7,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>        STOP_LOW=8, STOP_UP=9, STOP_END=10, COMPLETE=11;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    reg [3:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>20</td><td><code>    reg [7:0] tx_byte, data_latched;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    reg [2:0] bit_index;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    reg byte_index;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>23</td><td><code>    reg nack_seen;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>24</td><td><code>    reg [31:0] ticks;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>25</td><td><code>    wire tick = (ticks == CLK_DIV-1);</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>26</td><td><code>    assign cmd_ready = (state == IDLE);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>27</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>28</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>29</td><td><code>            state&lt;=IDLE;tx_byte&lt;=0;data_latched&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>30</td><td><code>            bit_index&lt;=0;byte_index&lt;=0;nack_seen&lt;=0;ticks&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>31</td><td><code>            scl_drive_low&lt;=0;sda_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>32</td><td><code>            done_pulse&lt;=0;nack_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>33</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>34</td><td><code>            done_pulse&lt;=0;nack_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>35</td><td><code>            if(state==IDLE || tick) ticks&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>36</td><td><code>            else ticks&lt;=ticks+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>37</td><td><code>            case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>38</td><td><code>            IDLE: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>39</td><td><code>                scl_drive_low&lt;=0;sda_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>40</td><td><code>                if(cmd_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>41</td><td><code>                    tx_byte&lt;={cmd_addr,1'b0};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>42</td><td><code>                    data_latched&lt;=cmd_data;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>43</td><td><code>                    bit_index&lt;=3'd7;byte_index&lt;=0;nack_seen&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>44</td><td><code>                    state&lt;=START;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>45</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>46</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>47</td><td><code>            START: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>48</td><td><code>                // SDA falls while SCL is high: START.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>49</td><td><code>                sda_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>50</td><td><code>                state&lt;=BIT_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>51</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>52</td><td><code>            BIT_LOW: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>53</td><td><code>                scl_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>54</td><td><code>                sda_drive_low&lt;=~tx_byte[bit_index];</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>55</td><td><code>                state&lt;=BIT_UP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>56</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>57</td><td><code>            BIT_UP: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>58</td><td><code>                scl_drive_low&lt;=0;state&lt;=BIT_END;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>59</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>60</td><td><code>            BIT_END: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>61</td><td><code>                scl_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>62</td><td><code>                if(bit_index==0) state&lt;=ACK_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>63</td><td><code>                else begin bit_index&lt;=bit_index-1;state&lt;=BIT_LOW;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>64</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>            ACK_LOW: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>                sda_drive_low&lt;=0;state&lt;=ACK_UP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>67</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>68</td><td><code>            ACK_UP: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>69</td><td><code>                scl_drive_low&lt;=0;state&lt;=ACK_END;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>70</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>71</td><td><code>            ACK_END: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>                if(sda_in) nack_seen&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>73</td><td><code>                scl_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>74</td><td><code>                // (변경) Address NACK 이후에는 data byte를 보내지 않고</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>75</td><td><code>                // 즉시 STOP을 생성한다. Data NACK도 STOP으로 종료.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>76</td><td><code>                if(sda_in) state&lt;=STOP_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>                else if(!byte_index) begin</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>78</td><td><code>                    byte_index&lt;=1;tx_byte&lt;=data_latched;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>79</td><td><code>                    bit_index&lt;=3'd7;state&lt;=BIT_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>                end else state&lt;=STOP_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>82</td><td><code>            STOP_LOW: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>83</td><td><code>                sda_drive_low&lt;=1;state&lt;=STOP_UP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>84</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>85</td><td><code>            STOP_UP: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>86</td><td><code>                scl_drive_low&lt;=0;state&lt;=STOP_END;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>87</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>88</td><td><code>            STOP_END: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>89</td><td><code>                // SDA rising with SCL HIGH: STOP.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>90</td><td><code>                sda_drive_low&lt;=0;state&lt;=COMPLETE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>91</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>92</td><td><code>            COMPLETE: if(tick) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>                done_pulse&lt;=1;nack_pulse&lt;=nack_seen;state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>94</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>95</td><td><code>            default: state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>96</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>97</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>98</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>99</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/lcd_pcf8574_hello.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>rtl/lcd_pcf8574_hello.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-14 · PCF8574 backpack 4-bit LCD initialization + "HELLO".
+// Typical backpack pin mapping: P7..P4=D7..D4, P3=BL, P2=E, P1=RW, P0=RS.
+// Does not assume all PCF8574 backpacks use the same mapping.
+// Sends 3 I2C writes per LCD nibble: E=0 -&gt; E=1 -&gt; E=0.
+// First 4 boot nibbles: 3,3,3,2; then 0x28,0x0C,0x06,0x01,0x80,
+// then ASCII 'H','E','L','L','O'. Single-line subset of 1602/2004.
+// Each I2C write is START/address/data/STOP (slow but easy to verify).
+module lcd_pcf8574_hello #(
+    parameter [6:0] I2C_ADDR=7'h27,
+    parameter [31:0] POWERUP_WAIT_CYCLES=32'd5000000,
+    // HD44780-compatible power-on initialization spacing:
+    // first 0x3 nibble -&gt; &gt;=4.1ms, further 0x3/0x2 -&gt; &gt;=100us.
+    parameter [31:0] FIRST_INIT_WAIT_CYCLES=32'd500000,
+    parameter [31:0] OTHER_INIT_WAIT_CYCLES=32'd20000,
+    parameter [31:0] CLEAR_WAIT_CYCLES=32'd200000
+)(
+    input wire clk, input wire resetn,
+    output wire cmd_valid, input wire cmd_ready,
+    output wire [6:0] cmd_addr, output wire [7:0] cmd_data,
+    input wire cmd_done, input wire cmd_nack,
+    output reg ready_done, output reg error_latched
+);
+    localparam [2:0] POWERUP=0,SEND=1,WAIT_RSP=2,GUARD=3,
+                     FINISH=4,FAULT=5;
+    reg [2:0] state;
+    reg [31:0] guard_counter;
+    reg [3:0] step_index;   // 0..13
+    reg nibble_select;     // 0 high nibble, 1 low nibble
+    reg [1:0] enable_phase;// 0=LOW, 1=HIGH, 2=LOW
+    reg [7:0] lcd_byte;
+    reg [3:0] nibble;
+    reg rs;
+    always @(*) begin
+        lcd_byte=8'h00;
+        case (step_index)
+        4: lcd_byte=8'h28;  // 4-bit mode, 2 rows, 5x8 glyph
+        5: lcd_byte=8'h0C;  // display ON, cursor OFF
+        6: lcd_byte=8'h06;  // entry increment
+        7: lcd_byte=8'h01;  // clear display
+        8: lcd_byte=8'h80;  // DDRAM line-1 address 0
+        9: lcd_byte=8'h48;  // H
+        10: lcd_byte=8'h45; // E
+        11: lcd_byte=8'h4C; // L
+        12: lcd_byte=8'h4C; // L
+        13: lcd_byte=8'h4F; // O
+        default: lcd_byte=8'h00;
+        endcase
+        rs=(step_index&gt;=9);
+        if(step_index&lt;4) begin
+            case(step_index)
+            0,1,2: nibble=4'h3;
+            default: nibble=4'h2;
+            endcase
+        end else
+            nibble=nibble_select ? lcd_byte[3:0] : lcd_byte[7:4];
+    end
+    assign cmd_addr=I2C_ADDR;
+    assign cmd_valid=(state==SEND);
+    assign cmd_data={nibble,1'b1,(enable_phase==1),1'b0,rs};
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=POWERUP;guard_counter&lt;=POWERUP_WAIT_CYCLES;
+            step_index&lt;=0;nibble_select&lt;=0;enable_phase&lt;=0;
+            ready_done&lt;=0;error_latched&lt;=0;
+        end else begin
+            case(state)
+            POWERUP: if(guard_counter==0) state&lt;=SEND;
+                     else guard_counter&lt;=guard_counter-1;
+            SEND: if(cmd_ready) state&lt;=WAIT_RSP;
+            WAIT_RSP: if(cmd_done) begin
+                if(cmd_nack) begin
+                    error_latched&lt;=1; state&lt;=FAULT;
+                end else if(enable_phase!=2) begin
+                    enable_phase&lt;=enable_phase+1;
+                    state&lt;=SEND;
+                end else begin
+                    enable_phase&lt;=0;
+                    if(step_index&gt;=4 &amp;&amp; !nibble_select) begin
+                        nibble_select&lt;=1;state&lt;=SEND;
+                    end else begin
+                        nibble_select&lt;=0;
+                        if(step_index==13) state&lt;=FINISH;
+                        else begin
+                            step_index&lt;=step_index+1;
+                            // 0x01 clear display requires &gt;=1.52ms settle time.
+                            if(step_index==7) begin
+                                guard_counter&lt;=CLEAR_WAIT_CYCLES;
+                                state&lt;=GUARD;
+                            end else if(step_index==0) begin
+                                guard_counter&lt;=FIRST_INIT_WAIT_CYCLES;
+                                state&lt;=GUARD;
+                            end else if(step_index==1 || step_index==2 ||
+                                        step_index==3) begin
+                                guard_counter&lt;=OTHER_INIT_WAIT_CYCLES;
+                                state&lt;=GUARD;
+                            end else state&lt;=SEND;
+                        end
+                    end
+                end
+            end
+            GUARD: if(guard_counter==0) state&lt;=SEND;
+                   else guard_counter&lt;=guard_counter-1;
+            FINISH: ready_done&lt;=1;
+            FAULT: state&lt;=FAULT;
+            default: state&lt;=FAULT;
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (110줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-14 · PCF8574 backpack 4-bit LCD initialization + &quot;HELLO&quot;.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Typical backpack pin mapping: P7..P4=D7..D4, P3=BL, P2=E, P1=RW, P0=RS.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Does not assume all PCF8574 backpacks use the same mapping.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// Sends 3 I2C writes per LCD nibble: E=0 -&gt; E=1 -&gt; E=0.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// First 4 boot nibbles: 3,3,3,2; then 0x28,0x0C,0x06,0x01,0x80,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// then ASCII 'H','E','L','L','O'. Single-line subset of 1602/2004.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>// Each I2C write is START/address/data/STOP (slow but easy to verify).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>module lcd_pcf8574_hello #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>10</td><td><code>    parameter [6:0] I2C_ADDR=7'h27,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    parameter [31:0] POWERUP_WAIT_CYCLES=32'd5000000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    // HD44780-compatible power-on initialization spacing:</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>13</td><td><code>    // first 0x3 nibble -&gt; &gt;=4.1ms, further 0x3/0x2 -&gt; &gt;=100us.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>14</td><td><code>    parameter [31:0] FIRST_INIT_WAIT_CYCLES=32'd500000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    parameter [31:0] OTHER_INIT_WAIT_CYCLES=32'd20000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    parameter [31:0] CLEAR_WAIT_CYCLES=32'd200000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    output wire cmd_valid, input wire cmd_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    output wire [6:0] cmd_addr, output wire [7:0] cmd_data,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    input wire cmd_done, input wire cmd_nack,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>    output reg ready_done, output reg error_latched</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>    localparam [2:0] POWERUP=0,SEND=1,WAIT_RSP=2,GUARD=3,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>25</td><td><code>                     FINISH=4,FAULT=5;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>26</td><td><code>    reg [2:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>27</td><td><code>    reg [31:0] guard_counter;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>28</td><td><code>    reg [3:0] step_index;   // 0..13</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>29</td><td><code>    reg nibble_select;     // 0 high nibble, 1 low nibble</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>30</td><td><code>    reg [1:0] enable_phase;// 0=LOW, 1=HIGH, 2=LOW</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>31</td><td><code>    reg [7:0] lcd_byte;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>32</td><td><code>    reg [3:0] nibble;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>33</td><td><code>    reg rs;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>34</td><td><code>    always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>35</td><td><code>        lcd_byte=8'h00;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>36</td><td><code>        case (step_index)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>37</td><td><code>        4: lcd_byte=8'h28;  // 4-bit mode, 2 rows, 5x8 glyph</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>38</td><td><code>        5: lcd_byte=8'h0C;  // display ON, cursor OFF</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>39</td><td><code>        6: lcd_byte=8'h06;  // entry increment</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>40</td><td><code>        7: lcd_byte=8'h01;  // clear display</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>41</td><td><code>        8: lcd_byte=8'h80;  // DDRAM line-1 address 0</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>        9: lcd_byte=8'h48;  // H</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>43</td><td><code>        10: lcd_byte=8'h45; // E</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>        11: lcd_byte=8'h4C; // L</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>        12: lcd_byte=8'h4C; // L</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>        13: lcd_byte=8'h4F; // O</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>        default: lcd_byte=8'h00;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>        endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>49</td><td><code>        rs=(step_index&gt;=9);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>50</td><td><code>        if(step_index&lt;4) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>51</td><td><code>            case(step_index)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>52</td><td><code>            0,1,2: nibble=4'h3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>53</td><td><code>            default: nibble=4'h2;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>54</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>55</td><td><code>        end else</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>56</td><td><code>            nibble=nibble_select ? lcd_byte[3:0] : lcd_byte[7:4];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>57</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>58</td><td><code>    assign cmd_addr=I2C_ADDR;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>59</td><td><code>    assign cmd_valid=(state==SEND);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>60</td><td><code>    assign cmd_data={nibble,1'b1,(enable_phase==1),1'b0,rs};</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>61</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>62</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>63</td><td><code>            state&lt;=POWERUP;guard_counter&lt;=POWERUP_WAIT_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>64</td><td><code>            step_index&lt;=0;nibble_select&lt;=0;enable_phase&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>65</td><td><code>            ready_done&lt;=0;error_latched&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>66</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>67</td><td><code>            case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>68</td><td><code>            POWERUP: if(guard_counter==0) state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>69</td><td><code>                     else guard_counter&lt;=guard_counter-1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>70</td><td><code>            SEND: if(cmd_ready) state&lt;=WAIT_RSP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>71</td><td><code>            WAIT_RSP: if(cmd_done) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>                if(cmd_nack) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>73</td><td><code>                    error_latched&lt;=1; state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>74</td><td><code>                end else if(enable_phase!=2) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>75</td><td><code>                    enable_phase&lt;=enable_phase+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>76</td><td><code>                    state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>                    enable_phase&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>79</td><td><code>                    if(step_index&gt;=4 &amp;&amp; !nibble_select) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>80</td><td><code>                        nibble_select&lt;=1;state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>                    end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>82</td><td><code>                        nibble_select&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>83</td><td><code>                        if(step_index==13) state&lt;=FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>84</td><td><code>                        else begin</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>85</td><td><code>                            step_index&lt;=step_index+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>86</td><td><code>                            // 0x01 clear display requires &gt;=1.52ms settle time.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>87</td><td><code>                            if(step_index==7) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>88</td><td><code>                                guard_counter&lt;=CLEAR_WAIT_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>89</td><td><code>                                state&lt;=GUARD;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>90</td><td><code>                            end else if(step_index==0) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>91</td><td><code>                                guard_counter&lt;=FIRST_INIT_WAIT_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>92</td><td><code>                                state&lt;=GUARD;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>93</td><td><code>                            end else if(step_index==1 || step_index==2 ||</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>94</td><td><code>                                        step_index==3) begin</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>95</td><td><code>                                guard_counter&lt;=OTHER_INIT_WAIT_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>96</td><td><code>                                state&lt;=GUARD;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>97</td><td><code>                            end else state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>98</td><td><code>                        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>99</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>100</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>101</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>102</td><td><code>            GUARD: if(guard_counter==0) state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>103</td><td><code>                   else guard_counter&lt;=guard_counter-1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>104</td><td><code>            FINISH: ready_done&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>105</td><td><code>            FAULT: state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>106</td><td><code>            default: state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>107</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>108</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>109</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>110</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/lcd_i2c_hello_system.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>rtl/lcd_i2c_hello_system.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-14: Pin-independent composition of LCD controller and I2C master.
+// IMPORTANT: SDA/SCL are open-drain controls, NOT push-pull outputs.
+// Top Shell must implement true IOBUF/open-drain 0-or-Z connection,
+// and SDA input feedback. Actual XDC/pin/pull-up requires separate check.
+module lcd_i2c_hello_system #(
+    parameter integer CLK_DIV=400,
+    parameter [6:0] LCD_ADDR=7'h27,
+    parameter [31:0] POWERUP_WAIT_CYCLES=32'd5000000,
+    parameter [31:0] FIRST_INIT_WAIT_CYCLES=32'd500000,
+    parameter [31:0] OTHER_INIT_WAIT_CYCLES=32'd20000,
+    parameter [31:0] CLEAR_WAIT_CYCLES=32'd200000
+)(
+    input wire clk, input wire resetn,
+    input wire sda_in,
+    output wire scl_drive_low, output wire sda_drive_low,
+    output wire ready_done, output wire error_latched
+);
+    wire cmd_valid,cmd_ready,cmd_done,cmd_nack;
+    wire [6:0] cmd_addr;
+    wire [7:0] cmd_data;
+    lcd_pcf8574_hello #(
+        .I2C_ADDR(LCD_ADDR),.POWERUP_WAIT_CYCLES(POWERUP_WAIT_CYCLES),
+        .FIRST_INIT_WAIT_CYCLES(FIRST_INIT_WAIT_CYCLES),
+        .OTHER_INIT_WAIT_CYCLES(OTHER_INIT_WAIT_CYCLES),
+        .CLEAR_WAIT_CYCLES(CLEAR_WAIT_CYCLES)
+    ) u_lcd (
+        .clk(clk),.resetn(resetn),
+        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),
+        .cmd_addr(cmd_addr),.cmd_data(cmd_data),
+        .cmd_done(cmd_done),.cmd_nack(cmd_nack),
+        .ready_done(ready_done),.error_latched(error_latched)
+    );
+    i2c_write_byte_master #(.CLK_DIV(CLK_DIV)) u_i2c (
+        .clk(clk),.resetn(resetn),
+        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),
+        .cmd_addr(cmd_addr),.cmd_data(cmd_data),
+        .sda_in(sda_in),
+        .scl_drive_low(scl_drive_low),.sda_drive_low(sda_drive_low),
+        .done_pulse(cmd_done),.nack_pulse(cmd_nack)
+    );
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (42줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-14: Pin-independent composition of LCD controller and I2C master.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// IMPORTANT: SDA/SCL are open-drain controls, NOT push-pull outputs.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Top Shell must implement true IOBUF/open-drain 0-or-Z connection,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// and SDA input feedback. Actual XDC/pin/pull-up requires separate check.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>module lcd_i2c_hello_system #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>7</td><td><code>    parameter integer CLK_DIV=400,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>    parameter [6:0] LCD_ADDR=7'h27,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    parameter [31:0] POWERUP_WAIT_CYCLES=32'd5000000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    parameter [31:0] FIRST_INIT_WAIT_CYCLES=32'd500000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    parameter [31:0] OTHER_INIT_WAIT_CYCLES=32'd20000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    parameter [31:0] CLEAR_WAIT_CYCLES=32'd200000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire sda_in,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    output wire scl_drive_low, output wire sda_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    output wire ready_done, output wire error_latched</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>    wire cmd_valid,cmd_ready,cmd_done,cmd_nack;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>20</td><td><code>    wire [6:0] cmd_addr;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    wire [7:0] cmd_data;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    lcd_pcf8574_hello #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>        .I2C_ADDR(LCD_ADDR),.POWERUP_WAIT_CYCLES(POWERUP_WAIT_CYCLES),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>        .FIRST_INIT_WAIT_CYCLES(FIRST_INIT_WAIT_CYCLES),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .OTHER_INIT_WAIT_CYCLES(OTHER_INIT_WAIT_CYCLES),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>        .CLEAR_WAIT_CYCLES(CLEAR_WAIT_CYCLES)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>27</td><td><code>    ) u_lcd (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>28</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>29</td><td><code>        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>30</td><td><code>        .cmd_addr(cmd_addr),.cmd_data(cmd_data),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>31</td><td><code>        .cmd_done(cmd_done),.cmd_nack(cmd_nack),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>32</td><td><code>        .ready_done(ready_done),.error_latched(error_latched)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>33</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>34</td><td><code>    i2c_write_byte_master #(.CLK_DIV(CLK_DIV)) u_i2c (</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>35</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>36</td><td><code>        .cmd_valid(cmd_valid),.cmd_ready(cmd_ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>37</td><td><code>        .cmd_addr(cmd_addr),.cmd_data(cmd_data),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>38</td><td><code>        .sda_in(sda_in),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>39</td><td><code>        .scl_drive_low(scl_drive_low),.sda_drive_low(sda_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>40</td><td><code>        .done_pulse(cmd_done),.nack_pulse(cmd_nack)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>41</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>42</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/i2c_open_drain_io.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>rtl/i2c_open_drain_io.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// (추가) P2-14 Vivado 합성용 Xilinx IOBUF 경계 모듈.
+// 상위 사용자 Top은 이 모듈과 RTL Core 인스턴스만 단순 연결한다.
+// IOBUF T=1 is input/high-Z; T=0 drives I=0 (open-drain LOW).
+// Open-drain HIGH is supplied by an external pull-up to SAFE 3.3V.
+// Do NOT connect a 5V PCF8574 backpack pull-up directly to Basys3.
+// Simulation of the IOBUF primitive is intentionally excluded from
+// Icarus portable RTL tests; synthesis/hardware validation is deferred.
+module i2c_open_drain_io(
+    input wire scl_drive_low,
+    input wire sda_drive_low,
+    inout wire i2c_scl,
+    inout wire i2c_sda,
+    output wire sda_in
+);
+    wire unused_scl_in;
+    IOBUF u_scl_buf (
+        .I(1'b0), .T(~scl_drive_low),
+        .O(unused_scl_in), .IO(i2c_scl)
+    );
+    IOBUF u_sda_buf (
+        .I(1'b0), .T(~sda_drive_low),
+        .O(sda_in), .IO(i2c_sda)
+    );
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (25줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// (추가) P2-14 Vivado 합성용 Xilinx IOBUF 경계 모듈.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// 상위 사용자 Top은 이 모듈과 RTL Core 인스턴스만 단순 연결한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// IOBUF T=1 is input/high-Z; T=0 drives I=0 (open-drain LOW).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// Open-drain HIGH is supplied by an external pull-up to SAFE 3.3V.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// Do NOT connect a 5V PCF8574 backpack pull-up directly to Basys3.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// Simulation of the IOBUF primitive is intentionally excluded from</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>// Icarus portable RTL tests; synthesis/hardware validation is deferred.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>module i2c_open_drain_io(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>10</td><td><code>    input wire scl_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    input wire sda_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    inout wire i2c_scl,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    inout wire i2c_sda,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    output wire sda_in</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    wire unused_scl_in;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>17</td><td><code>    IOBUF u_scl_buf (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>        .I(1'b0), .T(~scl_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .O(unused_scl_in), .IO(i2c_scl)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>    IOBUF u_sda_buf (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>        .I(1'b0), .T(~sda_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>23</td><td><code>        .O(sda_in), .IO(i2c_sda)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>25</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_lcd_i2c_hello_system.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_lcd_i2c_hello_system.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+module tb_lcd_i2c_hello_system;
+    reg clk=0; always #5 clk=~clk;
+    reg resetn=0;
+    reg slave_ack_drive=0;
+    wire scl_low,sda_low,ready_done,error_latched;
+    wire scl = scl_low ? 1'b0 : 1'b1; // digital model of 3.3V pull-up
+    wire sda = (sda_low || slave_ack_drive) ? 1'b0 : 1'b1;
+    integer bit_pos=0, bytes_seen=0, writes_seen=0, transactions=0;
+    integer nibble_index=0;
+    reg [7:0] incoming=0;
+    reg [7:0] address_byte=0;
+    reg [7:0] pcf_byte=0;
+    reg [7:0] expected [0:71];
+    integer i;
+
+    lcd_i2c_hello_system #(
+        .CLK_DIV(3),.LCD_ADDR(7'h27),
+        .POWERUP_WAIT_CYCLES(32'd4),
+        .FIRST_INIT_WAIT_CYCLES(32'd4),
+        .OTHER_INIT_WAIT_CYCLES(32'd4),.CLEAR_WAIT_CYCLES(32'd4)
+    ) dut (
+        .clk(clk),.resetn(resetn),.sda_in(sda),
+        .scl_drive_low(scl_low),.sda_drive_low(sda_low),
+        .ready_done(ready_done),.error_latched(error_latched)
+    );
+
+    // Fake PCF8574 ACK at each ninth clock, and capture both bytes.
+    // This is not a real electrical level-shifter/pull-up test.
+    always @(negedge sda) begin
+        if(scl &amp;&amp; resetn) begin
+            bit_pos=0;
+            incoming=0;
+            bytes_seen=0;
+        end
+    end
+    always @(negedge scl) begin
+        if(bit_pos==8) slave_ack_drive=1;
+        else slave_ack_drive=0;
+    end
+    always @(posedge scl) begin
+        if(resetn &amp;&amp; !ready_done) begin
+            if(bit_pos&lt;8) begin
+                incoming={incoming[6:0],sda};
+                bit_pos=bit_pos+1;
+            end else begin
+                if(sda!==0) $fatal(1,"ACK not low");
+                if(bytes_seen==0) begin
+                    address_byte=incoming;
+                    if(incoming!==8'h4e)
+                        $fatal(1,"PCF8574 address expected 4E got %02h",incoming);
+                end else if(bytes_seen==1) begin
+                    pcf_byte=incoming;
+                    if(writes_seen&gt;=72) $fatal(1,"extra PCF writes");
+                    if(pcf_byte!==expected[writes_seen])
+                        $fatal(1,"PCF[%0d] expected=%02h got=%02h",
+                            writes_seen,expected[writes_seen],pcf_byte);
+                    writes_seen=writes_seen+1;
+                end else $fatal(1,"more than two data bytes in transaction");
+                bytes_seen=bytes_seen+1;
+                bit_pos=0; incoming=0;
+            end
+        end
+    end
+    always @(posedge sda) begin
+        if(resetn &amp;&amp; scl &amp;&amp; bytes_seen==2) begin
+            transactions=transactions+1;
+        end
+    end
+    // Typical PCF8574 backpack value for LCD nibble:
+    // {D7..D4, BL=1, E, RW=0, RS}.
+    function [7:0] io_val;
+        input [3:0] nib;
+        input e;
+        input rs;
+        begin io_val={nib,1'b1,e,1'b0,rs}; end
+    endfunction
+    task add_nib;
+        input [3:0] nib;
+        input rs;
+        begin
+            expected[nibble_index]=io_val(nib,0,rs);nibble_index=nibble_index+1;
+            expected[nibble_index]=io_val(nib,1,rs);nibble_index=nibble_index+1;
+            expected[nibble_index]=io_val(nib,0,rs);nibble_index=nibble_index+1;
+        end
+    endtask
+    task add_byte;
+        input [7:0] b;
+        input rs;
+        begin add_nib(b[7:4],rs); add_nib(b[3:0],rs); end
+    endtask
+    initial begin
+        add_nib(4'h3,0);add_nib(4'h3,0);add_nib(4'h3,0);
+        add_nib(4'h2,0);
+        add_byte(8'h28,0);add_byte(8'h0c,0);add_byte(8'h06,0);
+        add_byte(8'h01,0);add_byte(8'h80,0);
+        add_byte("H",1);add_byte("E",1);add_byte("L",1);
+        add_byte("L",1);add_byte("O",1);
+        if(nibble_index!=72) $fatal(1,"test reference length");
+        repeat(3) @(negedge clk);resetn=1;
+        wait(ready_done);#1;
+        if(error_latched || writes_seen!=72 || transactions!=72)
+            $fatal(1,"LCD done/error/writes=%0d tx=%0d",
+                        writes_seen,transactions);
+        if(!scl || !sda) $fatal(1,"I2C bus not idle");
+        $display("P2_14_I2C_72_PCF8574_BYTES_PASS");
+        $display("P2_14_LCD_HELLO_SEQUENCE_PASS");
+        $finish;
+    end
+    initial begin #20000000; $fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (109줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>module tb_lcd_i2c_hello_system;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>3</td><td><code>    reg clk=0; always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>4</td><td><code>    reg resetn=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>5</td><td><code>    reg slave_ack_drive=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    wire scl_low,sda_low,ready_done,error_latched;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire scl = scl_low ? 1'b0 : 1'b1; // digital model of 3.3V pull-up</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    wire sda = (sda_low || slave_ack_drive) ? 1'b0 : 1'b1;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    integer bit_pos=0, bytes_seen=0, writes_seen=0, transactions=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    integer nibble_index=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    reg [7:0] incoming=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    reg [7:0] address_byte=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    reg [7:0] pcf_byte=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    reg [7:0] expected [0:71];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>    integer i;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>    lcd_i2c_hello_system #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>        .CLK_DIV(3),.LCD_ADDR(7'h27),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .POWERUP_WAIT_CYCLES(32'd4),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .FIRST_INIT_WAIT_CYCLES(32'd4),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .OTHER_INIT_WAIT_CYCLES(32'd4),.CLEAR_WAIT_CYCLES(32'd4)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>    ) dut (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>        .clk(clk),.resetn(resetn),.sda_in(sda),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>        .scl_drive_low(scl_low),.sda_drive_low(sda_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .ready_done(ready_done),.error_latched(error_latched)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>28</td><td><code>    // Fake PCF8574 ACK at each ninth clock, and capture both bytes.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>29</td><td><code>    // This is not a real electrical level-shifter/pull-up test.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>30</td><td><code>    always @(negedge sda) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>31</td><td><code>        if(scl &amp;&amp; resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>32</td><td><code>            bit_pos=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>            incoming=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>34</td><td><code>            bytes_seen=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>36</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>37</td><td><code>    always @(negedge scl) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>38</td><td><code>        if(bit_pos==8) slave_ack_drive=1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>39</td><td><code>        else slave_ack_drive=0;</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>40</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>41</td><td><code>    always @(posedge scl) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>42</td><td><code>        if(resetn &amp;&amp; !ready_done) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>43</td><td><code>            if(bit_pos&lt;8) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>44</td><td><code>                incoming={incoming[6:0],sda};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>                bit_pos=bit_pos+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>            end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>47</td><td><code>                if(sda!==0) $fatal(1,&quot;ACK not low&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>48</td><td><code>                if(bytes_seen==0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>49</td><td><code>                    address_byte=incoming;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>50</td><td><code>                    if(incoming!==8'h4e)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>51</td><td><code>                        $fatal(1,&quot;PCF8574 address expected 4E got %02h&quot;,incoming);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>52</td><td><code>                end else if(bytes_seen==1) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>                    pcf_byte=incoming;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>54</td><td><code>                    if(writes_seen&gt;=72) $fatal(1,&quot;extra PCF writes&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>55</td><td><code>                    if(pcf_byte!==expected[writes_seen])</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>56</td><td><code>                        $fatal(1,&quot;PCF[%0d] expected=%02h got=%02h&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>57</td><td><code>                            writes_seen,expected[writes_seen],pcf_byte);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>58</td><td><code>                    writes_seen=writes_seen+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>59</td><td><code>                end else $fatal(1,&quot;more than two data bytes in transaction&quot;);</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>60</td><td><code>                bytes_seen=bytes_seen+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>                bit_pos=0; incoming=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>62</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>63</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>64</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>    always @(posedge sda) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>66</td><td><code>        if(resetn &amp;&amp; scl &amp;&amp; bytes_seen==2) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>67</td><td><code>            transactions=transactions+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>68</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>69</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>70</td><td><code>    // Typical PCF8574 backpack value for LCD nibble:</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>71</td><td><code>    // {D7..D4, BL=1, E, RW=0, RS}.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>72</td><td><code>    function [7:0] io_val;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>73</td><td><code>        input [3:0] nib;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>74</td><td><code>        input e;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>75</td><td><code>        input rs;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>76</td><td><code>        begin io_val={nib,1'b1,e,1'b0,rs}; end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>77</td><td><code>    endfunction</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>    task add_nib;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>79</td><td><code>        input [3:0] nib;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>80</td><td><code>        input rs;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>81</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>82</td><td><code>            expected[nibble_index]=io_val(nib,0,rs);nibble_index=nibble_index+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>83</td><td><code>            expected[nibble_index]=io_val(nib,1,rs);nibble_index=nibble_index+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>84</td><td><code>            expected[nibble_index]=io_val(nib,0,rs);nibble_index=nibble_index+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>85</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>86</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>87</td><td><code>    task add_byte;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>88</td><td><code>        input [7:0] b;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>89</td><td><code>        input rs;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>90</td><td><code>        begin add_nib(b[7:4],rs); add_nib(b[3:0],rs); end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>91</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>92</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>        add_nib(4'h3,0);add_nib(4'h3,0);add_nib(4'h3,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>94</td><td><code>        add_nib(4'h2,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>95</td><td><code>        add_byte(8'h28,0);add_byte(8'h0c,0);add_byte(8'h06,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>96</td><td><code>        add_byte(8'h01,0);add_byte(8'h80,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>97</td><td><code>        add_byte(&quot;H&quot;,1);add_byte(&quot;E&quot;,1);add_byte(&quot;L&quot;,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>98</td><td><code>        add_byte(&quot;L&quot;,1);add_byte(&quot;O&quot;,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>99</td><td><code>        if(nibble_index!=72) $fatal(1,&quot;test reference length&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>100</td><td><code>        repeat(3) @(negedge clk);resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>101</td><td><code>        wait(ready_done);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>102</td><td><code>        if(error_latched || writes_seen!=72 || transactions!=72)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>103</td><td><code>            $fatal(1,&quot;LCD done/error/writes=%0d tx=%0d&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>104</td><td><code>                        writes_seen,transactions);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>105</td><td><code>        if(!scl || !sda) $fatal(1,&quot;I2C bus not idle&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>106</td><td><code>        $display(&quot;P2_14_I2C_72_PCF8574_BYTES_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>107</td><td><code>        $display(&quot;P2_14_LCD_HELLO_SEQUENCE_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>108</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>109</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>110</td><td><code>    initial begin #20000000; $fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>111</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_i2c_write_nack.v — 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_i2c_write_nack.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// Separate NACK regression: without a responding I2C slave,
+// both address and data ACK slots remain HIGH from the pull-up.
+module tb_i2c_write_nack;
+    reg clk=0;always #5 clk=~clk;
+    reg resetn=0,cmd_valid=0;
+    wire cmd_ready,scl_drive_low,sda_drive_low,done_pulse,nack_pulse;
+    wire sda = sda_drive_low ? 1'b0 : 1'b1;
+    integer seen_done=0,seen_nack=0,clock_rises=0;
+    wire bus_scl = scl_drive_low ? 1'b0 : 1'b1;
+    // (변경) STOP은 SCL을 1회 추가 상승시키므로
+    // 데이터 및 ACK 구간의 SCL 상승만 카운트한다.
+    always @(posedge bus_scl) if(resetn &amp;&amp;
+        (dut.state==4'd4 || dut.state==4'd7))
+        clock_rises=clock_rises+1;
+    i2c_write_byte_master #(.CLK_DIV(3)) dut(
+        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),
+        .cmd_ready(cmd_ready),.cmd_addr(7'h27),.cmd_data(8'h08),
+        .sda_in(sda),.scl_drive_low(scl_drive_low),
+        .sda_drive_low(sda_drive_low),.done_pulse(done_pulse),
+        .nack_pulse(nack_pulse)
+    );
+    always @(posedge clk) if(done_pulse) begin
+        seen_done=seen_done+1;
+        if(!nack_pulse) $fatal(1,"NACK not reported");
+        seen_nack=seen_nack+1;
+    end
+    initial begin
+        repeat(3) @(negedge clk);resetn=1;
+        @(negedge clk);cmd_valid=1;
+        @(negedge clk);cmd_valid=0;
+        wait(done_pulse);repeat(3) @(negedge clk);
+        if(seen_done!=1 || seen_nack!=1 || clock_rises!=9 ||
+           !cmd_ready || scl_drive_low || sda_drive_low)
+            $fatal(1,"NACK completion/STOP/idle failure clocks=%0d done=%0d nack=%0d",
+                   clock_rises,seen_done,seen_nack);
+        $display("P2_14_I2C_NACK_HANDLING_PASS");
+        $finish;
+    end
+    initial begin #200000; $fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (41줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// Separate NACK regression: without a responding I2C slave,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// both address and data ACK slots remain HIGH from the pull-up.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>module tb_i2c_write_nack;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>5</td><td><code>    reg clk=0;always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg resetn=0,cmd_valid=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire cmd_ready,scl_drive_low,sda_drive_low,done_pulse,nack_pulse;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    wire sda = sda_drive_low ? 1'b0 : 1'b1;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    integer seen_done=0,seen_nack=0,clock_rises=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    wire bus_scl = scl_drive_low ? 1'b0 : 1'b1;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    // (변경) STOP은 SCL을 1회 추가 상승시키므로</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>12</td><td><code>    // 데이터 및 ACK 구간의 SCL 상승만 카운트한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>13</td><td><code>    always @(posedge bus_scl) if(resetn &amp;&amp;</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>14</td><td><code>        (dut.state==4'd4 || dut.state==4'd7))</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>        clock_rises=clock_rises+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    i2c_write_byte_master #(.CLK_DIV(3)) dut(</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .cmd_ready(cmd_ready),.cmd_addr(7'h27),.cmd_data(8'h08),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .sda_in(sda),.scl_drive_low(scl_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .sda_drive_low(sda_drive_low),.done_pulse(done_pulse),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .nack_pulse(nack_pulse)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    always @(posedge clk) if(done_pulse) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>24</td><td><code>        seen_done=seen_done+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>25</td><td><code>        if(!nack_pulse) $fatal(1,&quot;NACK not reported&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>26</td><td><code>        seen_nack=seen_nack+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>27</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>28</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>29</td><td><code>        repeat(3) @(negedge clk);resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>        @(negedge clk);cmd_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>31</td><td><code>        @(negedge clk);cmd_valid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>32</td><td><code>        wait(done_pulse);repeat(3) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>33</td><td><code>        if(seen_done!=1 || seen_nack!=1 || clock_rises!=9 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>34</td><td><code>           !cmd_ready || scl_drive_low || sda_drive_low)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>            $fatal(1,&quot;NACK completion/STOP/idle failure clocks=%0d done=%0d nack=%0d&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>36</td><td><code>                   clock_rises,seen_done,seen_nack);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>37</td><td><code>        $display(&quot;P2_14_I2C_NACK_HANDLING_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>38</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>39</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>40</td><td><code>    initial begin #200000; $fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>41</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>Ubuntu 시뮬레이션 따라하기</h3>
+<div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code># 1. Icarus Verilog 설치 (최초 1회)
+sudo apt update
+sudo apt install -y iverilog
+
+# 2. 저장소 루트 기준
+bash part02/chapters/P2_14_Lesson/tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 7 (5줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code># 1. Icarus Verilog 설치 (최초 1회)</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>sudo apt update</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>sudo apt install -y iverilog</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>5</td><td><code># 2. 저장소 루트 기준</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>bash part02/chapters/P2_14_Lesson/tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p><code>sudo apt update</code>는 Ubuntu 패키지 목록을 갱신한다. <code>sudo apt install -y iverilog</code>는 RTL 시뮬레이터를 설치한다. 마지막 명령은 I²C/LCD 전체 경로와 NACK 처리 테스트벤치를 실행한다. GitHub Actions에서도 별도로 실행한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>검증 및 결과 판정</h2>
+<table><tr><th>항목</th><th>검증 방식</th><th>상태</th></tr>
+<tr><td>7비트 주소+Write, 8비트 포트 전송</td><td>모의 PCF8574의 9번째 ACK 비트 포함 전체 트랜잭션 검사</td><td>RTL_SIM PASS</td></tr>
+<tr><td>4비트 LCD 초기화 및 HELLO</td><td>예상 72개 바이트와 전송 순서 비교</td><td>RTL_SIM PASS</td></tr>
+<tr><td>NACK 수신</td><td>주소 NACK 직후 데이터 쓰기를 중단하고 STOP 복귀 확인</td><td>RTL_SIM PASS</td></tr>
+<tr><td>실제 AXI4-Lite Slave</td><td>별도 CPU 레지스터맵 필요</td><td>미구현</td></tr>
+<tr><td>Vivado 합성/타이밍</td><td>XC7A35T용 합성/Implementation/Timing Summary</td><td>보류</td></tr>
+<tr><td>Vitis 실제 BSP/ELF</td><td>MicroBlaze V 대상 C 타깃</td><td>보류</td></tr>
+<tr><td>LCD1602/2004 실물</td><td>전원·레벨시프터·화면 글자 검증</td><td>보류</td></tr>
+<tr><td>UVM</td><td>별도 SystemVerilog UVM 시뮬레이션</td><td>미실행</td></tr>
+<tr><td>브라우저 HTML</td><td>실제 렌더링·링크·이미지 표시</td><td>GitHub 파일 저장, 렌더 검증 미실시</td></tr>
+</table>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/actions/workflows/p2-14-lcd-i2c-verification.yml">14장 GitHub Actions 검증 실행 기록</a></p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>후속 확장 과제</h2>
+<p>14.1 I²C 및 PCF8574 기본 주소/ACK → 14.2 LCD 4비트 초기화/문자 → 14.3 FND·LCD 표시 정책 연결 → 14.4 Custom AXI IP와 Vitis 기반 문자열 표시 순으로 확장한다. 현 14장의 HELLO 출력은 고정 문자열이며 CPU에서 임의 문자를 바꾸는 인터페이스는 아직 없다.</p>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_14_Lesson/README.md">소스와 검증 대장</a> · <a href="../part02_2/guide/ch13_spi_rfid_v05.html">이전 13장 SPI RFID</a> · <a href="../part02_2/guide/index.html#tech-tree">제2부 후반부 전체 편성안</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① PCF8574 I²C 백팩·LCD 4비트의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"ch14_i2c_lcd_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

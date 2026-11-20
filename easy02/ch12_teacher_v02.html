@@ -1,0 +1,652 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="ULN2003 구동 → 정·역회전 → 가감속 제어"><title>교수용 상세 해설서 | 제2부 12장 | 28BYJ-48·ULN2003 정역회전·가감속</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch12"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 12/20</p><h1>제12장 · 28BYJ-48 스테핑 모터 제어</h1><p>ULN2003 구동 → 정·역회전 → 가감속 제어</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 12장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> 스테핑 모터는 각 코일을 정해진 순서대로 여자하여 회전시킵니다. Full-step과 Half-step은 코일 패턴·스텝 각도·토크가 다르며, RTL Core의 상태 진행과 CPU의 명령 레지스터를 분리합니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="AXI 설정 레지스터 → stepper_core → coil_o[3:0] → ULN2003 모터"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">AXI 설정 레지스터</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">stepper_core</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">coil_o[3:0]</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">ULN2003 모터</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> Basys3 출력으로 코일을 직접 구동하지 않습니다. 외부 5V 모터 전원·ULN2003·공통 접지 필수. 12.1~12.4 실습의 XDC는 후보이며 실제 보드 연결 PASS로 쓰지 않습니다.</p><p class="prof-small"><a href="../part02_2/guide/ch12_stepper_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch11_teacher_v02.html">이전 장</a> · <a href="ch13_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요</h2><p>기존 11장의 서보 모터는 PWM 펄스폭으로 목표 각도를 지시한다. 이번 12장의 스테핑 모터는 <strong>코일의 여자 순서, 한 단계의 지속 시간, 실행 스텝 수</strong>를 RTL(레지스터 전송 수준)에서 관리한다.</p><p>28BYJ-48(5V) 5선 유니폴러 모터와 ULN2003 드라이버 모듈을 사용한다. MicroBlaze V는 AXI4-Lite 레지스터에 명령을 기록하고, 실제 연속 여자 출력은 독립 `stepper_core`가 생성한다.</p>
+<p class="warn">검증 범위: 신규 코어·AXI IP RTL 시뮬레이션과 C 계산 함수의 호스트 단위 테스트만 완료했다. Vivado 합성/타이밍·Vitis 타깃 BSP/ELF·실제 Basys3 모터 회전은 아직 하지 않았다. 해당 항목을 성공으로 간주하지 않는다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>하드웨어 계층 구조</h2>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 325" role="img" aria-label="MicroBlaze V AXI와 RTL 스텝모터 코어 계층 구조도">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7z" fill="#3f7d99"/></marker></defs>
+<rect x="8" y="8" width="1034" height="307" rx="15" fill="#f6fafc" stroke="#bed4e1" stroke-width="2"/>
+<g font-size="16" text-anchor="middle" fill="#14354d">
+<rect x="28" y="54" width="152" height="77" rx="10" fill="#dcecf8" stroke="#6da3c4"/><text x="104" y="85">PC UART</text><text x="104" y="110" font-size="13">STEP 명령</text>
+<rect x="231" y="54" width="173" height="77" rx="10" fill="#dcecf8" stroke="#6da3c4"/><text x="317" y="85">MicroBlaze V</text><text x="317" y="110" font-size="13">Vitis C</text>
+<rect x="460" y="54" width="176" height="77" rx="10" fill="#bde6dc" stroke="#65a69a"/><text x="548" y="83">AXI4-Lite Slave</text><text x="548" y="108" font-size="13">제어 / 상태</text>
+<rect x="698" y="54" width="171" height="77" rx="10" fill="#bde6dc" stroke="#65a69a"/><text x="783" y="83">stepper_core</text><text x="783" y="108" font-size="13">4상 FSM / 타이머</text>
+<rect x="880" y="201" width="145" height="73" rx="10" fill="#f4dfb9" stroke="#c29d56"/><text x="952" y="230">ULN2003</text><text x="952" y="251" font-size="13">28BYJ-48</text>
+<path d="M180 92H231M404 92H460M636 92H698" fill="none" stroke="#3f7d99" stroke-width="3" marker-end="url(#arrow)"/>
+<path d="M783 131V240H880" fill="none" stroke="#3f7d99" stroke-width="3" marker-end="url(#arrow)"/><text x="786" y="188" font-size="12">IN1~IN4</text>
+<rect x="231" y="203" width="405" height="70" rx="10" fill="#e4e7f6" stroke="#9a9dbf"/><text x="432" y="230" font-size="15">기존 제2부 01~10장</text><text x="432" y="251" font-size="13">GPIO / LED / FND / L298N 유지</text>
+<path d="M317 131V203" fill="none" stroke="#3f7d99" stroke-width="2" marker-end="url(#arrow)"/></g></svg>
+<p>Top은 FPGA 핀·wire·인스턴스 연결만 맡는다. 별도의 `p2_12_axi_stepper_v1_0` IP 안에 `stepper_core`를 인스턴스화한다. 07장의 L298N DC 모터 제어 IP는 독립적으로 유지한다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>실제 부품 및 연결 규칙</h2><table><tr><th>축</th><th>신호</th><th>기본값/예시</th></tr><tr><td>FPGA 출력</td><td>coil_o[0], [1], [2], [3]</td><td>ULN2003 IN1, IN2, IN3, IN4 순서</td></tr><tr><td>모터 전원</td><td>+5V, GND</td><td>별도 안정화 5V 전원과 공통 GND</td></tr><tr><td>모터</td><td>28BYJ-48 5V</td><td>5선 유니폴러, 5핀 커넥터</td></tr><tr><td>기본 모드</td><td>HALF, FWD</td><td>8개 여자 상태</td></tr><tr><td>예제 주기</td><td>100MHz 클록</td><td>2ms→200000 tick, 5ms→500000 tick</td></tr></table>
+<p class="warn">5V 모터 전원은 Basys3 FPGA I/O 핀에서 공급하지 않는다. ULN2003의 GND와 Basys3 GND를 공유하며, 실제 ULN2003 보드의 IN1~IN4가 3.3V 입력으로 정상 동작하는지 부품·회로별로 확인한다. 이미 P2-07 L298N에 배정된 JB 포트를 덮어쓰지 않는다. P2-12의 신규 4개 XDC 핀은 Vivado 현행 프로젝트의 배선 충돌 검토 후 확정한다.</p>
+<p>ULN2003 LED 모니터 표시를 이용하면 회전 전에도 여자 순서가 올바른지 육안으로 확인할 수 있다. 단, LED 점등은 기계적 회전의 증거가 아니다.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>Full-step / Half-step 시퀀스</h2><p>코드의 4비트 표기는 <strong>`{IN4, IN3, IN2, IN1}`</strong> 순서다. 다음 상태로 진행할 때마다 출력 패턴이 변경된다.</p>
+<table><thead><tr><th>스텝 번호</th><th>Half-step</th><th>Full-step</th><th>의미</th></tr></thead><tbody><tr><td>0</td><td>0001</td><td>0011</td><td>IN1 / IN1+IN2</td></tr><tr><td>1</td><td>0011</td><td>0110</td><td>IN1+IN2 / IN2+IN3</td></tr><tr><td>2</td><td>0010</td><td>1100</td><td>IN2 / IN3+IN4</td></tr><tr><td>3</td><td>0110</td><td>1001</td><td>IN2+IN3 / IN4+IN1</td></tr><tr><td>4</td><td>0100</td><td>반복</td><td>IN3</td></tr><tr><td>5</td><td>1100</td><td>반복</td><td>IN3+IN4</td></tr><tr><td>6</td><td>1000</td><td>반복</td><td>IN4</td></tr><tr><td>7</td><td>1001</td><td>반복</td><td>IN4+IN1</td></tr></tbody></table>
+<p>역회전은 phase0에서 시작하여 배열을 반대 방향으로 순회한다. 동일한 감속비의 제품이라도 표기되는 4096 Half-step/회전은 근삿값일 수 있으므로, 실제 출력축 1회전 정확도는 보드에서 별도 확인한다. <a href="https://docs.circuit.rocks/motors/28byj-48/">참고: 28BYJ-48/ULN2003 기술 자료</a></p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>타이밍 및 제어 계약</h2><table><thead><tr><th>입력/출력</th><th>의미</th><th>우선순위</th></tr></thead><tbody>
+<tr><td>`start_pulse`</td><td>현재 설정값 래치·스텝 카운트 0으로 시작</td><td>STOP 후순위</td></tr><tr><td>`stop_pulse`</td><td>코일 출력 즉시 LOW·실행 중단</td><td>최우선</td></tr><tr><td>`cfg_steps`</td><td>목표 스텝 수, 0 금지</td><td>START 때만 적용</td></tr><tr><td>`cfg_step_period`</td><td>스텝 간 클록 수, 기본 최소 200000</td><td>START 때만 적용</td></tr><tr><td>`cfg_reverse`</td><td>정역 방향 변경</td><td>START 때만 적용</td></tr><tr><td>`cfg_half_step`</td><td>1: Half-step, 0: Full-step</td><td>START 때만 적용</td></tr><tr><td>`busy/done_pulse/error_pulse`</td><td>상태·완료·잘못된 명령 알림</td><td>동기 갱신</td></tr></tbody></table>
+<p>각도 대신 스텝 수를 직접 지정한다. 기본 클록 100MHz 가정에서 5ms 스텝 주기는 `500000`클록이다. 실제 AXI 클록에 따라 주기 계산값을 바꾼다.</p><p>가감속·위치 피드백·기계적 영점 센서는 <strong>이번 초기 버전에서 제외</strong>한다. 현재 RTL은 일정 주기로 코일을 여자하는 오픈 루프 제어다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>AXI4-Lite Register Map</h2><table><thead><tr><th>Offset</th><th>Register</th><th>접근</th><th>예시 값 / 기능</th></tr></thead><tbody>
+<tr><td>0x00</td><td>STEP_COUNT</td><td>R/W</td><td>128</td></tr><tr><td>0x04</td><td>STEP_PERIOD</td><td>R/W</td><td>500000 (100MHz, 5ms)</td></tr><tr><td>0x08</td><td>CONTROL</td><td>R/W</td><td>2(Half/FWD), 3(Half/REV), 0(Full/FWD), 1(Full/REV)</td></tr><tr><td>0x0C</td><td>COMMAND</td><td>W</td><td>1 START, 2 STOP</td></tr><tr><td>0x10</td><td>STATUS</td><td>R</td><td>bit0 busy, bit1 done_sticky, bit2 error_sticky</td></tr><tr><td>0x14</td><td>STEPS_DONE</td><td>R</td><td>명령 시작 이후 실제 여자 이벤트 수</td></tr><tr><td>0x18</td><td>ID</td><td>R</td><td>0x000C0001</td></tr><tr><td>0x1C</td><td>MIN_STEP_TICKS</td><td>R</td><td>파라미터 기준 최소 스텝 주기</td></tr></tbody></table>
+<p>CPU에서 <code>STEP_COUNT</code> → <code>STEP_PERIOD</code> → <code>CONTROL</code> → <code>COMMAND=1</code> 순서로 기록한다. 완료 후 <code>STATUS</code>, <code>STEPS_DONE</code>을 읽는다. 타깃용 <code>Xil_Out32</code>는 AXI BRESP 오류를 그대로 반환하지 않으므로 상태·설정 확인을 함께 수행한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>Vivado 및 Vitis 실습</h2><ol><li>기존 제2부 완료 프로젝트를 <strong>Save As</strong>로 `soc_ip_design_12`에 복제. 기존 `soc_hw.xpr` 및 01~10장 폴더는 유지한다.</li><li>`rtl/stepper_core.v`와 `rtl/p2_12_axi_stepper_v1_0.v`를 신규 IP로 등록한다. Data Width=32, Address Width=6 이상으로 설정한다.</li><li>Block Design에 새 AXI Slave를 추가, 기존 MicroBlaze V AXI Interconnect의 클록·리셋에 연결한다.</li><li>Address Editor에서 베이스 주소를 새롭게 지정하고, 기존 01~11장 주소가 바뀌지 않았는지 확인한다.</li><li>`stepper_coil_o[3:0]`을 Make External하고 사용자 Top에서 외부 FPGA 핀 4개에 단순 연결한다. `always`/연산/선택 정책을 Top에 추가하지 않는다.</li><li>기존 JB L298N 핀과 충돌하지 않는 핀을 선택해 XDC에 `LVCMOS33` 지정. 전원/드라이버 접속은 별도 검사 후 시행한다.</li><li>Validate Design → Output Products → HDL Wrapper → Synthesis → Implementation → Timing → Bitstream → XSA 순서로 확인한다.</li><li>Vitis C 코드에 실제 Base Address 및 Clock을 전달하여 STEP_COUNT/STEP_PERIOD/CONTROL/START/STATUS/STOP 순으로 테스트한다.</li><li>모터를 처음 연결할 때는 5ms 저속, 8스텝, 무부하로 확인한 뒤 128스텝 등으로 확대한다. 실제 방향은 드라이버 핀 순서에 따라 반전될 수 있으므로 눈으로 확인한다.</li></ol><p class="warn">상기 Vivado/Vitis/보드 통합은 구현 안내이며 아직 실행 성공 증거가 없다. 원본 전체 SoC의 자동 증분 통합이나 타이밍이 검증되었다고 기록하지 않는다.</p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>소스 코드 및 테스트벤치 전체</h2><p>다음 코드는 GitHub 검토 브랜치의 최신 12장 파일을 그대로 수록하였다. 신규 RTL 두 파일, C 제어/계산 및 self-checking 테스트벤치가 포함된다.</p><details><summary>rtl/stepper_core.v — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>rtl/stepper_core.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-12 28BYJ-48/ULN2003 Core, FPGA/AXI/보드 독립 RTL.
+// 출력 coil_o[0..3]은 ULN2003 IN1..IN4로 순서대로 연결.
+// (추가) 고정 2상 Full Step / 1-2상 Half Step.
+// (추가) 설정은 START에서 래치하며 동작 중 변경하지 않음.
+// (추가) STOP은 조합 출력 게이트 + 클록 동기 상태 중단.
+// (주의) 오픈 루프이므로 steps_done은 기계적 축 회전 성공을 보증하지 않음.
+module stepper_core #(
+    parameter [31:0] MIN_STEP_CYCLES = 32'd200000
+)(
+    input  wire        clk,
+    input  wire        resetn,
+    input  wire        start_pulse,
+    input  wire        stop_pulse,
+    input  wire [31:0] cfg_steps,
+    input  wire [31:0] cfg_step_period,
+    input  wire        cfg_reverse,
+    input  wire        cfg_half_step,
+    output wire [3:0]  coil_o,
+    output reg         busy,
+    output reg         done_pulse,
+    output reg         error_pulse,
+    output reg [31:0]  steps_done
+);
+    reg [31:0] target_steps;
+    reg [31:0] active_period;
+    reg [31:0] ticks_left;
+    reg [2:0]  phase;
+    reg        active_reverse;
+    reg        active_half_step;
+    reg [3:0]  coils_q;
+
+    // 코일 비트 순서: [3]=IN4, [2]=IN3, [1]=IN2, [0]=IN1.
+    // Half: IN1 -&gt; IN1+IN2 -&gt; IN2 -&gt; IN2+IN3 -&gt; ... -&gt; IN4+IN1.
+    function [3:0] coil_pattern;
+        input [2:0] idx;
+        input       half_step;
+        begin
+            if (half_step) begin
+                case (idx)
+                3'd0: coil_pattern = 4'b0001;
+                3'd1: coil_pattern = 4'b0011;
+                3'd2: coil_pattern = 4'b0010;
+                3'd3: coil_pattern = 4'b0110;
+                3'd4: coil_pattern = 4'b0100;
+                3'd5: coil_pattern = 4'b1100;
+                3'd6: coil_pattern = 4'b1000;
+                default: coil_pattern = 4'b1001;
+                endcase
+            end else begin
+                case (idx[1:0])
+                2'd0: coil_pattern = 4'b0011;
+                2'd1: coil_pattern = 4'b0110;
+                2'd2: coil_pattern = 4'b1100;
+                default: coil_pattern = 4'b1001;
+                endcase
+            end
+        end
+    endfunction
+
+    // STOP/RESET이 올라오면 클록을 기다리지 않고 ULN2003 입력을 모두 LOW.
+    assign coil_o = (resetn &amp;&amp; !stop_pulse) ? coils_q : 4'b0000;
+
+    always @(posedge clk) begin
+        if (!resetn) begin
+            busy             &lt;= 1'b0;
+            done_pulse       &lt;= 1'b0;
+            error_pulse      &lt;= 1'b0;
+            steps_done       &lt;= 32'd0;
+            target_steps     &lt;= 32'd0;
+            active_period    &lt;= MIN_STEP_CYCLES;
+            ticks_left       &lt;= 32'd0;
+            phase            &lt;= 3'd0;
+            active_reverse   &lt;= 1'b0;
+            active_half_step &lt;= 1'b1;
+            coils_q          &lt;= 4'b0000;
+        end else begin
+            done_pulse  &lt;= 1'b0;
+            error_pulse &lt;= 1'b0;
+            if (stop_pulse) begin
+                busy       &lt;= 1'b0;
+                coils_q    &lt;= 4'b0000;
+                ticks_left &lt;= 32'd0;
+            end else if (start_pulse) begin
+                if (busy || cfg_steps == 32'd0 ||
+                    cfg_step_period &lt; MIN_STEP_CYCLES) begin
+                    error_pulse &lt;= 1'b1;
+                end else begin
+                    busy             &lt;= 1'b1;
+                    steps_done       &lt;= 32'd0;
+                    target_steps     &lt;= cfg_steps;
+                    active_period    &lt;= cfg_step_period;
+                    ticks_left       &lt;= cfg_step_period - 32'd1;
+                    active_reverse   &lt;= cfg_reverse;
+                    active_half_step &lt;= cfg_half_step;
+                    phase            &lt;= 3'd0;
+                    coils_q          &lt;= 4'b0000;
+                end
+            end else if (busy) begin
+                if (ticks_left != 32'd0) begin
+                    ticks_left &lt;= ticks_left - 32'd1;
+                end else begin
+                    // 실제 한 스텝 여자하고 카운트 1 증가.
+                    coils_q    &lt;= coil_pattern(phase, active_half_step);
+                    steps_done &lt;= steps_done + 32'd1;
+                    ticks_left &lt;= active_period - 32'd1;
+                    if (steps_done + 32'd1 == target_steps) begin
+                        busy       &lt;= 1'b0;
+                        done_pulse &lt;= 1'b1;
+                        // 마지막 여자 패턴은 DONE 한 클록 동안 유지.
+                    end else if (active_reverse) begin
+                        phase &lt;= active_half_step ?
+                                 (phase - 3'd1) :
+                                 {1'b0, (phase[1:0] - 2'd1)};
+                    end else begin
+                        phase &lt;= active_half_step ?
+                                 (phase + 3'd1) :
+                                 {1'b0, (phase[1:0] + 2'd1)};
+                    end
+                end
+            end else begin
+                // 유휴 때 발열 방지를 위해 코일 해제.
+                coils_q &lt;= 4'b0000;
+            end
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (124줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-12 28BYJ-48/ULN2003 Core, FPGA/AXI/보드 독립 RTL.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// 출력 coil_o[0..3]은 ULN2003 IN1..IN4로 순서대로 연결.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// (추가) 고정 2상 Full Step / 1-2상 Half Step.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// (추가) 설정은 START에서 래치하며 동작 중 변경하지 않음.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// (추가) STOP은 조합 출력 게이트 + 클록 동기 상태 중단.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// (주의) 오픈 루프이므로 steps_done은 기계적 축 회전 성공을 보증하지 않음.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>module stepper_core #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>9</td><td><code>    parameter [31:0] MIN_STEP_CYCLES = 32'd200000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    input  wire        clk,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input  wire        resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    input  wire        start_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    input  wire        stop_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input  wire [31:0] cfg_steps,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    input  wire [31:0] cfg_step_period,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    input  wire        cfg_reverse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    input  wire        cfg_half_step,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    output wire [3:0]  coil_o,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    output reg         busy,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    output reg         done_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>    output reg         error_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>    output reg [31:0]  steps_done</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>24</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>25</td><td><code>    reg [31:0] target_steps;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>26</td><td><code>    reg [31:0] active_period;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>27</td><td><code>    reg [31:0] ticks_left;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>28</td><td><code>    reg [2:0]  phase;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>29</td><td><code>    reg        active_reverse;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>30</td><td><code>    reg        active_half_step;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>31</td><td><code>    reg [3:0]  coils_q;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>33</td><td><code>    // 코일 비트 순서: [3]=IN4, [2]=IN3, [1]=IN2, [0]=IN1.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>34</td><td><code>    // Half: IN1 -&gt; IN1+IN2 -&gt; IN2 -&gt; IN2+IN3 -&gt; ... -&gt; IN4+IN1.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>35</td><td><code>    function [3:0] coil_pattern;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>36</td><td><code>        input [2:0] idx;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>37</td><td><code>        input       half_step;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>38</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>39</td><td><code>            if (half_step) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>40</td><td><code>                case (idx)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>41</td><td><code>                3'd0: coil_pattern = 4'b0001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>                3'd1: coil_pattern = 4'b0011;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>43</td><td><code>                3'd2: coil_pattern = 4'b0010;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>                3'd3: coil_pattern = 4'b0110;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>                3'd4: coil_pattern = 4'b0100;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>                3'd5: coil_pattern = 4'b1100;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>                3'd6: coil_pattern = 4'b1000;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>                default: coil_pattern = 4'b1001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>49</td><td><code>                endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>50</td><td><code>            end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>51</td><td><code>                case (idx[1:0])</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>52</td><td><code>                2'd0: coil_pattern = 4'b0011;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>53</td><td><code>                2'd1: coil_pattern = 4'b0110;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>54</td><td><code>                2'd2: coil_pattern = 4'b1100;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>55</td><td><code>                default: coil_pattern = 4'b1001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>                endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>57</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>58</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>59</td><td><code>    endfunction</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>61</td><td><code>    // STOP/RESET이 올라오면 클록을 기다리지 않고 ULN2003 입력을 모두 LOW.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>62</td><td><code>    assign coil_o = (resetn &amp;&amp; !stop_pulse) ? coils_q : 4'b0000;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>64</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>65</td><td><code>        if (!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>66</td><td><code>            busy             &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>67</td><td><code>            done_pulse       &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>68</td><td><code>            error_pulse      &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>69</td><td><code>            steps_done       &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>70</td><td><code>            target_steps     &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>71</td><td><code>            active_period    &lt;= MIN_STEP_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>72</td><td><code>            ticks_left       &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>73</td><td><code>            phase            &lt;= 3'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>74</td><td><code>            active_reverse   &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>75</td><td><code>            active_half_step &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>76</td><td><code>            coils_q          &lt;= 4'b0000;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>            done_pulse  &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>79</td><td><code>            error_pulse &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>            if (stop_pulse) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>81</td><td><code>                busy       &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>82</td><td><code>                coils_q    &lt;= 4'b0000;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>83</td><td><code>                ticks_left &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>84</td><td><code>            end else if (start_pulse) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>85</td><td><code>                if (busy || cfg_steps == 32'd0 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>86</td><td><code>                    cfg_step_period &lt; MIN_STEP_CYCLES) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>87</td><td><code>                    error_pulse &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>88</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>89</td><td><code>                    busy             &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>90</td><td><code>                    steps_done       &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>91</td><td><code>                    target_steps     &lt;= cfg_steps;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>92</td><td><code>                    active_period    &lt;= cfg_step_period;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>93</td><td><code>                    ticks_left       &lt;= cfg_step_period - 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>94</td><td><code>                    active_reverse   &lt;= cfg_reverse;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>95</td><td><code>                    active_half_step &lt;= cfg_half_step;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>96</td><td><code>                    phase            &lt;= 3'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>97</td><td><code>                    coils_q          &lt;= 4'b0000;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>98</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>99</td><td><code>            end else if (busy) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>100</td><td><code>                if (ticks_left != 32'd0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>101</td><td><code>                    ticks_left &lt;= ticks_left - 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>102</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>103</td><td><code>                    // 실제 한 스텝 여자하고 카운트 1 증가.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>104</td><td><code>                    coils_q    &lt;= coil_pattern(phase, active_half_step);</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>105</td><td><code>                    steps_done &lt;= steps_done + 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>106</td><td><code>                    ticks_left &lt;= active_period - 32'd1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>107</td><td><code>                    if (steps_done + 32'd1 == target_steps) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>108</td><td><code>                        busy       &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>109</td><td><code>                        done_pulse &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>110</td><td><code>                        // 마지막 여자 패턴은 DONE 한 클록 동안 유지.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>111</td><td><code>                    end else if (active_reverse) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>112</td><td><code>                        phase &lt;= active_half_step ?</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>113</td><td><code>                                 (phase - 3'd1) :</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>114</td><td><code>                                 {1'b0, (phase[1:0] - 2'd1)};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>115</td><td><code>                    end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>116</td><td><code>                        phase &lt;= active_half_step ?</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>117</td><td><code>                                 (phase + 3'd1) :</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>118</td><td><code>                                 {1'b0, (phase[1:0] + 2'd1)};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>119</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>120</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>121</td><td><code>            end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>122</td><td><code>                // 유휴 때 발열 방지를 위해 코일 해제.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>123</td><td><code>                coils_q &lt;= 4'b0000;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>124</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>125</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>126</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>127</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/p2_12_axi_stepper_v1_0.v — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>rtl/p2_12_axi_stepper_v1_0.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-12: 28BYJ-48 Stepper AXI4-Lite IP wrapper (self-contained).
+// Original P2-01~10 AXI IPs are not modified.
+// Registers: 0x00 STEPS, 0x04 PERIOD_TICKS, 0x08 CONTROL,
+//            0x0C CMD, 0x10 STATUS, 0x14 DONE_STEPS,
+//            0x18 ID, 0x1C MIN_STEP_TICKS.
+// CONTROL bit0=reverse, bit1=half_step. CMD bit0=START, bit1=STOP.
+// STATUS bit0=BUSY, bit1=DONE_STICKY, bit2=ERROR_STICKY.
+module p2_12_axi_stepper_v1_0 #(
+    parameter integer C_S_AXI_DATA_WIDTH = 32,
+    parameter integer C_S_AXI_ADDR_WIDTH = 6,
+    parameter [31:0] MIN_STEP_CYCLES = 32'd200000,
+    parameter [31:0] RESET_STEP_PERIOD = 32'd500000
+)(
+    input wire S_AXI_ACLK, input wire S_AXI_ARESETN,
+    input wire [C_S_AXI_ADDR_WIDTH-1:0] S_AXI_AWADDR,
+    input wire [2:0] S_AXI_AWPROT,
+    input wire S_AXI_AWVALID, output wire S_AXI_AWREADY,
+    input wire [C_S_AXI_DATA_WIDTH-1:0] S_AXI_WDATA,
+    input wire [(C_S_AXI_DATA_WIDTH/8)-1:0] S_AXI_WSTRB,
+    input wire S_AXI_WVALID, output wire S_AXI_WREADY,
+    output reg [1:0] S_AXI_BRESP, output reg S_AXI_BVALID,
+    input wire S_AXI_BREADY,
+    input wire [C_S_AXI_ADDR_WIDTH-1:0] S_AXI_ARADDR,
+    input wire [2:0] S_AXI_ARPROT,
+    input wire S_AXI_ARVALID, output wire S_AXI_ARREADY,
+    output reg [C_S_AXI_DATA_WIDTH-1:0] S_AXI_RDATA,
+    output reg [1:0] S_AXI_RRESP, output reg S_AXI_RVALID,
+    input wire S_AXI_RREADY,
+    output wire [3:0] stepper_coil_o
+);
+    localparam [1:0] OKAY = 2'b00, SLVERR = 2'b10;
+    localparam [31:0] ID = 32'h000C0001;
+    reg [31:0] cfg_steps;
+    reg [31:0] cfg_period;
+    reg [31:0] cfg_control;
+    reg start_strobe, stop_strobe;
+    wire busy, done_pulse, error_pulse;
+    wire [31:0] steps_done;
+    reg done_sticky, error_sticky;
+    reg aw_hold, w_hold;
+    reg [C_S_AXI_ADDR_WIDTH-1:0] saved_awaddr;
+    reg [31:0] saved_wdata;
+    reg [3:0] saved_wstrb;
+    reg [31:0] merged;
+    integer b;
+
+    stepper_core #(.MIN_STEP_CYCLES(MIN_STEP_CYCLES)) u_core (
+        .clk(S_AXI_ACLK), .resetn(S_AXI_ARESETN),
+        .start_pulse(start_strobe), .stop_pulse(stop_strobe),
+        .cfg_steps(cfg_steps), .cfg_step_period(cfg_period),
+        .cfg_reverse(cfg_control[0]),.cfg_half_step(cfg_control[1]),
+        .coil_o(stepper_coil_o), .busy(busy),
+        .done_pulse(done_pulse),.error_pulse(error_pulse),
+        .steps_done(steps_done)
+    );
+    // 각 AW/W 채널 버퍼 한 건 + 응답 한 건만 보관.
+    assign S_AXI_AWREADY = S_AXI_ARESETN &amp;&amp; !aw_hold &amp;&amp; !S_AXI_BVALID;
+    assign S_AXI_WREADY  = S_AXI_ARESETN &amp;&amp; !w_hold  &amp;&amp; !S_AXI_BVALID;
+    assign S_AXI_ARREADY = S_AXI_ARESETN &amp;&amp; !S_AXI_RVALID;
+
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            cfg_steps     &lt;= 32'd128;
+            cfg_period    &lt;= RESET_STEP_PERIOD;
+            cfg_control   &lt;= 32'd2; // default HALF, forward
+            aw_hold       &lt;= 1'b0;
+            w_hold        &lt;= 1'b0;
+            saved_awaddr  &lt;= {C_S_AXI_ADDR_WIDTH{1'b0}};
+            saved_wdata   &lt;= 32'd0;
+            saved_wstrb   &lt;= 4'd0;
+            S_AXI_BVALID  &lt;= 1'b0;
+            S_AXI_BRESP   &lt;= OKAY;
+            start_strobe  &lt;= 1'b0;
+            stop_strobe   &lt;= 1'b0;
+            done_sticky   &lt;= 1'b0;
+            error_sticky  &lt;= 1'b0;
+        end else begin
+            start_strobe &lt;= 1'b0;
+            stop_strobe  &lt;= 1'b0;
+            if (done_pulse) done_sticky &lt;= 1'b1;
+            if (error_pulse) error_sticky &lt;= 1'b1;
+            if (S_AXI_AWVALID &amp;&amp; S_AXI_AWREADY) begin
+                saved_awaddr &lt;= S_AXI_AWADDR;
+                aw_hold &lt;= 1'b1;
+            end
+            if (S_AXI_WVALID &amp;&amp; S_AXI_WREADY) begin
+                saved_wdata &lt;= S_AXI_WDATA;
+                saved_wstrb &lt;= S_AXI_WSTRB;
+                w_hold &lt;= 1'b1;
+            end
+            if (S_AXI_BVALID &amp;&amp; S_AXI_BREADY)
+                S_AXI_BVALID &lt;= 1'b0;
+            if (aw_hold &amp;&amp; w_hold &amp;&amp; !S_AXI_BVALID) begin
+                aw_hold &lt;= 1'b0;
+                w_hold &lt;= 1'b0;
+                S_AXI_BVALID &lt;= 1'b1;
+                S_AXI_BRESP &lt;= OKAY;
+                case (saved_awaddr)
+                6'h00: begin
+                    merged=cfg_steps;
+                    for (b=0;b&lt;4;b=b+1)
+                        if(saved_wstrb[b])
+                            merged[8*b +:8]=saved_wdata[8*b +:8];
+                    cfg_steps &lt;= merged;
+                end
+                6'h04: begin
+                    merged=cfg_period;
+                    for (b=0;b&lt;4;b=b+1)
+                        if(saved_wstrb[b])
+                            merged[8*b +:8]=saved_wdata[8*b +:8];
+                    cfg_period &lt;= merged;
+                end
+                6'h08: begin
+                    merged=cfg_control;
+                    for (b=0;b&lt;4;b=b+1)
+                        if(saved_wstrb[b])
+                            merged[8*b +:8]=saved_wdata[8*b +:8];
+                    cfg_control &lt;= (merged &amp; 32'h3);
+                end
+                6'h0C: begin
+                    // 반드시 낮은 바이트 스트로브와 명령 비트가 있어야 함.
+                    if (!saved_wstrb[0]) begin
+                        S_AXI_BRESP &lt;= SLVERR;
+                    end else if (saved_wdata[1] &amp;&amp; !saved_wdata[0]) begin
+                        stop_strobe &lt;= 1'b1;
+                    end else if (saved_wdata[0] &amp;&amp; !saved_wdata[1]) begin
+                        if (busy || start_strobe || cfg_steps == 0 ||
+                            cfg_period &lt; MIN_STEP_CYCLES) begin
+                            S_AXI_BRESP &lt;= SLVERR;
+                            error_sticky &lt;= 1'b1;
+                        end else begin
+                            start_strobe &lt;= 1'b1;
+                            done_sticky &lt;= 1'b0;
+                            error_sticky &lt;= 1'b0;
+                        end
+                    end else S_AXI_BRESP &lt;= SLVERR;
+                end
+                default: S_AXI_BRESP &lt;= SLVERR;
+                endcase
+            end
+        end
+    end
+
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            S_AXI_RVALID &lt;= 1'b0;
+            S_AXI_RDATA  &lt;= 32'd0;
+            S_AXI_RRESP  &lt;= OKAY;
+        end else begin
+            if (S_AXI_RVALID &amp;&amp; S_AXI_RREADY)
+                S_AXI_RVALID &lt;= 1'b0;
+            if (S_AXI_ARVALID &amp;&amp; S_AXI_ARREADY) begin
+                S_AXI_RVALID &lt;= 1'b1;
+                S_AXI_RRESP &lt;= OKAY;
+                case (S_AXI_ARADDR)
+                6'h00: S_AXI_RDATA &lt;= cfg_steps;
+                6'h04: S_AXI_RDATA &lt;= cfg_period;
+                6'h08: S_AXI_RDATA &lt;= cfg_control;
+                6'h0C: S_AXI_RDATA &lt;= 32'd0;
+                6'h10: S_AXI_RDATA &lt;= {29'd0,error_sticky,done_sticky,busy};
+                6'h14: S_AXI_RDATA &lt;= steps_done;
+                6'h18: S_AXI_RDATA &lt;= ID;
+                6'h1C: S_AXI_RDATA &lt;= MIN_STEP_CYCLES;
+                default: begin
+                    S_AXI_RDATA &lt;= 32'd0;
+                    S_AXI_RRESP &lt;= SLVERR;
+                end
+                endcase
+            end
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (170줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-12: 28BYJ-48 Stepper AXI4-Lite IP wrapper (self-contained).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Original P2-01~10 AXI IPs are not modified.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Registers: 0x00 STEPS, 0x04 PERIOD_TICKS, 0x08 CONTROL,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>//            0x0C CMD, 0x10 STATUS, 0x14 DONE_STEPS,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>//            0x18 ID, 0x1C MIN_STEP_TICKS.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// CONTROL bit0=reverse, bit1=half_step. CMD bit0=START, bit1=STOP.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>// STATUS bit0=BUSY, bit1=DONE_STICKY, bit2=ERROR_STICKY.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>module p2_12_axi_stepper_v1_0 #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>10</td><td><code>    parameter integer C_S_AXI_DATA_WIDTH = 32,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>11</td><td><code>    parameter integer C_S_AXI_ADDR_WIDTH = 6,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    parameter [31:0] MIN_STEP_CYCLES = 32'd200000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>    parameter [31:0] RESET_STEP_PERIOD = 32'd500000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>    input wire S_AXI_ACLK, input wire S_AXI_ARESETN,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    input wire [C_S_AXI_ADDR_WIDTH-1:0] S_AXI_AWADDR,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    input wire [2:0] S_AXI_AWPROT,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    input wire S_AXI_AWVALID, output wire S_AXI_AWREADY,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    input wire [C_S_AXI_DATA_WIDTH-1:0] S_AXI_WDATA,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    input wire [(C_S_AXI_DATA_WIDTH/8)-1:0] S_AXI_WSTRB,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    input wire S_AXI_WVALID, output wire S_AXI_WREADY,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>    output reg [1:0] S_AXI_BRESP, output reg S_AXI_BVALID,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>    input wire S_AXI_BREADY,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>24</td><td><code>    input wire [C_S_AXI_ADDR_WIDTH-1:0] S_AXI_ARADDR,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>25</td><td><code>    input wire [2:0] S_AXI_ARPROT,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>26</td><td><code>    input wire S_AXI_ARVALID, output wire S_AXI_ARREADY,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>27</td><td><code>    output reg [C_S_AXI_DATA_WIDTH-1:0] S_AXI_RDATA,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>28</td><td><code>    output reg [1:0] S_AXI_RRESP, output reg S_AXI_RVALID,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>29</td><td><code>    input wire S_AXI_RREADY,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>30</td><td><code>    output wire [3:0] stepper_coil_o</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>31</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>32</td><td><code>    localparam [1:0] OKAY = 2'b00, SLVERR = 2'b10;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>    localparam [31:0] ID = 32'h000C0001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>34</td><td><code>    reg [31:0] cfg_steps;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>35</td><td><code>    reg [31:0] cfg_period;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>36</td><td><code>    reg [31:0] cfg_control;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>37</td><td><code>    reg start_strobe, stop_strobe;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>38</td><td><code>    wire busy, done_pulse, error_pulse;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>39</td><td><code>    wire [31:0] steps_done;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>40</td><td><code>    reg done_sticky, error_sticky;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>41</td><td><code>    reg aw_hold, w_hold;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>42</td><td><code>    reg [C_S_AXI_ADDR_WIDTH-1:0] saved_awaddr;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>43</td><td><code>    reg [31:0] saved_wdata;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>44</td><td><code>    reg [3:0] saved_wstrb;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>45</td><td><code>    reg [31:0] merged;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>46</td><td><code>    integer b;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>48</td><td><code>    stepper_core #(.MIN_STEP_CYCLES(MIN_STEP_CYCLES)) u_core (</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>49</td><td><code>        .clk(S_AXI_ACLK), .resetn(S_AXI_ARESETN),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>50</td><td><code>        .start_pulse(start_strobe), .stop_pulse(stop_strobe),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>51</td><td><code>        .cfg_steps(cfg_steps), .cfg_step_period(cfg_period),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>52</td><td><code>        .cfg_reverse(cfg_control[0]),.cfg_half_step(cfg_control[1]),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>53</td><td><code>        .coil_o(stepper_coil_o), .busy(busy),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>54</td><td><code>        .done_pulse(done_pulse),.error_pulse(error_pulse),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>55</td><td><code>        .steps_done(steps_done)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>56</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>    // 각 AW/W 채널 버퍼 한 건 + 응답 한 건만 보관.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>58</td><td><code>    assign S_AXI_AWREADY = S_AXI_ARESETN &amp;&amp; !aw_hold &amp;&amp; !S_AXI_BVALID;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>59</td><td><code>    assign S_AXI_WREADY  = S_AXI_ARESETN &amp;&amp; !w_hold  &amp;&amp; !S_AXI_BVALID;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>60</td><td><code>    assign S_AXI_ARREADY = S_AXI_ARESETN &amp;&amp; !S_AXI_RVALID;</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>62</td><td><code>    always @(posedge S_AXI_ACLK) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>63</td><td><code>        if (!S_AXI_ARESETN) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>64</td><td><code>            cfg_steps     &lt;= 32'd128;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>65</td><td><code>            cfg_period    &lt;= RESET_STEP_PERIOD;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>66</td><td><code>            cfg_control   &lt;= 32'd2; // default HALF, forward</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>67</td><td><code>            aw_hold       &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>68</td><td><code>            w_hold        &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>69</td><td><code>            saved_awaddr  &lt;= {C_S_AXI_ADDR_WIDTH{1'b0}};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>70</td><td><code>            saved_wdata   &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>71</td><td><code>            saved_wstrb   &lt;= 4'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>72</td><td><code>            S_AXI_BVALID  &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>73</td><td><code>            S_AXI_BRESP   &lt;= OKAY;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>74</td><td><code>            start_strobe  &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>75</td><td><code>            stop_strobe   &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>76</td><td><code>            done_sticky   &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>            error_sticky  &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>78</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>79</td><td><code>            start_strobe &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>            stop_strobe  &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>            if (done_pulse) done_sticky &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>82</td><td><code>            if (error_pulse) error_sticky &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>83</td><td><code>            if (S_AXI_AWVALID &amp;&amp; S_AXI_AWREADY) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>84</td><td><code>                saved_awaddr &lt;= S_AXI_AWADDR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>85</td><td><code>                aw_hold &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>86</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>87</td><td><code>            if (S_AXI_WVALID &amp;&amp; S_AXI_WREADY) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>88</td><td><code>                saved_wdata &lt;= S_AXI_WDATA;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>89</td><td><code>                saved_wstrb &lt;= S_AXI_WSTRB;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>90</td><td><code>                w_hold &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>91</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>92</td><td><code>            if (S_AXI_BVALID &amp;&amp; S_AXI_BREADY)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>93</td><td><code>                S_AXI_BVALID &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>94</td><td><code>            if (aw_hold &amp;&amp; w_hold &amp;&amp; !S_AXI_BVALID) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>95</td><td><code>                aw_hold &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>96</td><td><code>                w_hold &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>97</td><td><code>                S_AXI_BVALID &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>98</td><td><code>                S_AXI_BRESP &lt;= OKAY;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>99</td><td><code>                case (saved_awaddr)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>100</td><td><code>                6'h00: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>101</td><td><code>                    merged=cfg_steps;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>102</td><td><code>                    for (b=0;b&lt;4;b=b+1)</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>103</td><td><code>                        if(saved_wstrb[b])</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>104</td><td><code>                            merged[8*b +:8]=saved_wdata[8*b +:8];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>105</td><td><code>                    cfg_steps &lt;= merged;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>106</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>107</td><td><code>                6'h04: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>108</td><td><code>                    merged=cfg_period;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>109</td><td><code>                    for (b=0;b&lt;4;b=b+1)</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>110</td><td><code>                        if(saved_wstrb[b])</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>111</td><td><code>                            merged[8*b +:8]=saved_wdata[8*b +:8];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>112</td><td><code>                    cfg_period &lt;= merged;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>113</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>114</td><td><code>                6'h08: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>115</td><td><code>                    merged=cfg_control;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>116</td><td><code>                    for (b=0;b&lt;4;b=b+1)</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>117</td><td><code>                        if(saved_wstrb[b])</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>118</td><td><code>                            merged[8*b +:8]=saved_wdata[8*b +:8];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>119</td><td><code>                    cfg_control &lt;= (merged &amp; 32'h3);</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>120</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>121</td><td><code>                6'h0C: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>122</td><td><code>                    // 반드시 낮은 바이트 스트로브와 명령 비트가 있어야 함.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>123</td><td><code>                    if (!saved_wstrb[0]) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>124</td><td><code>                        S_AXI_BRESP &lt;= SLVERR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>125</td><td><code>                    end else if (saved_wdata[1] &amp;&amp; !saved_wdata[0]) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>126</td><td><code>                        stop_strobe &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>127</td><td><code>                    end else if (saved_wdata[0] &amp;&amp; !saved_wdata[1]) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>128</td><td><code>                        if (busy || start_strobe || cfg_steps == 0 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>129</td><td><code>                            cfg_period &lt; MIN_STEP_CYCLES) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>130</td><td><code>                            S_AXI_BRESP &lt;= SLVERR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>131</td><td><code>                            error_sticky &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>132</td><td><code>                        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>133</td><td><code>                            start_strobe &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>134</td><td><code>                            done_sticky &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>135</td><td><code>                            error_sticky &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>136</td><td><code>                        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>137</td><td><code>                    end else S_AXI_BRESP &lt;= SLVERR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>138</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>139</td><td><code>                default: S_AXI_BRESP &lt;= SLVERR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>140</td><td><code>                endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>141</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>142</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>143</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>145</td><td><code>    always @(posedge S_AXI_ACLK) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>146</td><td><code>        if (!S_AXI_ARESETN) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>147</td><td><code>            S_AXI_RVALID &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>148</td><td><code>            S_AXI_RDATA  &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>149</td><td><code>            S_AXI_RRESP  &lt;= OKAY;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>150</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>151</td><td><code>            if (S_AXI_RVALID &amp;&amp; S_AXI_RREADY)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>152</td><td><code>                S_AXI_RVALID &lt;= 1'b0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>153</td><td><code>            if (S_AXI_ARVALID &amp;&amp; S_AXI_ARREADY) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>154</td><td><code>                S_AXI_RVALID &lt;= 1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>155</td><td><code>                S_AXI_RRESP &lt;= OKAY;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>156</td><td><code>                case (S_AXI_ARADDR)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>157</td><td><code>                6'h00: S_AXI_RDATA &lt;= cfg_steps;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>158</td><td><code>                6'h04: S_AXI_RDATA &lt;= cfg_period;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>159</td><td><code>                6'h08: S_AXI_RDATA &lt;= cfg_control;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>160</td><td><code>                6'h0C: S_AXI_RDATA &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>161</td><td><code>                6'h10: S_AXI_RDATA &lt;= {29'd0,error_sticky,done_sticky,busy};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>162</td><td><code>                6'h14: S_AXI_RDATA &lt;= steps_done;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>163</td><td><code>                6'h18: S_AXI_RDATA &lt;= ID;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>164</td><td><code>                6'h1C: S_AXI_RDATA &lt;= MIN_STEP_CYCLES;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>165</td><td><code>                default: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>166</td><td><code>                    S_AXI_RDATA &lt;= 32'd0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>167</td><td><code>                    S_AXI_RRESP &lt;= SLVERR;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>168</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>169</td><td><code>                endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>170</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>171</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>172</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>173</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/stepper_logic.c — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/stepper_logic.c · C · 소스 원문</span></div><pre><code>#include "stepper_logic.h"
+#include &lt;limits.h&gt;
+// 2~100ms: 저속에서 시작. 제조사/부하별 실제 허용 속도는 별도 보드 확인.
+// full/half mode의 1스텝 각도와 감속비는 모터마다 달라질 수 있다.
+int stepper_make_config(uint32_t clock_hz, uint32_t step_count,
+                        uint32_t interval_ms, int reverse,
+                        int half_step, stepper_cfg_t *out)
+{
+    uint64_t ticks;
+    if (!out || clock_hz &lt; 1000000u || clock_hz &gt; 200000000u ||
+        step_count == 0u || step_count &gt; 100000u ||
+        interval_ms &lt; 2u || interval_ms &gt; 100u ||
+        (reverse != 0 &amp;&amp; reverse != 1) ||
+        (half_step != 0 &amp;&amp; half_step != 1)) return -1;
+
+    ticks = ((uint64_t)clock_hz * interval_ms) / 1000u;
+    if (ticks &lt; 2u || ticks &gt; UINT32_MAX) return -1;
+    out-&gt;steps = step_count;
+    out-&gt;period_ticks = (uint32_t)ticks;
+    out-&gt;control = (uint32_t)reverse | ((uint32_t)half_step &lt;&lt; 1);
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (21줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;stepper_logic.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;limits.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>// 2~100ms: 저속에서 시작. 제조사/부하별 실제 허용 속도는 별도 보드 확인.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// full/half mode의 1스텝 각도와 감속비는 모터마다 달라질 수 있다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>int stepper_make_config(uint32_t clock_hz, uint32_t step_count,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>                        uint32_t interval_ms, int reverse,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>                        int half_step, stepper_cfg_t *out)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>8</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>9</td><td><code>    uint64_t ticks;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>    if (!out || clock_hz &lt; 1000000u || clock_hz &gt; 200000000u ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>11</td><td><code>        step_count == 0u || step_count &gt; 100000u ||</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>        interval_ms &lt; 2u || interval_ms &gt; 100u ||</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>        (reverse != 0 &amp;&amp; reverse != 1) ||</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>        (half_step != 0 &amp;&amp; half_step != 1)) return -1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    ticks = ((uint64_t)clock_hz * interval_ms) / 1000u;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    if (ticks &lt; 2u || ticks &gt; UINT32_MAX) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>18</td><td><code>    out-&gt;steps = step_count;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    out-&gt;period_ticks = (uint32_t)ticks;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    out-&gt;control = (uint32_t)reverse | ((uint32_t)half_step &lt;&lt; 1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>22</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/stepper_logic.h — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/stepper_logic.h · C · 소스 원문</span></div><pre><code>#ifndef P2_12_STEPPER_LOGIC_H
+#define P2_12_STEPPER_LOGIC_H
+#include &lt;stdint.h&gt;
+typedef struct {
+    uint32_t steps;
+    uint32_t period_ticks;
+    uint32_t control;
+} stepper_cfg_t;
+// 0=정상, -1=입력 오류 또는 32bit tick 초과.
+// clock_hz는 실제 AXI IP Clock을 사용하며 가정값을 확정하지 않는다.
+int stepper_make_config(uint32_t clock_hz, uint32_t step_count,
+                        uint32_t interval_ms, int reverse,
+                        int half_step, stepper_cfg_t *out);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (14줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_12_STEPPER_LOGIC_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_12_STEPPER_LOGIC_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>5</td><td><code>    uint32_t steps;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>    uint32_t period_ticks;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>    uint32_t control;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>} stepper_cfg_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>// 0=정상, -1=입력 오류 또는 32bit tick 초과.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>10</td><td><code>// clock_hz는 실제 AXI IP Clock을 사용하며 가정값을 확정하지 않는다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>11</td><td><code>int stepper_make_config(uint32_t clock_hz, uint32_t step_count,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>                        uint32_t interval_ms, int reverse,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>                        int half_step, stepper_cfg_t *out);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/stepper_axi.c — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/stepper_axi.c · C · 소스 원문</span></div><pre><code>#include "stepper_axi.h"
+#include "xil_io.h"
+#define REG_STEPS   0x00u
+#define REG_PERIOD  0x04u
+#define REG_CONTROL 0x08u
+#define REG_COMMAND 0x0Cu
+#define REG_STATUS  0x10u
+#define REG_DONE    0x14u
+int stepper_axi_start(uintptr_t baseaddr, const stepper_cfg_t *cfg)
+{
+    if (!cfg || cfg-&gt;steps == 0u || cfg-&gt;period_ticks &lt; 2u ||
+        (cfg-&gt;control &amp; ~3u) != 0u) return -1;
+    // (주의) 실제 최소 주기(MIN_STEP_TICKS)를 함께 검증해야 한다.
+    // Xil_Out32는 AXI BRESP/하드웨어 완료를 자동 반환하지 않음.
+    Xil_Out32(baseaddr + REG_STEPS, cfg-&gt;steps);
+    Xil_Out32(baseaddr + REG_PERIOD, cfg-&gt;period_ticks);
+    Xil_Out32(baseaddr + REG_CONTROL, cfg-&gt;control);
+    Xil_Out32(baseaddr + REG_COMMAND, 1u);
+    return 0;
+}
+void stepper_axi_stop(uintptr_t baseaddr)
+{
+    Xil_Out32(baseaddr + REG_COMMAND, 2u);
+}
+uint32_t stepper_axi_status(uintptr_t baseaddr)
+{
+    return Xil_In32(baseaddr + REG_STATUS);
+}
+uint32_t stepper_axi_steps_done(uintptr_t baseaddr)
+{
+    return Xil_In32(baseaddr + REG_DONE);
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (32줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;stepper_axi.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &quot;xil_io.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#define REG_STEPS   0x00u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>4</td><td><code>#define REG_PERIOD  0x04u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>5</td><td><code>#define REG_CONTROL 0x08u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>6</td><td><code>#define REG_COMMAND 0x0Cu</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>7</td><td><code>#define REG_STATUS  0x10u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>8</td><td><code>#define REG_DONE    0x14u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>9</td><td><code>int stepper_axi_start(uintptr_t baseaddr, const stepper_cfg_t *cfg)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>11</td><td><code>    if (!cfg || cfg-&gt;steps == 0u || cfg-&gt;period_ticks &lt; 2u ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>12</td><td><code>        (cfg-&gt;control &amp; ~3u) != 0u) return -1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>    // (주의) 실제 최소 주기(MIN_STEP_TICKS)를 함께 검증해야 한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>14</td><td><code>    // Xil_Out32는 AXI BRESP/하드웨어 완료를 자동 반환하지 않음.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>15</td><td><code>    Xil_Out32(baseaddr + REG_STEPS, cfg-&gt;steps);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>16</td><td><code>    Xil_Out32(baseaddr + REG_PERIOD, cfg-&gt;period_ticks);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>17</td><td><code>    Xil_Out32(baseaddr + REG_CONTROL, cfg-&gt;control);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>18</td><td><code>    Xil_Out32(baseaddr + REG_COMMAND, 1u);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>19</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>20</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>21</td><td><code>void stepper_axi_stop(uintptr_t baseaddr)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>23</td><td><code>    Xil_Out32(baseaddr + REG_COMMAND, 2u);</code></td><td>CPU가 AXI 레지스터에 32비트 값을 씁니다. 주소와 값의 두 인자를 구분합니다.</td></tr><tr><td>24</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>25</td><td><code>uint32_t stepper_axi_status(uintptr_t baseaddr)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>26</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>27</td><td><code>    return Xil_In32(baseaddr + REG_STATUS);</code></td><td>CPU가 AXI 레지스터 주소에서 32비트 값을 읽습니다.</td></tr><tr><td>28</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>29</td><td><code>uint32_t stepper_axi_steps_done(uintptr_t baseaddr)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>30</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>31</td><td><code>    return Xil_In32(baseaddr + REG_DONE);</code></td><td>CPU가 AXI 레지스터 주소에서 32비트 값을 읽습니다.</td></tr><tr><td>32</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/stepper_axi.h — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>sw/stepper_axi.h · C · 소스 원문</span></div><pre><code>#ifndef P2_12_STEPPER_AXI_H
+#define P2_12_STEPPER_AXI_H
+#include &lt;stdint.h&gt;
+#include "stepper_logic.h"
+// 실제 Address Editor/XSA/BSP에서 확인한 전용 IP baseaddr만 사용.
+int stepper_axi_start(uintptr_t baseaddr, const stepper_cfg_t *cfg);
+void stepper_axi_stop(uintptr_t baseaddr);
+uint32_t stepper_axi_status(uintptr_t baseaddr);
+uint32_t stepper_axi_steps_done(uintptr_t baseaddr);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (10줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_12_STEPPER_AXI_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_12_STEPPER_AXI_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &quot;stepper_logic.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>// 실제 Address Editor/XSA/BSP에서 확인한 전용 IP baseaddr만 사용.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>int stepper_axi_start(uintptr_t baseaddr, const stepper_cfg_t *cfg);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>void stepper_axi_stop(uintptr_t baseaddr);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>uint32_t stepper_axi_status(uintptr_t baseaddr);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>uint32_t stepper_axi_steps_done(uintptr_t baseaddr);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_stepper_core.v — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_stepper_core.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+module tb_stepper_core;
+    reg clk=0; always #5 clk=~clk;
+    reg resetn=0,start=0,stop=0;
+    reg [31:0] steps=0,period=0;
+    reg reverse=0,half=1;
+    wire [3:0] coil;
+    wire busy,done,error;
+    wire [31:0] completed;
+    integer i;
+    reg [3:0] seq_half [0:7];
+    reg [3:0] seq_full [0:3];
+    stepper_core #(.MIN_STEP_CYCLES(32'd2)) dut (
+        .clk(clk),.resetn(resetn),.start_pulse(start),.stop_pulse(stop),
+        .cfg_steps(steps),.cfg_step_period(period),
+        .cfg_reverse(reverse),.cfg_half_step(half),
+        .coil_o(coil),.busy(busy),.done_pulse(done),
+        .error_pulse(error),.steps_done(completed)
+    );
+    task begin_run;
+        input [31:0] n,p;
+        input r,h;
+        begin
+            @(negedge clk);
+            steps=n;period=p;reverse=r;half=h;start=1;
+            @(negedge clk);start=0;
+            if (!busy) $fatal(1,"busy not asserted");
+        end
+    endtask
+    task expect_step;
+        input [31:0] n;
+        input [3:0] expected;
+        begin
+            wait(completed == n);
+            #1;
+            if(coil !== expected)
+                $fatal(1,"step %0d expected %b got %b", n,expected,coil);
+        end
+    endtask
+    initial begin
+        seq_half[0]=4'b0001;seq_half[1]=4'b0011;
+        seq_half[2]=4'b0010;seq_half[3]=4'b0110;
+        seq_half[4]=4'b0100;seq_half[5]=4'b1100;
+        seq_half[6]=4'b1000;seq_half[7]=4'b1001;
+        seq_full[0]=4'b0011;seq_full[1]=4'b0110;
+        seq_full[2]=4'b1100;seq_full[3]=4'b1001;
+        repeat(3) @(negedge clk); resetn=1;
+        if(coil!==0 || busy) $fatal(1,"reset outputs");
+        begin_run(8,3,0,1);
+        for(i=0;i&lt;8;i=i+1) expect_step(i+1,seq_half[i]);
+        // (변경) DONE 직후 한 클록 뒤에 코일을 해제하는 RTL 정책을 기다린다.
+        repeat(2) @(negedge clk);
+        if(busy || done || coil !== 4'b0000 || completed != 8)
+            $fatal(1,"done/idle release");
+        $display("HALF_FORWARD PASS");
+
+        begin_run(8,3,1,1);
+        expect_step(1,seq_half[0]);
+        for(i=1;i&lt;8;i=i+1)
+            expect_step(i+1,seq_half[8-i]);
+        repeat(2) @(negedge clk);
+        if(busy || coil!==0) $fatal(1,"reverse idle");
+        $display("HALF_REVERSE PASS");
+
+        begin_run(4,2,0,0);
+        for(i=0;i&lt;4;i=i+1) expect_step(i+1,seq_full[i]);
+        repeat(2) @(negedge clk);
+        if(busy || coil!==0) $fatal(1,"full idle");
+        $display("FULL_FORWARD PASS");
+
+        begin_run(4,2,1,0);
+        expect_step(1,seq_full[0]);
+        for(i=1;i&lt;4;i=i+1) expect_step(i+1,seq_full[4-i]);
+        repeat(2) @(negedge clk);
+        if(busy || coil!==0) $fatal(1,"full reverse idle");
+        $display("FULL_REVERSE PASS");
+
+        // 동작 중 START: 에러 1클록, 진행 상태 유지.
+        begin_run(12,3,0,1);
+        @(negedge clk);start=1;
+        @(negedge clk); start=0;
+        if(!error || !busy) $fatal(1,"busy start error");
+        @(negedge clk);
+        if(error) $fatal(1,"error pulse not cleared");
+        // STOP은 클록 전 즉시 코일 OFF.
+        #1;stop=1;#1;
+        if(coil!==0) $fatal(1,"immediate stop gating");
+        @(negedge clk);stop=0;
+        if(busy || coil!==0 || done) $fatal(1,"stop failed");
+        $display("BUSY_REJECT_STOP PASS");
+
+        // 0 step, period under minimum -&gt; error pulse.
+        @(negedge clk);steps=0;period=3;start=1;
+        @(negedge clk);start=0;
+        if(!error || busy) $fatal(1,"zero steps accepted");
+        @(negedge clk);steps=3;period=1;start=1;
+        @(negedge clk);start=0;
+        if(!error || busy) $fatal(1,"unsafe period accepted");
+        $display("INVALID_CONFIG PASS");
+        $display("P2_12_RTL_STEPPER_CORE PASS");
+        $finish;
+    end
+    initial begin #200000; $fatal(1,"TIMEOUT"); end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 7 (99줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>module tb_stepper_core;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>3</td><td><code>    reg clk=0; always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>4</td><td><code>    reg resetn=0,start=0,stop=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>5</td><td><code>    reg [31:0] steps=0,period=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg reverse=0,half=1;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire [3:0] coil;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    wire busy,done,error;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    wire [31:0] completed;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    integer i;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    reg [3:0] seq_half [0:7];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    reg [3:0] seq_full [0:3];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    stepper_core #(.MIN_STEP_CYCLES(32'd2)) dut (</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>14</td><td><code>        .clk(clk),.resetn(resetn),.start_pulse(start),.stop_pulse(stop),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>15</td><td><code>        .cfg_steps(steps),.cfg_step_period(period),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>16</td><td><code>        .cfg_reverse(reverse),.cfg_half_step(half),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .coil_o(coil),.busy(busy),.done_pulse(done),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .error_pulse(error),.steps_done(completed)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>20</td><td><code>    task begin_run;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>        input [31:0] n,p;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>        input r,h;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>24</td><td><code>            @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>25</td><td><code>            steps=n;period=p;reverse=r;half=h;start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>26</td><td><code>            @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>27</td><td><code>            if (!busy) $fatal(1,&quot;busy not asserted&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>28</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>29</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>30</td><td><code>    task expect_step;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>        input [31:0] n;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>32</td><td><code>        input [3:0] expected;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>33</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>34</td><td><code>            wait(completed == n);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>            #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>36</td><td><code>            if(coil !== expected)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>37</td><td><code>                $fatal(1,&quot;step %0d expected %b got %b&quot;, n,expected,coil);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>38</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>39</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>40</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>41</td><td><code>        seq_half[0]=4'b0001;seq_half[1]=4'b0011;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>        seq_half[2]=4'b0010;seq_half[3]=4'b0110;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>43</td><td><code>        seq_half[4]=4'b0100;seq_half[5]=4'b1100;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>        seq_half[6]=4'b1000;seq_half[7]=4'b1001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>        seq_full[0]=4'b0011;seq_full[1]=4'b0110;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>        seq_full[2]=4'b1100;seq_full[3]=4'b1001;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>        repeat(3) @(negedge clk); resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>        if(coil!==0 || busy) $fatal(1,&quot;reset outputs&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>49</td><td><code>        begin_run(8,3,0,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>        for(i=0;i&lt;8;i=i+1) expect_step(i+1,seq_half[i]);</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>51</td><td><code>        // (변경) DONE 직후 한 클록 뒤에 코일을 해제하는 RTL 정책을 기다린다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>52</td><td><code>        repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>53</td><td><code>        if(busy || done || coil !== 4'b0000 || completed != 8)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>54</td><td><code>            $fatal(1,&quot;done/idle release&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>55</td><td><code>        $display(&quot;HALF_FORWARD PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>57</td><td><code>        begin_run(8,3,1,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>58</td><td><code>        expect_step(1,seq_half[0]);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>        for(i=1;i&lt;8;i=i+1)</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>60</td><td><code>            expect_step(i+1,seq_half[8-i]);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>        repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>62</td><td><code>        if(busy || coil!==0) $fatal(1,&quot;reverse idle&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>63</td><td><code>        $display(&quot;HALF_REVERSE PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>65</td><td><code>        begin_run(4,2,0,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>        for(i=0;i&lt;4;i=i+1) expect_step(i+1,seq_full[i]);</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>67</td><td><code>        repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>68</td><td><code>        if(busy || coil!==0) $fatal(1,&quot;full idle&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>69</td><td><code>        $display(&quot;FULL_FORWARD PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>71</td><td><code>        begin_run(4,2,1,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>        expect_step(1,seq_full[0]);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>73</td><td><code>        for(i=1;i&lt;4;i=i+1) expect_step(i+1,seq_full[4-i]);</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>74</td><td><code>        repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>75</td><td><code>        if(busy || coil!==0) $fatal(1,&quot;full reverse idle&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>76</td><td><code>        $display(&quot;FULL_REVERSE PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>78</td><td><code>        // 동작 중 START: 에러 1클록, 진행 상태 유지.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>79</td><td><code>        begin_run(12,3,0,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>80</td><td><code>        @(negedge clk);start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>81</td><td><code>        @(negedge clk); start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>82</td><td><code>        if(!error || !busy) $fatal(1,&quot;busy start error&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>83</td><td><code>        @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>84</td><td><code>        if(error) $fatal(1,&quot;error pulse not cleared&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>85</td><td><code>        // STOP은 클록 전 즉시 코일 OFF.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>86</td><td><code>        #1;stop=1;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>87</td><td><code>        if(coil!==0) $fatal(1,&quot;immediate stop gating&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>88</td><td><code>        @(negedge clk);stop=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>89</td><td><code>        if(busy || coil!==0 || done) $fatal(1,&quot;stop failed&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>90</td><td><code>        $display(&quot;BUSY_REJECT_STOP PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>92</td><td><code>        // 0 step, period under minimum -&gt; error pulse.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>93</td><td><code>        @(negedge clk);steps=0;period=3;start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>94</td><td><code>        @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>95</td><td><code>        if(!error || busy) $fatal(1,&quot;zero steps accepted&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>96</td><td><code>        @(negedge clk);steps=3;period=1;start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>97</td><td><code>        @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>98</td><td><code>        if(!error || busy) $fatal(1,&quot;unsafe period accepted&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>99</td><td><code>        $display(&quot;INVALID_CONFIG PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>100</td><td><code>        $display(&quot;P2_12_RTL_STEPPER_CORE PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>101</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>102</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>103</td><td><code>    initial begin #200000; $fatal(1,&quot;TIMEOUT&quot;); end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>104</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_p2_12_axi_stepper.v — 원본 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_p2_12_axi_stepper.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-12 AXI IP 회귀: AW/W 독립 도착, WSTRB, 레지스터, 모터 출력,
+// BUSY/완료/오류/STOP을 포함한 self-checking testbench.
+module tb_p2_12_axi_stepper;
+    reg clk=0; always #5 clk=~clk;
+    reg resetn=0;
+    reg [5:0] awaddr=0,araddr=0;
+    reg [2:0] awprot=0,arprot=0;
+    reg awvalid=0,wvalid=0,bready=0,arvalid=0,rready=0;
+    reg [31:0] wdata=0;
+    reg [3:0] wstrb=4'hf;
+    wire awready,wready,bvalid,arready,rvalid;
+    wire [1:0] bresp,rresp;
+    wire [31:0] rdata;
+    wire [3:0] coil;
+    reg [31:0] read_value;
+    p2_12_axi_stepper_v1_0 #(
+        .MIN_STEP_CYCLES(32'd2),
+        .RESET_STEP_PERIOD(32'd3)
+    ) dut (
+        .S_AXI_ACLK(clk),.S_AXI_ARESETN(resetn),
+        .S_AXI_AWADDR(awaddr),.S_AXI_AWPROT(awprot),
+        .S_AXI_AWVALID(awvalid),.S_AXI_AWREADY(awready),
+        .S_AXI_WDATA(wdata),.S_AXI_WSTRB(wstrb),
+        .S_AXI_WVALID(wvalid),.S_AXI_WREADY(wready),
+        .S_AXI_BRESP(bresp),.S_AXI_BVALID(bvalid),
+        .S_AXI_BREADY(bready),
+        .S_AXI_ARADDR(araddr),.S_AXI_ARPROT(arprot),
+        .S_AXI_ARVALID(arvalid),.S_AXI_ARREADY(arready),
+        .S_AXI_RDATA(rdata),.S_AXI_RRESP(rresp),
+        .S_AXI_RVALID(rvalid),.S_AXI_RREADY(rready),
+        .stepper_coil_o(coil)
+    );
+    task wr;
+        input [5:0] addr;
+        input [31:0] data;
+        input [3:0] strobe;
+        input integer w_first;
+        input [1:0] expected;
+        begin
+            @(negedge clk);
+            if(w_first) begin
+                wdata=data; wstrb=strobe; wvalid=1;
+                do @(posedge clk); while(!wready);
+                @(negedge clk); wvalid=0;
+                repeat(2) @(negedge clk);
+                awaddr=addr; awvalid=1;
+                do @(posedge clk); while(!awready);
+                @(negedge clk); awvalid=0;
+            end else begin
+                awaddr=addr; awvalid=1;
+                do @(posedge clk); while(!awready);
+                @(negedge clk); awvalid=0;
+                repeat(2) @(negedge clk);
+                wdata=data; wstrb=strobe; wvalid=1;
+                do @(posedge clk); while(!wready);
+                @(negedge clk); wvalid=0;
+            end
+            wait(bvalid); @(negedge clk);
+            if(bresp !== expected)
+                $fatal(1,"write 0x%h bresp=%b expected=%b",addr,bresp,expected);
+            bready=1;
+            @(negedge clk); bready=0;
+        end
+    endtask
+    task rd;
+        input [5:0] addr;
+        input [1:0] expected;
+        begin
+            @(negedge clk); araddr=addr; arvalid=1;
+            do @(posedge clk); while(!arready);
+            @(negedge clk); arvalid=0;
+            wait(rvalid); @(negedge clk);
+            if(rresp!==expected) $fatal(1,"read 0x%h rresp",addr);
+            read_value=rdata;
+            rready=1;
+            @(negedge clk); rready=0;
+        end
+    endtask
+    initial begin
+        repeat(3) @(negedge clk); resetn=1;
+        rd(6'h18,2'b00); if(read_value!==32'h000c0001) $fatal(1,"ID");
+        rd(6'h1c,2'b00); if(read_value!==32'd2) $fatal(1,"MIN");
+        wr(6'h00,32'd4,4'hf,1,2'b00);
+        wr(6'h04,32'd3,4'hf,0,2'b00);
+        wr(6'h08,32'd2,4'hf,1,2'b00); // Half Step
+        wr(6'h08,32'd0,4'h8,0,2'b00); // WSTRB upper byte only
+        rd(6'h08,2'b00);
+        if(read_value !== 2) $fatal(1,"WSTRB control");
+        wr(6'h0c,32'd1,4'h1,0,2'b00);
+        wait(dut.u_core.steps_done &gt;= 1); #1;
+        if(coil !== 4'b0001) $fatal(1,"step1 pattern %b",coil);
+        wait(dut.done_sticky == 1); #1;
+        rd(6'h14,2'b00);
+        if(read_value!==4) $fatal(1,"completed 4 steps");
+        rd(6'h10,2'b00);
+        if(read_value[1]!==1 || read_value[0]!==0) $fatal(1,"status done/busy");
+        if(coil!==4'b0000) $fatal(1,"coil not released");
+        $display("P2_12_AXI_BASIC PASS");
+
+        wr(6'h00,32'd0,4'hf,0,2'b00);
+        wr(6'h0c,32'd1,4'h1,1,2'b10);
+        rd(6'h10,2'b00);
+        if(read_value[2]!==1) $fatal(1,"error sticky");
+        wr(6'h04,32'd1,4'hf,0,2'b00);
+        wr(6'h00,32'd5,4'hf,0,2'b00);
+        wr(6'h0c,32'd1,4'h1,0,2'b10);
+        $display("P2_12_AXI_INVALID_CONFIG PASS");
+
+        wr(6'h04,32'd3,4'hf,0,2'b00);
+        wr(6'h0c,32'd1,4'h1,0,2'b00);
+        wait(dut.u_core.busy); #1;
+        // 코일 출력 중 STOP에서 모든 출력을 제어 레벨로 차단.
+        wait(dut.u_core.steps_done &gt;= 1); #1;
+        wr(6'h0c,32'd2,4'h1,1,2'b00);
+        repeat(3) @(negedge clk);
+        if(coil!==0 || dut.u_core.busy) $fatal(1,"STOP coils");
+        $display("P2_12_AXI_STOP PASS");
+        rd(6'h3c,2'b10);
+        wr(6'h3c,32'd1,4'hf,0,2'b10);
+        wr(6'h18,32'd1,4'hf,0,2'b10); // ID is read-only
+        wr(6'h0c,32'd3,4'h1,0,2'b10); // simultaneous start/stop invalid
+        $display("P2_12_AXI_ERROR_RESP PASS");
+        $display("P2_12_AXI_STEPPER PASS");
+        $finish;
+    end
+    initial begin #1000000; $fatal(1,"TIMEOUT"); end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 8 (126줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-12 AXI IP 회귀: AW/W 독립 도착, WSTRB, 레지스터, 모터 출력,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// BUSY/완료/오류/STOP을 포함한 self-checking testbench.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>module tb_p2_12_axi_stepper;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>5</td><td><code>    reg clk=0; always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg resetn=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    reg [5:0] awaddr=0,araddr=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    reg [2:0] awprot=0,arprot=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    reg awvalid=0,wvalid=0,bready=0,arvalid=0,rready=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    reg [31:0] wdata=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    reg [3:0] wstrb=4'hf;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    wire awready,wready,bvalid,arready,rvalid;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    wire [1:0] bresp,rresp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    wire [31:0] rdata;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>    wire [3:0] coil;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>16</td><td><code>    reg [31:0] read_value;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>17</td><td><code>    p2_12_axi_stepper_v1_0 #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>        .MIN_STEP_CYCLES(32'd2),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .RESET_STEP_PERIOD(32'd3)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>    ) dut (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>        .S_AXI_ACLK(clk),.S_AXI_ARESETN(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>        .S_AXI_AWADDR(awaddr),.S_AXI_AWPROT(awprot),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>23</td><td><code>        .S_AXI_AWVALID(awvalid),.S_AXI_AWREADY(awready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>        .S_AXI_WDATA(wdata),.S_AXI_WSTRB(wstrb),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .S_AXI_WVALID(wvalid),.S_AXI_WREADY(wready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>        .S_AXI_BRESP(bresp),.S_AXI_BVALID(bvalid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>27</td><td><code>        .S_AXI_BREADY(bready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>28</td><td><code>        .S_AXI_ARADDR(araddr),.S_AXI_ARPROT(arprot),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>29</td><td><code>        .S_AXI_ARVALID(arvalid),.S_AXI_ARREADY(arready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>30</td><td><code>        .S_AXI_RDATA(rdata),.S_AXI_RRESP(rresp),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>31</td><td><code>        .S_AXI_RVALID(rvalid),.S_AXI_RREADY(rready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>32</td><td><code>        .stepper_coil_o(coil)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>33</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>34</td><td><code>    task wr;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>35</td><td><code>        input [5:0] addr;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>36</td><td><code>        input [31:0] data;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>37</td><td><code>        input [3:0] strobe;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>38</td><td><code>        input integer w_first;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>39</td><td><code>        input [1:0] expected;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>40</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>41</td><td><code>            @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>42</td><td><code>            if(w_first) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>43</td><td><code>                wdata=data; wstrb=strobe; wvalid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>                do @(posedge clk); while(!wready);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>45</td><td><code>                @(negedge clk); wvalid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>                repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>47</td><td><code>                awaddr=addr; awvalid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>                do @(posedge clk); while(!awready);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>49</td><td><code>                @(negedge clk); awvalid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>50</td><td><code>            end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>51</td><td><code>                awaddr=addr; awvalid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>52</td><td><code>                do @(posedge clk); while(!awready);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>53</td><td><code>                @(negedge clk); awvalid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>54</td><td><code>                repeat(2) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>55</td><td><code>                wdata=data; wstrb=strobe; wvalid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>                do @(posedge clk); while(!wready);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>                @(negedge clk); wvalid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>58</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>59</td><td><code>            wait(bvalid); @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>60</td><td><code>            if(bresp !== expected)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>61</td><td><code>                $fatal(1,&quot;write 0x%h bresp=%b expected=%b&quot;,addr,bresp,expected);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>62</td><td><code>            bready=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>63</td><td><code>            @(negedge clk); bready=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>64</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>    task rd;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>67</td><td><code>        input [5:0] addr;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>68</td><td><code>        input [1:0] expected;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>69</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>70</td><td><code>            @(negedge clk); araddr=addr; arvalid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>71</td><td><code>            do @(posedge clk); while(!arready);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>            @(negedge clk); arvalid=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>73</td><td><code>            wait(rvalid); @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>74</td><td><code>            if(rresp!==expected) $fatal(1,&quot;read 0x%h rresp&quot;,addr);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>75</td><td><code>            read_value=rdata;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>76</td><td><code>            rready=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>77</td><td><code>            @(negedge clk); rready=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>78</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>79</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>80</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>81</td><td><code>        repeat(3) @(negedge clk); resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>82</td><td><code>        rd(6'h18,2'b00); if(read_value!==32'h000c0001) $fatal(1,&quot;ID&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>83</td><td><code>        rd(6'h1c,2'b00); if(read_value!==32'd2) $fatal(1,&quot;MIN&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>84</td><td><code>        wr(6'h00,32'd4,4'hf,1,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>85</td><td><code>        wr(6'h04,32'd3,4'hf,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>86</td><td><code>        wr(6'h08,32'd2,4'hf,1,2'b00); // Half Step</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>87</td><td><code>        wr(6'h08,32'd0,4'h8,0,2'b00); // WSTRB upper byte only</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>88</td><td><code>        rd(6'h08,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>89</td><td><code>        if(read_value !== 2) $fatal(1,&quot;WSTRB control&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>90</td><td><code>        wr(6'h0c,32'd1,4'h1,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>91</td><td><code>        wait(dut.u_core.steps_done &gt;= 1); #1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>92</td><td><code>        if(coil !== 4'b0001) $fatal(1,&quot;step1 pattern %b&quot;,coil);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>93</td><td><code>        wait(dut.done_sticky == 1); #1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>94</td><td><code>        rd(6'h14,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>95</td><td><code>        if(read_value!==4) $fatal(1,&quot;completed 4 steps&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>96</td><td><code>        rd(6'h10,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>97</td><td><code>        if(read_value[1]!==1 || read_value[0]!==0) $fatal(1,&quot;status done/busy&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>98</td><td><code>        if(coil!==4'b0000) $fatal(1,&quot;coil not released&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>99</td><td><code>        $display(&quot;P2_12_AXI_BASIC PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>101</td><td><code>        wr(6'h00,32'd0,4'hf,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>102</td><td><code>        wr(6'h0c,32'd1,4'h1,1,2'b10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>103</td><td><code>        rd(6'h10,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>104</td><td><code>        if(read_value[2]!==1) $fatal(1,&quot;error sticky&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>105</td><td><code>        wr(6'h04,32'd1,4'hf,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>106</td><td><code>        wr(6'h00,32'd5,4'hf,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>107</td><td><code>        wr(6'h0c,32'd1,4'h1,0,2'b10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>108</td><td><code>        $display(&quot;P2_12_AXI_INVALID_CONFIG PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>110</td><td><code>        wr(6'h04,32'd3,4'hf,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>111</td><td><code>        wr(6'h0c,32'd1,4'h1,0,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>112</td><td><code>        wait(dut.u_core.busy); #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>113</td><td><code>        // 코일 출력 중 STOP에서 모든 출력을 제어 레벨로 차단.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>114</td><td><code>        wait(dut.u_core.steps_done &gt;= 1); #1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>115</td><td><code>        wr(6'h0c,32'd2,4'h1,1,2'b00);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>116</td><td><code>        repeat(3) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>117</td><td><code>        if(coil!==0 || dut.u_core.busy) $fatal(1,&quot;STOP coils&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>118</td><td><code>        $display(&quot;P2_12_AXI_STOP PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>119</td><td><code>        rd(6'h3c,2'b10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>120</td><td><code>        wr(6'h3c,32'd1,4'hf,0,2'b10);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>121</td><td><code>        wr(6'h18,32'd1,4'hf,0,2'b10); // ID is read-only</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>122</td><td><code>        wr(6'h0c,32'd3,4'h1,0,2'b10); // simultaneous start/stop invalid</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>123</td><td><code>        $display(&quot;P2_12_AXI_ERROR_RESP PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>124</td><td><code>        $display(&quot;P2_12_AXI_STEPPER PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>125</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>126</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>127</td><td><code>    initial begin #1000000; $fatal(1,&quot;TIMEOUT&quot;); end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>128</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details><h3>Ubuntu 검사 명령</h3><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>cd part02/chapters/P2_12_Lesson
+bash tests/run_host_tests.sh
+bash tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 9 (3줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>cd part02/chapters/P2_12_Lesson</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>2</td><td><code>bash tests/run_host_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>bash tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div><p>첫 번째 명령은 gcc 기반 스텝 수·스텝 주기·방향 설정 변환 검사, 두 번째는 Icarus Verilog 기반 RTL 코어 및 AXI Slave 시뮬레이션을 실행한다. 이 스크립트들이 없거나 실패하면 PASS로 기록하지 않는다.</p></section>
+<section class="section" id="s08"><h2><span class="num">08</span>실제 검증 결과</h2><table><thead><tr><th>검증 종류</th><th>상태</th><th>근거</th></tr></thead><tbody><tr><td>HOST_C</td><td>PASS</td><td>GitHub Actions #42934931469</td></tr><tr><td>RTL_SIM</td><td>PASS</td><td>Full/Half, FWD/REV, BUSY/STOP/오류</td></tr><tr><td>AXI_SIM</td><td>PASS</td><td>AW/W 분리, WSTRB, START/STOP, 오류/상태</td></tr><tr><td>SYNTH_TIMING</td><td>NOT_RUN</td><td>Vivado 미실행</td></tr><tr><td>VITIS_TARGET</td><td>NOT_RUN</td><td>실제 BSP/ELF 미실행</td></tr><tr><td>BOARD</td><td>NOT_RUN</td><td>Basys3+28BYJ-48 실물 미검증</td></tr><tr><td>UVM</td><td>NOT_RUN</td><td>본 장은 Icarus 자가검증 TB 채택</td></tr></tbody></table><p class="ok"><a href="https://github.com/Yuul-Jung/amd_soc/actions/runs/42934931469">실제 Github Actions 12장 C/RTL/AXI 검증 실행 로그</a>에서 통과 결과를 확인할 수 있다. 기존 11장 리그레션과 신규 12장 파일은 별도 CI에서 실행된다.</p></section>
+<section class="section" id="s09"><h2><span class="num">09</span>핵심 정리</h2><p>서보는 일정 주기 안의 펄스 폭으로 위치를 요청하고, 스테핑 모터는 여자 상태를 순서대로 반복하여 상대 이동량을 제어한다. 이 차이를 통해 PWM과 FSM(유한상태머신)의 역할 차이를 이해한다.</p><p><a href="../part02_2/guide/ch11_servo_v05.html">이전 11장 SG90</a> · <a href="../part02_2/guide/index.html#tech-tree">제2부 후반부 테크트리</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_12_Lesson/README.md">코드·검증 계약</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① 28BYJ-48·ULN2003 정역회전·가감속의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"ch12_stepper_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

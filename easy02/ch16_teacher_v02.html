@@ -1,0 +1,399 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="반복 START → 7바이트 시간 읽기 → BCD·OSF"><title>교수용 상세 해설서 | 제2부 16장 | DS3231 I²C RTC·BCD와 Repeated START</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch16"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 16/20</p><h1>제16장 · DS3231 I²C 실시간 시계</h1><p>반복 START → 7바이트 시간 읽기 → BCD·OSF</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 16장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> RTC(실시간 시계)는 시간·날짜 레지스터를 BCD 형식으로 저장합니다. BCD 0x25는 십진 25를 뜻합니다. 레지스터 주소 쓰기와 7바이트 연속 읽기에서 Repeated START가 필요한 이유를 살펴봅니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="I2C 레지스터 지정 → Repeated START → 7-byte RTC → BCD 변환"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">I2C 레지스터 지정</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">Repeated START</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">7-byte RTC</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">BCD 변환</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 제14장 쓰기 전용 I²C Master와 읽기/Repeated START 동작은 별도 확장이 필요합니다. 현재 7바이트 시퀀스 실습을 전체 DS3231 실물 읽기 완료로 보고하지 않습니다.</p><p class="prof-small"><a href="../part02_2/guide/ch16_ds3231_rtc_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch15_teacher_v02.html">이전 장</a> · <a href="ch17_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요</h2><p>DS3231(디에스3231)은 I²C(아이투씨, 두 선식 직렬 통신) 기반의 RTC(Real-Time Clock, 실시간 시계) 장치다. 시간·날짜를 내장 발진기로 유지하고 백업 배터리 전원도 지원한다. DS18B20의 Dallas 1-Wire와는 프로토콜이 다르다.</p><p>이번 실습은 <strong>DS3231의 시간·날짜 7바이트 레지스터 읽기 순서</strong>를 설계하고, BCD(이진화 십진수)를 십진수로 변환하여 정상 시각과 오류를 구분한다. 기존 제14장 I²C 단일 바이트 쓰기 수업에서 <em>Repeated START(반복 시작)</em>와 연속 읽기로 확장되는 부분을 학습한다.</p><p class="warn"><strong>시험 상태:</strong> 호스트 C와 전송 명령 시퀀서 RTL의 모의 장치 테스트는 PASS. 실제 SDA/SCL 물리 I²C Master의 반복 START/읽기 구현, 신규 AXI IP, Vivado·Vitis·Basys3 실물은 아직 검증되지 않았다. 합성·실물 시험은 현 단계에서 보류한다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>계층형 시스템 구조</h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1035 330" role="img" aria-label="MicroBlaze V와 DS3231 RTC 데이터 읽기 구조">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7z" fill="#4380a0"/></marker></defs>
+<rect x="13" y="13" width="1007" height="297" rx="13" fill="#f8fafc" stroke="#bad5e3" stroke-width="2"/>
+<g font-size="17" text-anchor="middle" fill="#17435b">
+<rect x="31" y="53" width="177" height="88" rx="9" fill="#dfeaf8" stroke="#73a0c0"/><text x="119" y="88">MicroBlaze V</text><text x="119" y="110" font-size="12">AXI 통합 후속</text>
+<rect x="269" y="53" width="202" height="88" rx="9" fill="#cce8e3" stroke="#6caa9d"/><text x="370" y="87">Burst Sequencer</text><text x="370" y="111" font-size="12">ds3231_burst_sequencer</text>
+<rect x="534" y="53" width="208" height="88" rx="9" fill="#cce8e3" stroke="#6caa9d"/><text x="638" y="86">I²C Read Master</text><text x="638" y="111" font-size="12">추가 구현 필요</text>
+<rect x="801" y="53" width="205" height="88" rx="9" fill="#f5e1bf" stroke="#c69e63"/><text x="904" y="88">DS3231 RTC</text><text x="904" y="110" font-size="12">SCL · SDA · 0x68</text>
+<path d="M208 97H269M471 97H534M742 97H801" fill="none" stroke="#4380a0" stroke-width="3" marker-end="url(#a)"/>
+<rect x="271" y="216" width="470" height="65" rx="9" fill="#e8e8f7" stroke="#aeb4d0"/><text x="506" y="240">sw/ds3231_time.c</text><text x="506" y="262" font-size="13">BCD·날짜·윤년·12h/24h·OSF 검증</text>
+<path d="M370 141V216" fill="none" stroke="#4380a0" stroke-width="2" marker-end="url(#a)"/>
+</g></svg>
+<p>현재 검증한 경로는 <strong>Sequencer + 모의 버스 응답</strong> 및 <strong>C + 모의 DS3231 레지스터</strong> 두 개다. 가운데의 실제 I²C Read Master는 아직 연결되지 않았으므로 임의로 실장 성공으로 표시하지 않는다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>I²C 장치 주소와 레지스터</h2><p>DS3231의 7비트 장치 주소는 <code>0x68</code>이다. I²C 버스에서 8비트 주소 프레임으로 송신할 때 쓰기는 <code>0xD0</code>, 읽기는 <code>0xD1</code>이다.</p><table><thead><tr><th>레지스터 주소</th><th>내용</th><th>표현/주의</th></tr></thead><tbody>
+<tr><td>0x00</td><td>Seconds(초)</td><td>BCD 00~59</td></tr>
+<tr><td>0x01</td><td>Minutes(분)</td><td>BCD 00~59</td></tr>
+<tr><td>0x02</td><td>Hours(시)</td><td>12/24시간제 선택 및 AM/PM</td></tr>
+<tr><td>0x03</td><td>Day(요일 번호)</td><td>1~7, 요일 이름과 숫자 연결은 사용자 설정</td></tr>
+<tr><td>0x04</td><td>Date(일)</td><td>01~31, 실제 월별 유효 범위 검사</td></tr>
+<tr><td>0x05</td><td>Month/Century</td><td>1~12, bit7 Century</td></tr>
+<tr><td>0x06</td><td>Year(년)</td><td>00~99, 교육용 2000년 기준 변환</td></tr>
+<tr><td>0x0F</td><td>Status(상태)</td><td>bit7 OSF: 시계 발진 중단 이력</td></tr></tbody></table>
+<p>OSF(Oscillator Stop Flag, 발진 중단 표시)가 1이라면 읽힌 날짜·시간을 곧바로 신뢰하지 않는다. 초기 시각 설정과 플래그 정리가 필요한지는 실제 장치 상태에 따라 결정한다. 본 실습에서 OSF를 자동으로 지우지 않는다. <a href="https://www.analog.com/media/en/technical-documentation/data-sheets/DS3231.pdf">Analog Devices 공식 DS3231 데이터시트</a>.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>Repeated START를 사용하는 7바이트 읽기</h2><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>START
+  → 0xD0 : DS3231 쓰기 주소
+  → ACK
+  → 0x00 : 시작 레지스터 포인터(Seconds)
+  → ACK
+  → REPEATED START
+  → 0xD1 : DS3231 읽기 주소
+  → ACK
+  → Read Seconds(0x00) → ACK
+  → Read Minutes(0x01) → ACK
+  → Read Hours(0x02)   → ACK
+  → Read Weekday(0x03) → ACK
+  → Read Date(0x04)    → ACK
+  → Read Month(0x05)   → ACK
+  → Read Year(0x06)    → NACK
+  → STOP</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (16줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>START</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>  → 0xD0 : DS3231 쓰기 주소</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>3</td><td><code>  → ACK</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>4</td><td><code>  → 0x00 : 시작 레지스터 포인터(Seconds)</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>5</td><td><code>  → ACK</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>  → REPEATED START</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>  → 0xD1 : DS3231 읽기 주소</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>8</td><td><code>  → ACK</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>  → Read Seconds(0x00) → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>10</td><td><code>  → Read Minutes(0x01) → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>11</td><td><code>  → Read Hours(0x02)   → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>12</td><td><code>  → Read Weekday(0x03) → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>13</td><td><code>  → Read Date(0x04)    → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>14</td><td><code>  → Read Month(0x05)   → ACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>15</td><td><code>  → Read Year(0x06)    → NACK</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>16</td><td><code>  → STOP</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div>
+<p>마지막 바이트 후 마스터는 NACK을 보내고 STOP으로 종료한다. 원래 14장 <code>i2c_write_byte_master</code>는 <strong>쓰기 전용</strong>이므로 그대로 16장 읽기를 지원한다고 보고할 수 없다. 16장의 <code>ds3231_burst_sequencer</code>는 하위 I²C 버스 엔진에 전달할 명령만 만든다.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>BCD 변환과 날짜의 유효성</h2><p>BCD는 10진수 각 자리(0~9)를 4비트씩 인코딩하는 표현이다. 예를 들어 <code>0x42</code>는 16진 정수 66이 아니라 <strong>42분</strong>이다.</p>
+<table><thead><tr><th>Raw 데이터</th><th>변환</th><th>결과</th></tr></thead><tbody>
+<tr><td>Seconds <code>0x58</code></td><td>5×10 + 8</td><td>58초</td></tr>
+<tr><td>Minutes <code>0x42</code></td><td>4×10 + 2</td><td>42분</td></tr>
+<tr><td>Hours <code>0x09</code></td><td>0×10 + 9</td><td>09시(24시간제)</td></tr>
+<tr><td>Date <code>0x11</code></td><td>1×10 + 1</td><td>11일</td></tr>
+<tr><td>Month <code>0x11</code></td><td>1×10 + 1</td><td>11월</td></tr>
+<tr><td>Year <code>0x26</code></td><td>20 + 6</td><td>2026년(2000 기준)</td></tr></tbody></table>
+<p>12시간제에서는 12 AM → 00시, 12 PM → 12시, 1 PM → 13시로 변환한다. 실제 날짜 검증에서 윤년·월별 일수도 확인한다. 예를 들어 <strong>2024년 2월 29일은 유효하지만 2100년 2월 29일은 유효하지 않다.</strong></p>
+<p>DS3231 내부 연도를 무조건 컴퓨터 현재 날짜로 간주하지 않는다. BCD 값 자체가 올바르더라도 OSF 및 초기설정 상태를 검증하지 않은 경우 시각의 실제 정확도는 미확인이다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>코드·테스트벤치 전체</h2><p>다음은 한 곳에 모은 원본 소스다. C는 실제 장치 호출부와 독립된 콜백을 사용하며, RTL은 I²C 버스 제어 명령을 순서대로 발행한다. 기존 14장 RTL 및 15장 센서 RTL을 변경하지 않는다.</p><details><summary>sw/ds3231_time.h · 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>sw/ds3231_time.h · 전체 코드 펼치기 · SOURCE · 소스 원문</span></div><pre><code>#ifndef P2_16_DS3231_TIME_H
+#define P2_16_DS3231_TIME_H
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+#define DS3231_I2C_ADDR 0x68u
+// 7-byte register burst is obtained with pointer 0x00 and repeated START.
+// Return 0 on success, nonzero for bus errors.
+typedef int (*ds3231_read_regs_fn)(void *ctx, uint8_t addr7,
+                                  uint8_t reg, uint8_t *dest, size_t len);
+typedef struct {
+    uint16_t year;       // 2000..2199 if century flag is used.
+    uint8_t month, day, weekday, hour, minute, second;
+} ds3231_datetime_t;
+typedef enum {
+    DS3231_OK=0,
+    DS3231_ERR_ARG=-1,
+    DS3231_ERR_BUS=-2,
+    DS3231_ERR_BCD=-3,
+    DS3231_ERR_RANGE=-4,
+    DS3231_ERR_OSF=-5
+} ds3231_result_t;
+// Hour 12/24 handling; weekday 1..7 is DS3231 user-defined sequence.
+ds3231_result_t ds3231_decode_datetime(const uint8_t raw[7],
+                                        ds3231_datetime_t *out);
+// Reads status reg 0x0F OSF bit and time regs 0x00..0x06.
+// OSF=1 rejects timestamp as untrusted; does not clear status by itself.
+ds3231_result_t ds3231_read_datetime(ds3231_read_regs_fn reader, void *ctx,
+                                      ds3231_datetime_t *out);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (29줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_16_DS3231_TIME_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_16_DS3231_TIME_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &lt;stddef.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>#define DS3231_I2C_ADDR 0x68u</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>6</td><td><code>// 7-byte register burst is obtained with pointer 0x00 and repeated START.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// Return 0 on success, nonzero for bus errors.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>typedef int (*ds3231_read_regs_fn)(void *ctx, uint8_t addr7,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>                                  uint8_t reg, uint8_t *dest, size_t len);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    uint16_t year;       // 2000..2199 if century flag is used.</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    uint8_t month, day, weekday, hour, minute, second;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>} ds3231_datetime_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>typedef enum {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>    DS3231_OK=0,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    DS3231_ERR_ARG=-1,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    DS3231_ERR_BUS=-2,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>    DS3231_ERR_BCD=-3,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    DS3231_ERR_RANGE=-4,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    DS3231_ERR_OSF=-5</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>21</td><td><code>} ds3231_result_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>// Hour 12/24 handling; weekday 1..7 is DS3231 user-defined sequence.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>23</td><td><code>ds3231_result_t ds3231_decode_datetime(const uint8_t raw[7],</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>                                        ds3231_datetime_t *out);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>25</td><td><code>// Reads status reg 0x0F OSF bit and time regs 0x00..0x06.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>26</td><td><code>// OSF=1 rejects timestamp as untrusted; does not clear status by itself.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>27</td><td><code>ds3231_result_t ds3231_read_datetime(ds3231_read_regs_fn reader, void *ctx,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>                                      ds3231_datetime_t *out);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/ds3231_time.c · 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>sw/ds3231_time.c · 전체 코드 펼치기 · SOURCE · 소스 원문</span></div><pre><code>#include "ds3231_time.h"
+static int bcd_to_uint(uint8_t v,int *out)
+{
+    if ((v &amp; 0x0fu)&gt;9u || ((v&gt;&gt;4)&amp;0x0fu)&gt;9u) return -1;
+    *out=(int)((v&gt;&gt;4)*10u+(v&amp;0x0fu));
+    return 0;
+}
+static int leap(unsigned y)
+{
+    return (y%4u==0u &amp;&amp; (y%100u!=0u || y%400u==0u));
+}
+ds3231_result_t ds3231_decode_datetime(const uint8_t raw[7],
+                                        ds3231_datetime_t *out)
+{
+    ds3231_datetime_t t;
+    int seconds,minutes,hours,date,month,year,weekday,dim;
+    const int days[12]={31,28,31,30,31,30,31,31,30,31,30,31};
+    if(!raw||!out) return DS3231_ERR_ARG;
+    if((raw[0]&amp;0x80u) || (raw[1]&amp;0x80u) || (raw[2]&amp;0x80u) ||
+       (raw[3]&amp;0xf8u) || (raw[4]&amp;0xc0u) || (raw[5]&amp;0x60u))
+        return DS3231_ERR_RANGE;
+    if(bcd_to_uint(raw[0]&amp;0x7fu,&amp;seconds) ||
+       bcd_to_uint(raw[1]&amp;0x7fu,&amp;minutes) ||
+       bcd_to_uint(raw[3]&amp;0x07u,&amp;weekday) ||
+       bcd_to_uint(raw[4]&amp;0x3fu,&amp;date) ||
+       bcd_to_uint(raw[5]&amp;0x1fu,&amp;month) ||
+       bcd_to_uint(raw[6],&amp;year)) return DS3231_ERR_BCD;
+    if(raw[2]&amp;0x40u) {
+        // DS3231 hours register bit6=1: 12-hour, bit5=PM.
+        int h12;
+        if((raw[2]&amp;0x80u) || bcd_to_uint(raw[2]&amp;0x1fu,&amp;h12))
+            return DS3231_ERR_BCD;
+        if(h12&lt;1 || h12&gt;12) return DS3231_ERR_RANGE;
+        hours=h12%12 + ((raw[2]&amp;0x20u)?12:0);
+    } else {
+        if(bcd_to_uint(raw[2]&amp;0x3fu,&amp;hours)) return DS3231_ERR_BCD;
+    }
+    t.year=(uint16_t)(2000+year+((raw[5]&amp;0x80u)?100:0));
+    if(seconds&gt;59 || minutes&gt;59 || hours&gt;23 || weekday&lt;1 ||
+       weekday&gt;7 || month&lt;1 || month&gt;12 || date&lt;1)
+        return DS3231_ERR_RANGE;
+    dim=days[month-1];
+    if(month==2 &amp;&amp; leap(t.year)) dim++;
+    if(date&gt;dim) return DS3231_ERR_RANGE;
+    t.second=(uint8_t)seconds;t.minute=(uint8_t)minutes;
+    t.hour=(uint8_t)hours;t.day=(uint8_t)date;
+    t.month=(uint8_t)month;t.weekday=(uint8_t)weekday;
+    *out=t; return DS3231_OK;
+}
+ds3231_result_t ds3231_read_datetime(ds3231_read_regs_fn reader, void *ctx,
+                                      ds3231_datetime_t *out)
+{
+    uint8_t raw[7],status;
+    if(!reader||!out) return DS3231_ERR_ARG;
+    // Check OSF before and after snapshot to reject oscillator-stop
+    // conditions arising during the read.
+    if(reader(ctx,DS3231_I2C_ADDR,0x0f,&amp;status,1)!=0)
+        return DS3231_ERR_BUS;
+    if(status&amp;0x80u) return DS3231_ERR_OSF;
+    if(reader(ctx,DS3231_I2C_ADDR,0x00,raw,7)!=0)
+        return DS3231_ERR_BUS;
+    if(reader(ctx,DS3231_I2C_ADDR,0x0f,&amp;status,1)!=0)
+        return DS3231_ERR_BUS;
+    if(status&amp;0x80u) return DS3231_ERR_OSF;
+    return ds3231_decode_datetime(raw,out);
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (66줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;ds3231_time.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>static int bcd_to_uint(uint8_t v,int *out)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>3</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>4</td><td><code>    if ((v &amp; 0x0fu)&gt;9u || ((v&gt;&gt;4)&amp;0x0fu)&gt;9u) return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>5</td><td><code>    *out=(int)((v&gt;&gt;4)*10u+(v&amp;0x0fu));</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>6</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>7</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>static int leap(unsigned y)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>10</td><td><code>    return (y%4u==0u &amp;&amp; (y%100u!=0u || y%400u==0u));</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>11</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>12</td><td><code>ds3231_result_t ds3231_decode_datetime(const uint8_t raw[7],</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>                                        ds3231_datetime_t *out)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>15</td><td><code>    ds3231_datetime_t t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    int seconds,minutes,hours,date,month,year,weekday,dim;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>    const int days[12]={31,28,31,30,31,30,31,31,30,31,30,31};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>    if(!raw||!out) return DS3231_ERR_ARG;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>19</td><td><code>    if((raw[0]&amp;0x80u) || (raw[1]&amp;0x80u) || (raw[2]&amp;0x80u) ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>20</td><td><code>       (raw[3]&amp;0xf8u) || (raw[4]&amp;0xc0u) || (raw[5]&amp;0x60u))</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>21</td><td><code>        return DS3231_ERR_RANGE;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>22</td><td><code>    if(bcd_to_uint(raw[0]&amp;0x7fu,&amp;seconds) ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>23</td><td><code>       bcd_to_uint(raw[1]&amp;0x7fu,&amp;minutes) ||</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>24</td><td><code>       bcd_to_uint(raw[3]&amp;0x07u,&amp;weekday) ||</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>25</td><td><code>       bcd_to_uint(raw[4]&amp;0x3fu,&amp;date) ||</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>26</td><td><code>       bcd_to_uint(raw[5]&amp;0x1fu,&amp;month) ||</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>27</td><td><code>       bcd_to_uint(raw[6],&amp;year)) return DS3231_ERR_BCD;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>    if(raw[2]&amp;0x40u) {</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>29</td><td><code>        // DS3231 hours register bit6=1: 12-hour, bit5=PM.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>30</td><td><code>        int h12;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>        if((raw[2]&amp;0x80u) || bcd_to_uint(raw[2]&amp;0x1fu,&amp;h12))</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>32</td><td><code>            return DS3231_ERR_BCD;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>33</td><td><code>        if(h12&lt;1 || h12&gt;12) return DS3231_ERR_RANGE;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>34</td><td><code>        hours=h12%12 + ((raw[2]&amp;0x20u)?12:0);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>35</td><td><code>    } else {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>36</td><td><code>        if(bcd_to_uint(raw[2]&amp;0x3fu,&amp;hours)) return DS3231_ERR_BCD;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>37</td><td><code>    }</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>38</td><td><code>    t.year=(uint16_t)(2000+year+((raw[5]&amp;0x80u)?100:0));</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>39</td><td><code>    if(seconds&gt;59 || minutes&gt;59 || hours&gt;23 || weekday&lt;1 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>40</td><td><code>       weekday&gt;7 || month&lt;1 || month&gt;12 || date&lt;1)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>41</td><td><code>        return DS3231_ERR_RANGE;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>42</td><td><code>    dim=days[month-1];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>43</td><td><code>    if(month==2 &amp;&amp; leap(t.year)) dim++;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>44</td><td><code>    if(date&gt;dim) return DS3231_ERR_RANGE;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>45</td><td><code>    t.second=(uint8_t)seconds;t.minute=(uint8_t)minutes;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>    t.hour=(uint8_t)hours;t.day=(uint8_t)date;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>    t.month=(uint8_t)month;t.weekday=(uint8_t)weekday;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>    *out=t; return DS3231_OK;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>49</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>50</td><td><code>ds3231_result_t ds3231_read_datetime(ds3231_read_regs_fn reader, void *ctx,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>51</td><td><code>                                      ds3231_datetime_t *out)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>52</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>    uint8_t raw[7],status;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>54</td><td><code>    if(!reader||!out) return DS3231_ERR_ARG;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>55</td><td><code>    // Check OSF before and after snapshot to reject oscillator-stop</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>56</td><td><code>    // conditions arising during the read.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>57</td><td><code>    if(reader(ctx,DS3231_I2C_ADDR,0x0f,&amp;status,1)!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>58</td><td><code>        return DS3231_ERR_BUS;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>59</td><td><code>    if(status&amp;0x80u) return DS3231_ERR_OSF;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>60</td><td><code>    if(reader(ctx,DS3231_I2C_ADDR,0x00,raw,7)!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>61</td><td><code>        return DS3231_ERR_BUS;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>62</td><td><code>    if(reader(ctx,DS3231_I2C_ADDR,0x0f,&amp;status,1)!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>63</td><td><code>        return DS3231_ERR_BUS;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>64</td><td><code>    if(status&amp;0x80u) return DS3231_ERR_OSF;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>65</td><td><code>    return ds3231_decode_datetime(raw,out);</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>66</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/ds3231_burst_sequencer.v · 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>rtl/ds3231_burst_sequencer.v · 전체 코드 펼치기 · SOURCE · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-16 transaction-level RTC register read planner (NOT physical I2C).
+// Valid/ready command interface to a FUTURE I2C write/read engine.
+// Sequence: START, D0(write address), 00(pointer), RESTART,
+//           D1(read address), 6 READ_ACK, READ_NACK, STOP.
+// Each bus command produces one response pulse; READ responses carry data.
+// I2C opcode: 0 START,1 WRITE_BYTE,2 RESTART,3 READ_ACK,
+//             4 READ_NACK,5 STOP. No electrical SCL/SDA RTL in this module.
+module ds3231_burst_sequencer (
+    input wire clk,input wire resetn,input wire start_pulse,
+    output reg busy,output reg done_pulse,output reg error_pulse,
+    output wire bus_valid,input wire bus_ready,
+    output reg [2:0] bus_op,output reg [7:0] bus_wdata,
+    input wire bus_rsp_valid,input wire bus_rsp_error,
+    input wire [7:0] bus_rdata,
+    output reg [55:0] raw_bcd // byte0 seconds is raw_bcd[7:0]
+);
+    localparam [1:0] IDLE=0, SEND=1, WAIT_RSP=2, FINISH=3;
+    reg [1:0] state;
+    reg [3:0] step;
+    reg [55:0] shifted;
+    reg [7:0] tmp_data;
+    assign bus_valid=(state==SEND);
+    always @(*) begin
+        bus_op=0;bus_wdata=0;
+        case(step)
+        0:bus_op=0;                       // START
+        1:begin bus_op=1;bus_wdata=8'hd0;end
+        2:begin bus_op=1;bus_wdata=8'h00;end
+        3:bus_op=2;                       // REPEATED START
+        4:begin bus_op=1;bus_wdata=8'hd1;end
+        5,6,7,8,9,10:bus_op=3;           // read + ACK
+        11:bus_op=4;                      // read + NACK final
+        12:bus_op=5;                      // STOP
+        default:bus_op=0;
+        endcase
+    end
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=IDLE;step&lt;=0;busy&lt;=0;done_pulse&lt;=0;
+            error_pulse&lt;=0;raw_bcd&lt;=0;shifted&lt;=0;tmp_data&lt;=0;
+        end else begin
+            done_pulse&lt;=0;error_pulse&lt;=0;
+            case(state)
+            IDLE:if(start_pulse)begin
+                step&lt;=0;busy&lt;=1;shifted&lt;=0;state&lt;=SEND;
+            end
+            SEND:if(bus_ready)state&lt;=WAIT_RSP;
+            WAIT_RSP:if(bus_rsp_valid)begin
+                if(bus_rsp_error)begin
+                    // Report failure; do not publish partial data.
+                    // Actual I2C engine shall release bus on error.
+                    error_pulse&lt;=1;busy&lt;=0;state&lt;=IDLE;
+                end else begin
+                    if(step&gt;=5 &amp;&amp; step&lt;=11)
+                        shifted[8*(step-5)+:8]&lt;=bus_rdata;
+                    if(step==12)begin
+                        raw_bcd&lt;=shifted;state&lt;=FINISH;
+                    end else begin step&lt;=step+1'b1;state&lt;=SEND;end
+                end
+            end
+            FINISH:begin
+                done_pulse&lt;=1;busy&lt;=0;state&lt;=IDLE;
+            end
+            default:state&lt;=IDLE;
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (69줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-16 transaction-level RTC register read planner (NOT physical I2C).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Valid/ready command interface to a FUTURE I2C write/read engine.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Sequence: START, D0(write address), 00(pointer), RESTART,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>//           D1(read address), 6 READ_ACK, READ_NACK, STOP.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// Each bus command produces one response pulse; READ responses carry data.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// I2C opcode: 0 START,1 WRITE_BYTE,2 RESTART,3 READ_ACK,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>//             4 READ_NACK,5 STOP. No electrical SCL/SDA RTL in this module.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>module ds3231_burst_sequencer (</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>10</td><td><code>    input wire clk,input wire resetn,input wire start_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    output reg busy,output reg done_pulse,output reg error_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    output wire bus_valid,input wire bus_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    output reg [2:0] bus_op,output reg [7:0] bus_wdata,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    input wire bus_rsp_valid,input wire bus_rsp_error,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire [7:0] bus_rdata,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    output reg [55:0] raw_bcd // byte0 seconds is raw_bcd[7:0]</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>    localparam [1:0] IDLE=0, SEND=1, WAIT_RSP=2, FINISH=3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    reg [1:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>20</td><td><code>    reg [3:0] step;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    reg [55:0] shifted;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    reg [7:0] tmp_data;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>23</td><td><code>    assign bus_valid=(state==SEND);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>24</td><td><code>    always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>25</td><td><code>        bus_op=0;bus_wdata=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>26</td><td><code>        case(step)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>27</td><td><code>        0:bus_op=0;                       // START</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>        1:begin bus_op=1;bus_wdata=8'hd0;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>        2:begin bus_op=1;bus_wdata=8'h00;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>        3:bus_op=2;                       // REPEATED START</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>31</td><td><code>        4:begin bus_op=1;bus_wdata=8'hd1;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>32</td><td><code>        5,6,7,8,9,10:bus_op=3;           // read + ACK</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>        11:bus_op=4;                      // read + NACK final</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>34</td><td><code>        12:bus_op=5;                      // STOP</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>        default:bus_op=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>36</td><td><code>        endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>37</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>38</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>39</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>40</td><td><code>            state&lt;=IDLE;step&lt;=0;busy&lt;=0;done_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>41</td><td><code>            error_pulse&lt;=0;raw_bcd&lt;=0;shifted&lt;=0;tmp_data&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>42</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>43</td><td><code>            done_pulse&lt;=0;error_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>44</td><td><code>            case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>45</td><td><code>            IDLE:if(start_pulse)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>46</td><td><code>                step&lt;=0;busy&lt;=1;shifted&lt;=0;state&lt;=SEND;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>47</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>48</td><td><code>            SEND:if(bus_ready)state&lt;=WAIT_RSP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>49</td><td><code>            WAIT_RSP:if(bus_rsp_valid)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>                if(bus_rsp_error)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>51</td><td><code>                    // Report failure; do not publish partial data.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>52</td><td><code>                    // Actual I2C engine shall release bus on error.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>53</td><td><code>                    error_pulse&lt;=1;busy&lt;=0;state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>54</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>55</td><td><code>                    if(step&gt;=5 &amp;&amp; step&lt;=11)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>56</td><td><code>                        shifted[8*(step-5)+:8]&lt;=bus_rdata;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>57</td><td><code>                    if(step==12)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>58</td><td><code>                        raw_bcd&lt;=shifted;state&lt;=FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>59</td><td><code>                    end else begin step&lt;=step+1'b1;state&lt;=SEND;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>60</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>61</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>62</td><td><code>            FINISH:begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>63</td><td><code>                done_pulse&lt;=1;busy&lt;=0;state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>64</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>            default:state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>66</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>67</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>68</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>69</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/test_ds3231_time.c · 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>tests/test_ds3231_time.c · 전체 코드 펼치기 · SOURCE · 소스 원문</span></div><pre><code>#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include "../sw/ds3231_time.h"
+typedef struct {uint8_t regs[0x13];int calls,fail_at,osf_during_read;} fake_rtc_t;
+static int fake_read(void *ctx,uint8_t addr,uint8_t reg,uint8_t *dest,size_t len)
+{
+    fake_rtc_t *f=(fake_rtc_t*)ctx;
+    f-&gt;calls++;
+    if(f-&gt;fail_at==f-&gt;calls || addr!=0x68 || (size_t)reg+len&gt;sizeof(f-&gt;regs))
+        return -1;
+    if(f-&gt;osf_during_read &amp;&amp; f-&gt;calls==3) f-&gt;regs[0x0f]|=0x80;
+    memcpy(dest,f-&gt;regs+reg,len);
+    return 0;
+}
+static void seed(fake_rtc_t *f)
+{
+    memset(f,0,sizeof(*f));
+    // 2026-11-11 09:42:58, user-defined weekday 4.
+    uint8_t v[7]={0x58,0x42,0x09,0x04,0x11,0x11,0x26};
+    memcpy(f-&gt;regs,v,7);
+}
+int main(void)
+{
+    fake_rtc_t f;ds3231_datetime_t t;
+    seed(&amp;f);
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK);
+    assert(f.calls==3 &amp;&amp; t.year==2026 &amp;&amp; t.month==11 &amp;&amp; t.day==11 &amp;&amp;
+           t.hour==9 &amp;&amp; t.minute==42 &amp;&amp; t.second==58 &amp;&amp; t.weekday==4);
+    puts("P2_16_RTC_BURST_BCD_24H_PASS");
+    seed(&amp;f);f.regs[2]=0x72; // 12-hour 12 PM -&gt; 12:xx
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==12);
+    f.calls=0;f.regs[2]=0x52; // 12 AM -&gt; 00:xx
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==0);
+    f.calls=0;f.regs[2]=0x61; // 1 PM -&gt; 13:xx
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==13);
+    puts("P2_16_RTC_12H_AM_PM_PASS");
+    seed(&amp;f);f.regs[4]=0x29;f.regs[5]=0x02;f.regs[6]=0x24;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_OK &amp;&amp; t.day==29);
+    f.regs[6]=0x25;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);
+    f.regs[4]=0x31;f.regs[5]=0x04;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);
+    puts("P2_16_RTC_LEAP_CALENDAR_PASS");
+    seed(&amp;f);f.regs[5]=0x91;f.regs[6]=0x00;f.regs[4]=0x11;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_OK &amp;&amp; t.year==2100);
+    f.regs[4]=0x29;f.regs[5]=0x82;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);
+    puts("P2_16_RTC_CENTURY_2100_PASS");
+    seed(&amp;f);f.regs[1]=0x6a;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_BCD);
+    seed(&amp;f);f.regs[0]=0x60;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);
+    seed(&amp;f);f.regs[3]=0;
+    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);
+    puts("P2_16_RTC_INVALID_DATA_REJECT_PASS");
+    seed(&amp;f);f.regs[0x0f]=0x80;
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_OSF);
+    seed(&amp;f);f.osf_during_read=1;
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_OSF);
+    seed(&amp;f);f.fail_at=2;
+    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_BUS);
+    puts("P2_16_RTC_OSF_BUS_ERROR_PASS");
+    puts("P2_16_HOST_RTC_TESTS_PASS");
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (66줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &lt;assert.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;stdio.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &lt;string.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &quot;../sw/ds3231_time.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>typedef struct {uint8_t regs[0x13];int calls,fail_at,osf_during_read;} fake_rtc_t;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>6</td><td><code>static int fake_read(void *ctx,uint8_t addr,uint8_t reg,uint8_t *dest,size_t len)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>    fake_rtc_t *f=(fake_rtc_t*)ctx;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    f-&gt;calls++;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>    if(f-&gt;fail_at==f-&gt;calls || addr!=0x68 || (size_t)reg+len&gt;sizeof(f-&gt;regs))</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>11</td><td><code>        return -1;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>12</td><td><code>    if(f-&gt;osf_during_read &amp;&amp; f-&gt;calls==3) f-&gt;regs[0x0f]|=0x80;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>13</td><td><code>    memcpy(dest,f-&gt;regs+reg,len);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>15</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>16</td><td><code>static void seed(fake_rtc_t *f)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>18</td><td><code>    memset(f,0,sizeof(*f));</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>    // 2026-11-11 09:42:58, user-defined weekday 4.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>20</td><td><code>    uint8_t v[7]={0x58,0x42,0x09,0x04,0x11,0x11,0x26};</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>21</td><td><code>    memcpy(f-&gt;regs,v,7);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>23</td><td><code>int main(void)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>24</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>25</td><td><code>    fake_rtc_t f;ds3231_datetime_t t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>26</td><td><code>    seed(&amp;f);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>27</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>    assert(f.calls==3 &amp;&amp; t.year==2026 &amp;&amp; t.month==11 &amp;&amp; t.day==11 &amp;&amp;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>           t.hour==9 &amp;&amp; t.minute==42 &amp;&amp; t.second==58 &amp;&amp; t.weekday==4);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>    puts(&quot;P2_16_RTC_BURST_BCD_24H_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>    seed(&amp;f);f.regs[2]=0x72; // 12-hour 12 PM -&gt; 12:xx</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>32</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==12);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>    f.calls=0;f.regs[2]=0x52; // 12 AM -&gt; 00:xx</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>34</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==0);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>    f.calls=0;f.regs[2]=0x61; // 1 PM -&gt; 13:xx</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>36</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_OK &amp;&amp; t.hour==13);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>37</td><td><code>    puts(&quot;P2_16_RTC_12H_AM_PM_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>38</td><td><code>    seed(&amp;f);f.regs[4]=0x29;f.regs[5]=0x02;f.regs[6]=0x24;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>39</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_OK &amp;&amp; t.day==29);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>40</td><td><code>    f.regs[6]=0x25;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>41</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>    f.regs[4]=0x31;f.regs[5]=0x04;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>43</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>    puts(&quot;P2_16_RTC_LEAP_CALENDAR_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>45</td><td><code>    seed(&amp;f);f.regs[5]=0x91;f.regs[6]=0x00;f.regs[4]=0x11;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>46</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_OK &amp;&amp; t.year==2100);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>    f.regs[4]=0x29;f.regs[5]=0x82;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>48</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>49</td><td><code>    puts(&quot;P2_16_RTC_CENTURY_2100_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>    seed(&amp;f);f.regs[1]=0x6a;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>51</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_BCD);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>52</td><td><code>    seed(&amp;f);f.regs[0]=0x60;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>53</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>54</td><td><code>    seed(&amp;f);f.regs[3]=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>55</td><td><code>    assert(ds3231_decode_datetime(f.regs,&amp;t)==DS3231_ERR_RANGE);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>    puts(&quot;P2_16_RTC_INVALID_DATA_REJECT_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>    seed(&amp;f);f.regs[0x0f]=0x80;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>58</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_OSF);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>59</td><td><code>    seed(&amp;f);f.osf_during_read=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>60</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_OSF);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>    seed(&amp;f);f.fail_at=2;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>62</td><td><code>    assert(ds3231_read_datetime(fake_read,&amp;f,&amp;t)==DS3231_ERR_BUS);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>63</td><td><code>    puts(&quot;P2_16_RTC_OSF_BUS_ERROR_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>64</td><td><code>    puts(&quot;P2_16_HOST_RTC_TESTS_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>65</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>66</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_ds3231_burst_sequencer.v · 전체 코드 펼치기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_ds3231_burst_sequencer.v · 전체 코드 펼치기 · SOURCE · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// Fake transaction responder verifies exact DS3231 repeated-start
+// sequence, reads 7 BCD register bytes, and injects a bus error.
+module tb_ds3231_burst_sequencer;
+    reg clk=0;always #5 clk=~clk;
+    reg resetn=0,start=0,ready=1;
+    wire busy,done,error,valid;
+    wire [2:0] op;
+    wire [7:0] wdata;
+    wire [55:0] raw;
+    reg rsp_valid=0,rsp_error=0;
+    reg [7:0] rsp_data=0;
+    reg [7:0] sample [0:6];
+    integer cmd_count=0,read_count=0,mode=0;
+    ds3231_burst_sequencer dut(
+        .clk(clk),.resetn(resetn),.start_pulse(start),
+        .busy(busy),.done_pulse(done),.error_pulse(error),
+        .bus_valid(valid),.bus_ready(ready),
+        .bus_op(op),.bus_wdata(wdata),
+        .bus_rsp_valid(rsp_valid),.bus_rsp_error(rsp_error),
+        .bus_rdata(rsp_data),.raw_bcd(raw)
+    );
+    reg queued=0, queued_error=0;
+    reg [7:0] queued_data=0;
+    // (변경) 유효한 bus_valid/bus_ready 핸드셰이크는 상승 에지에서 수락.
+    // 다음 반주기에서 응답을 준비하여 WAIT_RSP 상승 에지까지 유지한다.
+    always @(posedge clk) begin
+        if(!resetn) queued&lt;=0;
+        else begin
+            queued&lt;=0;
+            if(valid &amp;&amp; ready)begin
+                if(cmd_count&gt;12) $fatal(1,"too many commands");
+                case(cmd_count)
+                0:if(op!==0) $fatal(1,"expected START");
+                1:if(op!==1 || wdata!==8'hd0) $fatal(1,"expected D0");
+                2:if(op!==1 || wdata!==8'h00) $fatal(1,"expected pointer00");
+                3:if(op!==2) $fatal(1,"expected RESTART");
+                4:if(op!==1 || wdata!==8'hd1) $fatal(1,"expected D1");
+                5,6,7,8,9,10:if(op!==3) $fatal(1,"expected READ_ACK");
+                11:if(op!==4) $fatal(1,"expected READ_NACK");
+                12:if(op!==5) $fatal(1,"expected STOP");
+                endcase
+                if(cmd_count&gt;=5 &amp;&amp; cmd_count&lt;=11)begin
+                    queued_data=sample[read_count];
+                    read_count=read_count+1;
+                end else queued_data=0;
+                queued_error=(mode==1 &amp;&amp; cmd_count==4);
+                cmd_count=cmd_count+1;
+                queued&lt;=1;
+            end
+        end
+    end
+    always @(negedge clk) begin
+        rsp_valid=queued;
+        rsp_error=queued_error;
+        rsp_data=queued_data;
+    end
+    task begin_test;
+        input integer test_mode;
+        begin
+            @(negedge clk);mode=test_mode;
+            cmd_count=0;read_count=0;start=1;
+            @(negedge clk);start=0;
+        end
+    endtask
+    initial begin
+        sample[0]=8'h58;sample[1]=8'h42;sample[2]=8'h09;
+        sample[3]=8'h04;sample[4]=8'h11;sample[5]=8'h11;
+        sample[6]=8'h26;
+        repeat(3) @(negedge clk);resetn=1;
+        begin_test(0);
+        wait(done);#1;
+        if(raw!==56'h26111104094258 ||
+           cmd_count!=13 || read_count!=7 || busy)
+            $fatal(1,"DS3231 burst or packing error %h cmds=%0d reads=%0d",
+                   raw,cmd_count,read_count);
+        $display("P2_16_RTC_I2C_BURST_SEQUENCE_PASS");
+        begin_test(1);
+        wait(error);#1;
+        if(cmd_count!=5 || raw!==56'h26111104094258 || busy)
+            $fatal(1,"partial/error frame unexpectedly published");
+        $display("P2_16_RTC_I2C_ERROR_REJECT_PASS");
+        $display("P2_16_RTC_BURST_RTL PASS");
+        $finish;
+    end
+    initial begin #100000;$fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (87줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// Fake transaction responder verifies exact DS3231 repeated-start</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// sequence, reads 7 BCD register bytes, and injects a bus error.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>module tb_ds3231_burst_sequencer;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>5</td><td><code>    reg clk=0;always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg resetn=0,start=0,ready=1;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    wire busy,done,error,valid;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    wire [2:0] op;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    wire [7:0] wdata;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    wire [55:0] raw;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    reg rsp_valid=0,rsp_error=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    reg [7:0] rsp_data=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    reg [7:0] sample [0:6];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    integer cmd_count=0,read_count=0,mode=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    ds3231_burst_sequencer dut(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>        .clk(clk),.resetn(resetn),.start_pulse(start),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .busy(busy),.done_pulse(done),.error_pulse(error),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .bus_valid(valid),.bus_ready(ready),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .bus_op(op),.bus_wdata(wdata),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .bus_rsp_valid(rsp_valid),.bus_rsp_error(rsp_error),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .bus_rdata(rsp_data),.raw_bcd(raw)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    reg queued=0, queued_error=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>24</td><td><code>    reg [7:0] queued_data=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>25</td><td><code>    // (변경) 유효한 bus_valid/bus_ready 핸드셰이크는 상승 에지에서 수락.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>26</td><td><code>    // 다음 반주기에서 응답을 준비하여 WAIT_RSP 상승 에지까지 유지한다.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>27</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>28</td><td><code>        if(!resetn) queued&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>29</td><td><code>        else begin</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>30</td><td><code>            queued&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>31</td><td><code>            if(valid &amp;&amp; ready)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>32</td><td><code>                if(cmd_count&gt;12) $fatal(1,&quot;too many commands&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>33</td><td><code>                case(cmd_count)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>34</td><td><code>                0:if(op!==0) $fatal(1,&quot;expected START&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>                1:if(op!==1 || wdata!==8'hd0) $fatal(1,&quot;expected D0&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>36</td><td><code>                2:if(op!==1 || wdata!==8'h00) $fatal(1,&quot;expected pointer00&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>37</td><td><code>                3:if(op!==2) $fatal(1,&quot;expected RESTART&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>38</td><td><code>                4:if(op!==1 || wdata!==8'hd1) $fatal(1,&quot;expected D1&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>39</td><td><code>                5,6,7,8,9,10:if(op!==3) $fatal(1,&quot;expected READ_ACK&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>40</td><td><code>                11:if(op!==4) $fatal(1,&quot;expected READ_NACK&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>41</td><td><code>                12:if(op!==5) $fatal(1,&quot;expected STOP&quot;);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>                endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>43</td><td><code>                if(cmd_count&gt;=5 &amp;&amp; cmd_count&lt;=11)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>44</td><td><code>                    queued_data=sample[read_count];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>                    read_count=read_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>                end else queued_data=0;</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>47</td><td><code>                queued_error=(mode==1 &amp;&amp; cmd_count==4);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>                cmd_count=cmd_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>49</td><td><code>                queued&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>50</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>51</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>52</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>    always @(negedge clk) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>54</td><td><code>        rsp_valid=queued;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>55</td><td><code>        rsp_error=queued_error;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>        rsp_data=queued_data;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>57</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>58</td><td><code>    task begin_test;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>59</td><td><code>        input integer test_mode;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>60</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>61</td><td><code>            @(negedge clk);mode=test_mode;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>62</td><td><code>            cmd_count=0;read_count=0;start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>63</td><td><code>            @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>64</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>67</td><td><code>        sample[0]=8'h58;sample[1]=8'h42;sample[2]=8'h09;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>68</td><td><code>        sample[3]=8'h04;sample[4]=8'h11;sample[5]=8'h11;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>69</td><td><code>        sample[6]=8'h26;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>70</td><td><code>        repeat(3) @(negedge clk);resetn=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>71</td><td><code>        begin_test(0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>72</td><td><code>        wait(done);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>73</td><td><code>        if(raw!==56'h26111104094258 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>74</td><td><code>           cmd_count!=13 || read_count!=7 || busy)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>75</td><td><code>            $fatal(1,&quot;DS3231 burst or packing error %h cmds=%0d reads=%0d&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>76</td><td><code>                   raw,cmd_count,read_count);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>77</td><td><code>        $display(&quot;P2_16_RTC_I2C_BURST_SEQUENCE_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>78</td><td><code>        begin_test(1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>79</td><td><code>        wait(error);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>80</td><td><code>        if(cmd_count!=5 || raw!==56'h26111104094258 || busy)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>81</td><td><code>            $fatal(1,&quot;partial/error frame unexpectedly published&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>82</td><td><code>        $display(&quot;P2_16_RTC_I2C_ERROR_REJECT_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>83</td><td><code>        $display(&quot;P2_16_RTC_BURST_RTL PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>84</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>85</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>86</td><td><code>    initial begin #100000;$fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>87</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>Ubuntu에서 실행하기</h3>
+<div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code># 1. 패키지 목록 갱신 및 Icarus Verilog 설치(최초 한 번)
+sudo apt update
+sudo apt install -y iverilog
+
+# 2. 저장소 루트에서 C 계산·오류 처리 검사
+bash part02/chapters/P2_16_Lesson/tests/run_host_tests.sh
+
+# 3. RTL 반복 START 및 7바이트 읽기 명령 검사
+bash part02/chapters/P2_16_Lesson/tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 7 (7줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code># 1. 패키지 목록 갱신 및 Icarus Verilog 설치(최초 한 번)</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>sudo apt update</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>sudo apt install -y iverilog</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>5</td><td><code># 2. 저장소 루트에서 C 계산·오류 처리 검사</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>bash part02/chapters/P2_16_Lesson/tests/run_host_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>8</td><td><code># 3. RTL 반복 START 및 7바이트 읽기 명령 검사</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>bash part02/chapters/P2_16_Lesson/tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>GCC(지씨씨, C 컴파일러)는 날짜·시간 계산과 오류를 시험한다. Icarus Verilog는 아래 하위 I²C 버스 엔진의 가짜 응답을 사용한다. 실제 물리적 SDA/SCL 신호가 나오는 테스트는 아직 아니다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>검증 결과와 경계</h2><table><thead><tr><th>항목</th><th>결과</th><th>실제 확인 내용</th></tr></thead><tbody>
+<tr><td>HOST_C BCD·12/24h</td><td>PASS</td><td>7바이트 레지스터 모델과 오전·오후 변환</td></tr>
+<tr><td>HOST_C Calendar</td><td>PASS</td><td>윤년/월별 일수/2100년 세기 비트</td></tr>
+<tr><td>HOST_C OSF</td><td>PASS</td><td>발진 중단 상태 및 버스 오류 거부</td></tr>
+<tr><td>RTL_SIM Sequencer</td><td>PASS</td><td>START·D0·00·반복 START·D1·7바이트 읽기·STOP</td></tr>
+<tr><td>RTL_SIM 오류</td><td>PASS</td><td>모의 하위 버스 오류 수신 시 결과 미공개</td></tr>
+<tr><td>I²C 물리 SDA/SCL Master</td><td>미구현</td><td>읽기 파형·ACK 실측 미검증</td></tr>
+<tr><td>AXI4-Lite/SoC</td><td>미구현</td><td>실제 BD/주소맵 미검증</td></tr>
+<tr><td>Vivado 합성·타이밍</td><td>보류</td><td>실제 도구 실행 없음</td></tr>
+<tr><td>Vitis·실물 RTC</td><td>보류</td><td>실제 타깃 빌드·RTC 동작 없음</td></tr>
+<tr><td>UVM</td><td>미실행</td><td>현재 self-checking Verilog TB</td></tr></tbody></table>
+<p class="ok"><a href="https://github.com/Yuul-Jung/amd_soc/actions/runs/42945777999">제16장 HOST_C/RTL_SIM 실제 PASS 로그</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/docs/P2_16_SIM_VERIFICATION_20261111.md">검증 보고서</a>. 첫 실행에서 발견된 테스트벤치의 응답 타이밍 문제는 수정 후 재검증했다.</p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>전기적 연결과 후속 확장</h2><p>DS3231의 SDA·SCL은 오픈드레인 I²C 신호이며 3.3V 풀업을 사용해야 한다. 흔한 DS3231 모듈 중에는 5V 전원·충전 배터리 회로·5V 풀업을 포함하는 제품도 있으므로 <strong>현물 회로와 풀업 전압을 검토하기 전 Basys3와 직접 연결하지 않는다.</strong> 실제 XDC는 보드의 기존 핀 배정을 확인한 다음 정한다.</p>
+<p>16.1 BCD 시간 읽기 → 16.2 7바이트 버스트 읽기 → 16.3 상태/OSF 검증 → 16.4 완전한 I²C Read Master 및 LCD/FND 시간 표시로 확장한다. 이미 작성된 RTL Sequencer와 C 검증 코드를 재사용한다.</p>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_16_Lesson/README.md">16장 전체 소스 목록</a> · <a href="../part02_2/guide/ch14_i2c_lcd_v05.html">14장 I²C LCD</a> · <a href="../part02_2/guide/ch15_ds18b20_v05.html">15장 DS18B20</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① DS3231 I²C RTC·BCD와 Repeated START의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"ch16_ds3231_rtc_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="제1부 11장 P1-11 Basys3 MicroBlaze V 사용자 Top과 SW0 LED0 소프트웨어 제어">
+<title>교수용 상세 해설서 | 제1부 11장 | 신편 P1-11 · 사용자 Top·SW0→LED0</title>
+<style>
+:root{--paper:#F5F6F7;--card:#FFFFFF;--ink:#15171C;--ink2:#4A4F5A;--muted:#747B86;--line:#DDDFD8;--accent:#4635B1;--soft:#EDEAFA;--yellow:#FFD24A;--good:#1F6F4A;--goodbg:#EEF8F3;--warn:#86520E;--warnbg:#FFF3DA}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.68 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;overflow-wrap:anywhere}a{color:var(--accent)}.topbar{background:white;border-bottom:1px solid var(--line)}.top-inner{max-width:1560px;margin:auto;padding:13px 28px;display:flex;align-items:center;justify-content:space-between;gap:15px}.topbar a{color:var(--ink);text-decoration:none}.topbar .meta{color:var(--muted);font-size:12px}.hero{background:var(--ink);color:#F1F2EE}.hero-inner{max-width:1560px;margin:auto;padding:48px 28px}.hero small{color:var(--yellow);font-weight:800;letter-spacing:.06em}.hero h1{font-size:clamp(28px,3.6vw,46px);line-height:1.3;margin:10px 0 16px}.hero p{color:#D1D4DB;max-width:860px;margin:0}.chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}.chips span{border:1px solid #5c606b;padding:4px 10px;border-radius:4px;font-size:12px}.wrap{max-width:1560px;margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);align-items:start;gap:28px;padding:26px 28px 80px}.flow-nav{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;background:white;border:1px solid var(--line);border-radius:10px;padding:16px}.flow-nav h2{font-size:14px;letter-spacing:.03em;color:var(--accent);margin:0 0 14px}.flow-nav a{display:flex;gap:10px;text-decoration:none;color:var(--ink2);font-size:12px;line-height:1.45;padding:9px 5px;border-bottom:1px solid #eee}.flow-nav a:hover{color:var(--accent);background:#f7f5ff}.flow-nav a span{font:700 12px Consolas,monospace;color:var(--accent)}main{min-width:0}.section-group{padding:12px 4px;color:var(--muted);font-weight:800;font-size:12px;letter-spacing:.1em}.step-card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:28px 32px;margin-bottom:22px;scroll-margin-top:14px;min-width:0}.step-card h2{font-size:clamp(19px,2.4vw,27px);margin:6px 0 13px;line-height:1.4;word-break:keep-all}.section-top{display:flex;justify-content:space-between;gap:10px}.step{font-size:11px;font-weight:900;color:var(--accent);letter-spacing:.1em}.category{font-size:11px;color:var(--muted)}p{margin:8px 0 13px}.section-lead{color:var(--ink2);font-size:15px;max-width:800px}.tablewrap{overflow-x:auto;max-width:100%;margin:16px 0 20px}table{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#f1f1f5}code,pre,.flow{font-family:Consolas,'Liberation Mono',monospace}code{font-size:.93em;overflow-wrap:anywhere}pre{background:#F3F5F7;color:#202733;border:1px solid #D7DDE3;border-radius:8px;padding:18px;overflow:auto;white-space:pre;font-size:12px;line-height:1.55;max-height:740px}pre code{overflow-wrap:normal}.procedure{margin:14px 0;padding-left:27px;counter-reset:none}.procedure>li{padding:13px 0 19px;border-bottom:1px solid #e7e8e9}.procedure>li:last-child{border-bottom:0}.procedure>li::marker{font-weight:900;color:var(--accent)}.procedure>li>strong{font-size:15px}.instructions{margin-top:7px;color:var(--ink2)}.result{margin:13px 0;padding:11px 13px;border-radius:6px;border-left:4px solid var(--good);background:var(--goodbg);font-size:13px}.result.warning{border-color:#ba8b35;background:var(--warnbg)}.result strong{margin-right:7px}.pending{font-size:12px;color:var(--warn);border:1px dashed #cba86d;background:#fffaf0;padding:9px 11px;border-radius:6px;margin-top:11px}.soc08-shot{margin:16px 0;border:1px solid var(--line);border-left:4px solid #39755a;border-radius:8px;background:#fff;padding:9px}.soc08-shot img{display:block;width:100%;height:auto;max-height:760px;object-fit:contain;object-position:center;border:1px solid #ebecef;border-radius:5px}.soc08-shot figcaption{color:var(--ink2);font-size:12px;padding:9px 3px 2px;display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap}.soc08-shot figcaption span{color:var(--muted)}.original-figure{border:1px solid var(--line);padding:12px;border-radius:8px}.original-figure img{display:block;max-width:100%;height:auto;margin:12px auto}.original-figure figcaption{font-size:12px;color:var(--muted);padding:7px 3px}.source-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line);padding:5px 0 10px}.source-head span{color:var(--muted);font-size:12px}.img-fallback{padding:65px 30px;display:block;text-align:center;background:#f5f3ff;color:var(--accent);font-size:17px}.flow,.math{background:#f5f3ff;border:1px solid #ddd4ff;padding:15px;border-radius:7px;margin:12px 0 15px;overflow-wrap:anywhere}.goal{margin:15px 0}.goal strong{font-size:12px;color:var(--accent)}.source-link{font-size:13px;color:var(--muted);margin:10px 0 15px}.code-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.copy{cursor:pointer;border:1px solid #b5aecf;border-radius:5px;padding:5px 11px;background:#f4f1ff;color:var(--accent)}.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:35px}.label-current{display:inline-block;color:#8c5b10;background:#fff4da;padding:4px 8px;font-size:12px;font-weight:bold;border-radius:3px}a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:980px){.wrap{grid-template-columns:218px minmax(0,1fr);gap:14px;padding:18px}.step-card{padding:20px 19px}}
+@media(max-width:760px){.wrap{display:block;padding:12px}.flow-nav{position:static;max-height:210px;margin:0 0 15px}.hero-inner{padding:34px 18px}.step-card{padding:19px 14px}th,td{padding:8px 7px;font-size:12px}.top-inner{padding:13px 16px}}@media print{.flow-nav,.copy{display:none}.wrap{display:block}.step-card{break-inside:avoid}}
+
+/* keyboard access to chapter content */
+a.skip-link{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+a.skip-link:focus{left:16px;top:10px;width:auto;height:auto;z-index:2000;padding:8px 12px;background:white;color:#15171c;border:2px solid #4635b1}
+
+/* SoC10 real Vivado 2024.2 GUI captures, chronologically approved */
+.soc10-shot-group{display:grid;grid-template-columns:1fr;gap:16px;margin:20px 0 24px}
+.soc10-shot{margin:0;padding:12px;background:#fff;border:1px solid var(--line);border-radius:9px}
+.soc10-shot a{display:block;max-width:100%;cursor:zoom-in}
+.soc10-shot img{display:block;width:100%;max-height:780px;height:auto;object-fit:contain;object-position:center top;background:#fff;border:1px solid #e1e4e9;border-radius:4px}
+.soc10-shot figcaption{font-size:.83rem;line-height:1.6;color:#4A4F5A;margin:9px 3px 2px}
+@media(max-width:760px){.soc10-shot{padding:6px}.soc10-shot img{max-height:none}}
+
+/* Chapters 01-10: shared top navigation */
+.topbar{background:#fff;border-bottom:1px solid #DDDFD8}
+.topbar .topbar-inner,.topbar .top-inner{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 18px}
+.topbar .breadcrumb,.topbar .top-inner>span:first-child{font-size:.86rem;line-height:1.6;color:#4A4F5A}
+.topbar a,.topbar .breadcrumb a{color:#333743;text-decoration:none}
+.topbar a:hover,.topbar .breadcrumb a:hover{text-decoration:underline;color:#4635B1}
+.topbar .breadcrumb strong,.topbar .top-inner b{color:#15171C;font-weight:800}
+.topbar .brand,.topbar .meta{font-size:.76rem;color:#747B86;letter-spacing:0}
+@media(max-width:600px){.topbar .topbar-inner,.topbar .top-inner{padding:10px 14px}}
+
+.flow{white-space:pre;overflow-x:auto;overflow-wrap:normal;font-size:12px}
+.source-download{font-weight:700;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+/* 제10장과 동일한 코드 창 내부 스크롤 높이, 연회색 바탕 */
+pre.vitis-full-code{background:#F4F6F8;color:#212936;border:1px solid #D3DAE1;max-height:740px;overflow:auto;font-size:12.5px;line-height:1.58}
+@media(max-width:760px){.flow{font-size:11px}}
+</style><style id="prof-style">.prof-banner,.prof-card,.prof-code,.prof-supp{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary,.prof-supp summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table,.prof-supp table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th,.prof-supp td,.prof-supp th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-supp section{border-bottom:1px solid #eee;padding:12px 0}.prof-supp pre{max-width:100%;overflow-x:auto;background:#f1f2f6;padding:14px}.prof-supp figure,.prof-supp img{max-width:100%;height:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code,.prof-supp{padding:12px}}</style></head>
+<body><a class="skip-link" href="#main-content">본문으로 바로가기</a>
+<header class="topbar"><div class="top-inner"><span><a href="../part01/chapters/../../index.html">Basys3 SoC + NPU</a> /
+<a href="https://github.com/Yuul-Jung/soc/blob/main/MicroBlaze_V_SoC01_41/pages/soc/10_microblaze_gpio_uart_timer_integration.html">SoC 10</a> / <b>제1부 11장(P1-11)</b></span>
+<span class="meta">Vivado / Vitis Unified IDE 2024.2</span></div></header>
+<section class="hero"><div class="hero-inner"><small>PART 01 · CHAPTER 11</small>
+<h1>사용자 Top과 1비트 GPIO 제어</h1>
+<p>Vivado에서 사용자 Top을 연결하고 Vitis에서 SW0 입력을 LED0 출력에 반영합니다. GPIO 16비트 폭과 기존 UART·Timer IP는 유지합니다.</p>
+<div class="chips"><span>Basys3</span><span>MicroBlaze V</span><span>Top / Wrapper</span><span>SW0 → LED0</span></div>
+</div></section>
+<div class="wrap"><nav class="flow-nav" aria-label="제1부 11장 상세 목차"><h2>제1부 11장 · 실습 순서</h2>
+<div class="section-group">A. 구조·프로젝트</div><a href="#s01"><span>01</span> 개요·구조</a><a href="#s02"><span>02</span> 프로젝트 복제</a>
+<div class="section-group">B. Vivado · Vitis</div><a href="#s03"><span>03</span> 사용자 Top</a><a href="#s04"><span>04</span> SW0 → LED0 C 실습</a>
+<div class="section-group">C. 자원·실습 파일</div><a href="#s05"><span>05</span> 보드 자원표</a><a href="#s06"><span>06</span> 기준 파일</a>
+</nav><main id="main-content"><section class="prof-banner" id="prof-intro"><h2>교수용 쉬운 추가 해설 · 제1부 11장</h2><p><strong>핵심 주제:</strong> 신편 P1-11 · 사용자 Top·SW0→LED0</p><p>Block Design과 Vivado가 만든 Wrapper는 CPU·IP의 내부 연결을 담당합니다. basys3_soc11_top은 그 바깥에서 보드 핀과 Wrapper를 연결하는 순수 Shell로 유지하고, 기능 판단은 CPU C 코드/하위 IP에서 수행합니다.</p><p><strong>실습을 말로 풀기:</strong> basys3_soc11_top → u_soc11 : soc11_integration_wrapper → soc11_integration_i : soc11_integration → AXI GPIO → SW0/LED0 흐름을 확인합니다.</p><div class="prof-flow" role="img" aria-label="SW0 → AXI GPIO / CPU → AXI GPIO → LED0"><svg viewBox="0 0 920 136" xmlns="http://www.w3.org/2000/svg"><title>단계별 신호 흐름</title><rect x="15" y="25" width="190" height="81" rx="9" fill="#eef7f3" stroke="#8c80d1"/><text x="110" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#28243a">SW0</text><path d="M205 66 H241" stroke="#4635b1" stroke-width="3"/><path d="M235 60 L241 66 L235 72" fill="none" stroke="#4635b1"/><rect x="244" y="25" width="190" height="81" rx="9" fill="#efeefe" stroke="#8c80d1"/><text x="339" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#28243a">AXI GPIO / CPU</text><path d="M434 66 H470" stroke="#4635b1" stroke-width="3"/><path d="M464 60 L470 66 L464 72" fill="none" stroke="#4635b1"/><rect x="473" y="25" width="190" height="81" rx="9" fill="#eef7f3" stroke="#8c80d1"/><text x="568" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#28243a">AXI GPIO</text><path d="M663 66 H699" stroke="#4635b1" stroke-width="3"/><path d="M693 60 L699 66 L693 72" fill="none" stroke="#4635b1"/><rect x="702" y="25" width="190" height="81" rx="9" fill="#efeefe" stroke="#8c80d1"/><text x="797" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#28243a">LED0</text></svg></div><p class="prof-tip"><strong>확인 범위:</strong> 10장 전체 동등성까지 요구하지 않습니다. 사용자 제공 2026-11-02 보드 동작 확인 범위와 신규 재실행 여부를 분명히 구분합니다.</p><p class="prof-small"><a href="../part01/chapters/11_user_top_io_remap.html">원본 학습안내서</a> · <a href="index.html">제1부 교수용 11장 목차</a> · <a href="ch10_teacher_v02.html">이전 장</a> · </p></section>
+<section class="step-card" id="s01">
+<div class="section-top"><span class="step">SECTION 01</span><span class="category">개요</span></div><h2>Vivado Top 추가 → Vitis 1비트 제어</h2>
+<div class="tablewrap"><table><thead><tr><th>작업 환경</th><th>실습 내용</th><th>확인 결과</th></tr></thead><tbody>
+<tr><td>Vivado</td><td><code>soc11_integration.bd</code> 복제·Wrapper 생성 후 <code>basys3_soc11_top</code> 연결</td><td>11장 계층 구성·Synthesis·Bitstream</td></tr>
+<tr><td>Vitis</td><td><code>SW_LED_MASK</code>를 <code>0x00000001U</code>로 변경</td><td>SW0 → LED0, UART → LED14, Timer → LED15</td></tr>
+</tbody></table></div>
+<p>SW0 → LED0는 1비트 GPIO 예시입니다. 입력·출력 비트 사용 범위는 실습 목적에 따라 변경할 수 있습니다.</p>
+<div class="flow">Basys3 clk, btnC, sw[15:0], led[15:0], RsRx, RsTx
+              │
+              ▼
+     basys3_soc11_top
+              │ u_soc10
+              ▼
+     soc11_integration_wrapper
+              │ soc11_integration_i
+              ▼
+     soc11_integration.bd
+     (MicroBlaze V + BRAM + AXI GPIO/UART/Timer/INTC)</div>
+
+</section>
+<section class="step-card" id="s02">
+<div class="section-top"><span class="step">SECTION 02</span><span class="category">실습 준비</span></div><h2>프로젝트 복제 → Wrapper 포트 확인</h2>
+<ol class="procedure">
+<li>Vivado 2024.2를 실행하고 <strong>File → Project → Open</strong>에서 <code>/home/jung/soc/hw/soc10_integration/soc10_integration.xpr</code>을 엽니다. </li>
+<li><strong>File → Project → Save As</strong>로 프로젝트 이름을 <code>soc11_user_top</code>으로 지정합니다. 결과 경로는 <code>/home/jung/soc/hw/soc11_user_top/soc11_user_top.xpr</code>이 되도록 Project Summary에서 확인합니다. </li>
+<li><strong>Sources → Hierarchy</strong>에서 기존 <code>soc10_integration.bd</code>를 더블클릭해 열고 <strong>File → Save Block Design As</strong>를 선택합니다. <strong>Design name</strong>을 <code>soc11_integration</code>, <strong>Directory</strong>를 <code>&lt;Local to Project&gt;</code>, <strong>Add to source set</strong>을 <code>Design Sources</code>로 지정하고 <strong>OK</strong>를 클릭합니다.</li>
+<li><strong>Sources → Design Sources</strong>에서 새 <code>soc11_integration.bd</code>를 확인합니다. 새 BD를 열어 <strong>Validate Design</strong>을 실행하고 <strong>Address Editor</strong>에서 GPIO·UART·Timer·INTC·BRAM 주소가 유지되는지 확인합니다.</li>
+<li>새 <code>soc11_integration.bd</code>를 오른쪽 클릭 → <strong>Generate Output Products</strong>를 실행합니다. 이어 <strong>Create HDL Wrapper</strong> → <strong>Let Vivado manage wrapper and auto-update</strong>를 선택하여 <code>soc11_integration_wrapper.v</code>를 생성합니다. 생성 파일의 이름만 수동 변경하지 않습니다.</li>
+<li><code>soc11_integration_wrapper.v</code>의 <code>module soc11_integration_wrapper (...)</code>에서 포트명·방향·비트폭을 확인합니다. 10장 실제 XDC의 <code>sw_tri_i</code>, <code>led_tri_o</code>, <code>UART_0_rxd</code>, <code>UART_0_txd</code>를 기준으로 대조합니다. 다르면 실제 생성 포트에 맞춰 사용자 Top 연결만 수정합니다.</li>
+<li><strong>Constraints</strong> → 현재 <code>Basys-3-Master.xdc</code> 열기. 기존 <code>get_ports {sw_tri_i[n]}</code> / <code>{led_tri_o[n]}</code> 제약은 새 Top의 <code>sw[n]</code> / <code>led[n]</code>과 이름이 맞지 않으므로 11장 XDC로 교체합니다.</li>
+<li><strong>Add Sources → Add or Create Constraints → Add Files</strong>에서 <a href="../part01/chapters/../files/p1_11/basys3_soc11_top.xdc">basys3_soc11_top.xdc</a>를 추가합니다. <strong>Constraints</strong>에서 기존 <code>Basys-3-Master.xdc</code>의 Enabled를 해제하여 동일 핀/Clock 제약이 중복 적용되지 않게 합니다.</li>
+<li>새 XDC의 <code>get_ports</code>가 Top 포트명과 일치하는지 확인합니다. <code>clk=W5</code>, <code>btnC=U18</code>, <code>sw[13]=U1</code>, <code>led[13]=N3</code>, <code>RsRx=B18</code>, <code>RsTx=A18</code>입니다.</li>
+<li><strong>Block Design → Address Editor</strong>를 열어 GPIO, UART Lite, Timer, INTC 기존 주소 및 BRAM 64 KiB가 그대로인지 확인하고 저장합니다. </li>
+</ol>
+
+</section>
+<section class="step-card" id="s03">
+<div class="section-top"><span class="step">SECTION 03</span><span class="category">Vivado</span></div><h2>사용자 Top 추가 → Set as Top</h2>
+<ol class="procedure">
+<li><strong>Sources → Add Sources → Add or Create Design Sources</strong>에서 Verilog 파일 <code>basys3_soc11_top.v</code>를 생성합니다.</li>
+<li>아래 코드를 <code>basys3_soc11_top.v</code>에 입력합니다. 새로 생성한 <code>soc11_integration_wrapper u_soc11</code>을 연결합니다. 사용자 Top의 <code>sw</code>, <code>led</code>, <code>RsRx</code>, <code>RsTx</code>는 유지합니다.</li>
+<li><strong>Sources → Hierarchy</strong>에서 <code>basys3_soc11_top</code>을 오른쪽 클릭 → <strong>Set as Top</strong> 선택</li>
+<li><strong>Sources → Hierarchy</strong>에서 최상위 이름이 <code>basys3_soc11_top</code>으로 바뀌었는지 확인합니다. <strong>Open Elaborated Design</strong> 또는 <strong>Run Synthesis</strong>에서 포트 불일치 오류가 없는지도 확인합니다.</li>
+</ol>
+
+<h3>11장 새 Wrapper 포트 → 사용자 Top 연결</h3>
+<div class="tablewrap"><table><thead><tr><th>11장 Wrapper 포트</th><th>11장 Top 연결</th><th>11장 XDC 포트</th></tr></thead><tbody>
+<tr><td><code>sw_tri_i[15:0]</code></td><td><code>.sw_tri_i(sw)</code></td><td><code>sw[15:0]</code></td></tr>
+<tr><td><code>led_tri_o[15:0]</code></td><td><code>.led_tri_o(led)</code></td><td><code>led[15:0]</code></td></tr>
+<tr><td><code>UART_0_rxd</code></td><td><code>.UART_0_rxd(RsRx)</code></td><td><code>RsRx</code></td></tr>
+<tr><td><code>UART_0_txd</code></td><td><code>.UART_0_txd(RsTx)</code></td><td><code>RsTx</code></td></tr>
+</tbody></table></div>
+<h3>화면 확인 — Sources 계층 비교</h3>
+<div class="tablewrap"><table><thead><tr><th>Set as Top 이전</th><th>Set as Top 이후(예상)</th></tr></thead><tbody>
+<tr><td><pre>soc10_integration_wrapper  [10장 기준]
+└── soc10_integration_i
+soc11_integration.bd    [새로 복제]</pre><details class="prof-code"><summary>교수용 원본 코드 줄별 해석 · 1번 코드 (3줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>쉬운 설명</th></tr></thead><tbody><tr><td>1</td><td><code>soc10_integration_wrapper  [10장 기준]</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>2</td><td><code>└── soc10_integration_i</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>3</td><td><code>soc11_integration.bd    [새로 복제]</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr></tbody></table></div></details></td><td><pre>basys3_soc11_top       [Top]
+└── u_soc11 : soc11_integration_wrapper
+    └── soc11_integration_i : soc11_integration
+        └── soc11_integration.bd</pre><details class="prof-code"><summary>교수용 원본 코드 줄별 해석 · 2번 코드 (4줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>쉬운 설명</th></tr></thead><tbody><tr><td>1</td><td><code>basys3_soc11_top       [Top]</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>2</td><td><code>└── u_soc11 : soc11_integration_wrapper</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>3</td><td><code>    └── soc11_integration_i : soc11_integration</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>4</td><td><code>        └── soc11_integration.bd</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr></tbody></table></div></details></td></tr>
+</tbody></table></div>
+<a class="source-download" href="../part01/chapters/../files/p1_11/basys3_soc11_top.v" download>사용자 Top Verilog 전체 소스</a>
+<pre><code>// 제1부 11장(P1-11) 사용자 Top: soc11_integration_wrapper와 보드 핀 연결
+// 전제: 복제 프로젝트의 실제 Wrapper 포트와 이름을 Vivado에서 대조한다.
+// Top은 보드 핀, wire 및 인스턴스 연결만 담당한다.
+module basys3_soc11_top (
+    input  wire        clk,    // Basys3 W5: 외부 100 MHz
+    input  wire        btnC,   // Basys3 U18: 기존 SoC Reset
+    input  wire [15:0] sw,     // Basys3 슬라이드 스위치
+    output wire [15:0] led,    // Basys3 내장 LED 16개
+    input  wire        RsRx,   // USB-UART PC -&gt; FPGA
+    output wire        RsTx    // USB-UART FPGA -&gt; PC
+);
+
+    // (변경) 11장 BD(soc11_integration.bd)의 자동 생성 Wrapper 연결
+    // (참고) 10장 BD를 Save Block Design As로 복제 후 새 Wrapper 생성
+    // 실제 생성 Wrapper 선언부에서 포트명과 방향을 확인
+    soc11_integration_wrapper u_soc11 (
+        .clk         (clk),
+        .btnC        (btnC),
+        .sw_tri_i    (sw),
+        .led_tri_o   (led),
+        .UART_0_rxd  (RsRx),
+        .UART_0_txd  (RsTx)
+    );
+
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 원본 코드 줄별 해석 · 3번 코드 (23줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>쉬운 설명</th></tr></thead><tbody><tr><td>1</td><td><code>// 제1부 11장(P1-11) 사용자 Top: soc11_integration_wrapper와 보드 핀 연결</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>2</td><td><code>// 전제: 복제 프로젝트의 실제 Wrapper 포트와 이름을 Vivado에서 대조한다.</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>3</td><td><code>// Top은 보드 핀, wire 및 인스턴스 연결만 담당한다.</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>4</td><td><code>module basys3_soc11_top (</code></td><td>RTL 모듈 선언입니다. Top/하위 IP인지와 연결 포트를 확인합니다.</td></tr><tr><td>5</td><td><code>    input  wire        clk,    // Basys3 W5: 외부 100 MHz</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>6</td><td><code>    input  wire        btnC,   // Basys3 U18: 기존 SoC Reset</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>7</td><td><code>    input  wire [15:0] sw,     // Basys3 슬라이드 스위치</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>8</td><td><code>    output wire [15:0] led,    // Basys3 내장 LED 16개</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>9</td><td><code>    input  wire        RsRx,   // USB-UART PC -&gt; FPGA</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>10</td><td><code>    output wire        RsTx    // USB-UART FPGA -&gt; PC</code></td><td>RTL 포트·신호 선언입니다. 비트 폭과 방향을 실제 Wrapper와 대조합니다.</td></tr><tr><td>11</td><td><code>);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>13</td><td><code>    // (변경) 11장 BD(soc11_integration.bd)의 자동 생성 Wrapper 연결</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>14</td><td><code>    // (참고) 10장 BD를 Save Block Design As로 복제 후 새 Wrapper 생성</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>15</td><td><code>    // 실제 생성 Wrapper 선언부에서 포트명과 방향을 확인</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>16</td><td><code>    soc11_integration_wrapper u_soc11 (</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>17</td><td><code>        .clk         (clk),</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>18</td><td><code>        .btnC        (btnC),</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>19</td><td><code>        .sw_tri_i    (sw),</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>20</td><td><code>        .led_tri_o   (led),</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>21</td><td><code>        .UART_0_rxd  (RsRx),</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>22</td><td><code>        .UART_0_txd  (RsTx)</code></td><td>명명 포트 연결입니다. 점 다음은 실제 포트 이름, 괄호 안은 연결할 신호입니다.</td></tr><tr><td>23</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>25</td><td><code>endmodule</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr></tbody></table></div></details>
+<h3>Vivado 실행·확인</h3><ol class="procedure">
+<li><strong>Run Synthesis → Run Implementation → Generate Bitstream</strong> 순서로 실행하고 오류·Critical Warning·Timing Summary를 기록합니다.</li>
+<li><strong>File → Export → Export Hardware</strong>에서 <strong>Include Bitstream</strong>을 선택하여 새 11장 XSA를 생성합니다. </li>
+
+</ol>
+</section>
+<section class="step-card" id="s04">
+<div class="section-top"><span class="step">SECTION 04</span><span class="category">Vitis · C</span></div><h2>SW0 입력을 LED0에 표시</h2>
+
+<h3>① 11장 XSA로 Platform 준비</h3>
+<ol class="procedure">
+<li>Vivado에서 <strong>File → Export → Export Hardware</strong>로 내보낸 <strong>11장 XSA(Include Bitstream)</strong>의 파일 위치를 확인합니다. 10장 원본 XSA를 선택하지 않습니다.</li>
+<li><strong>Vitis Unified IDE 2024.2</strong>에서 Workspace <code>~/soc/sw</code>를 엽니다. 기존 10장 Application은 변경하지 않습니다.</li>
+<li><strong>새 Platform이 없는 경우:</strong> <strong>File → New Component → Platform</strong>을 선택합니다. <strong>Component name</strong>에 <code>soc11_user_top_platform</code>을 입력하고 <strong>Next</strong>를 누릅니다.</li>
+<li><strong>Hardware Design → Browse</strong>에서 방금 만든 11장 XSA 파일을 선택합니다. <strong>Operating System</strong>은 <code>standalone</code>, <strong>Processor</strong>는 <code>microblaze_riscv_0</code>를 지정하여 <strong>Finish</strong>합니다. Domain 이름은 생성된 화면의 실제 값을 확인합니다.</li>
+<li><strong>이미 11장 Platform이 있는 경우:</strong> 해당 Platform의 <strong>Settings → vitis-comp.json → Switch XSA</strong>로 새 11장 XSA를 지정합니다. 10장 Platform 자체는 변경하지 않습니다.</li>
+<li>Vitis Explorer에서 <code>soc11_user_top_platform [Platform]</code>을 선택하고 <strong>Flow → Build</strong>를 실행합니다. <strong>Build 완료 메시지</strong>와 <strong>Output</strong>의 Platform 생성 파일을 확인합니다.</li>
+</ol>
+<h3>② 11장 Application 생성</h3>
+<ol class="procedure">
+<li><strong>File → New Component → Application</strong>을 선택하고 <strong>Empty Application</strong>을 준비합니다.</li>
+<li><strong>Name and Location</strong>에서 <strong>Component name</strong>을 <code>soc11_user_top_app</code>으로 지정하고 <strong>Next</strong>를 누릅니다. 기존 10장 Application과 서로 다른 이름을 사용합니다.</li>
+<li><strong>Select Platform</strong>에서 방금 빌드한 <code>soc11_user_top_platform</code>을 선택한 뒤 <strong>Next</strong>를 누릅니다.</li>
+<li><strong>Select Domain</strong>에서 <code>standalone</code>·<code>microblaze_riscv_0</code>에 해당하는 Domain(예: <code>standalone_microblaze_riscv_0</code>)을 선택합니다. 실제 생성된 이름이 다르면 화면의 이름을 사용합니다.</li>
+<li><strong>Source Files</strong>는 빈 Application으로 진행하고 <strong>Summary → Finish</strong>를 클릭합니다. Explorer에 <code>soc11_user_top_app [Application]</code>이 생성되는지 확인합니다.</li>
+</ol>
+<h3>③ BSP와 BRAM 설정 확인</h3>
+<ol class="procedure">
+<li>새 Platform의 <strong>BSP → include → xparameters.h</strong>에서 AXI GPIO <code>0x4000_0000</code>, UART Lite <code>0x4060_0000</code>, INTC <code>0x4120_0000</code>, Timer <code>0x41C0_0000</code> 주소를 확인합니다. BSP의 매크로 명칭은 생성된 파일 기준으로 확인합니다.</li>
+<li>새 Application의 <strong>Sources → src → lscript.ld</strong>를 열어 Local BRAM이 <code>ORIGIN 0x00000000</code>, <code>LENGTH 0x10000</code>(64 KiB)인지 확인합니다. 실제 메모리 영역 이름은 생성 결과를 사용합니다.</li>
+<li>주소 또는 메모리 크기가 다르면 <strong>Platform이 선택한 XSA</strong>부터 확인합니다. 링커 숫자를 임의로 바꾸거나 기존 10장 소스를 수정하지 않습니다.</li>
+</ol>
+<h3>④ main.c 작성</h3>
+<ol class="procedure">
+<li><strong>soc11_user_top_app → Sources → src</strong>에서 <code>main.c</code>를 열거나, 파일이 없으면 <strong>src 오른쪽 클릭 → New File → main.c</strong>를 생성합니다.</li>
+<li>아래 <a href="../part01/chapters/../files/p1_11/main_soc11.c">11장 Vitis C 전체 코드</a>를 <code>src/main.c</code>에 입력한 뒤 <strong>Ctrl+S</strong>로 저장합니다. Application 안에 <code>main()</code> 함수가 두 개 생기지 않도록 합니다.</li>
+<li><code>SW_LED_MASK</code>가 <code>0x00000001U</code>인지 확인합니다. 이 값은 SW0 → LED0 예시이며, 다른 포트 배치 실습은 사용자 Top의 배선과 소프트웨어 역할을 구분해서 변경합니다.</li>
+</ol>
+<h3>Vitis C 전체 코드 — <code>main_soc11.c</code></h3>
+<p>11장 Application의 <code>src/main.c</code>에 전체 코드를 입력합니다. 코드는 10장과 동일하게 창 안에서 스크롤합니다. 핵심 동작은 <code>// (핵심)</code>, 유지되는 기존 기능은 <code>// (유지)</code> 주석을 확인합니다.</p>
+<pre class="vitis-full-code"><code>#include "xparameters.h"
+#include "xgpio.h"
+#include "xuartlite_l.h"
+#include "xtmrctr.h"
+#include "xstatus.h"
+#include "xil_types.h"
+#include "xil_exception.h"
+
+#ifdef SDT
+#include "xinterrupt_wrap.h"
+#else
+#include "xintc.h"
+#endif
+
+/*
+ * SoC 11 - 사용자 Top 기반 MicroBlaze V + GPIO/UART/Timer/INTC 실습
+ *
+ * GPIO Channel 1 : LED[15:0] output
+ * GPIO Channel 2 : SW[15:0] input
+ *
+ * LED ownership:
+ *   LED0      : SW0 mirror (SW_LED_MASK의 bit0만 사용)
+ *   LED[13:1] : 현재 C 출력에서는 0 (하드웨어 핀은 분리하지 않음)
+ *   LED14     : UART command control ('1' = ON, '0' = OFF)
+ *   LED15     : Timer interrupt heartbeat
+ *
+ * UART : Polling, 115200 8N1
+ * Timer: 100 MHz, 0.5 s interval, Down Count + Auto Reload + Interrupt
+ * IRQ  : AXI Timer -&gt; AXI INTC -&gt; MicroBlaze V
+ */
+
+// (참고) AXI GPIO Channel 1: LED 출력, Channel 2: 스위치 입력
+#define GPIO_LED_CHANNEL        1U
+#define GPIO_SW_CHANNEL         2U
+
+// (변경) 11장 독립 실습: 스위치 한 비트(SW0)만 LED0에 반영
+#define SW_LED_MASK             0x00000001U
+// (유지) bit14=UART 표시, bit15=Timer 표시. SW_LED_MASK와 비트 중복 금지
+#define UART_LED_MASK           0x00004000U
+#define HEARTBEAT_LED_MASK      0x00008000U
+
+#define TIMER0                  0U
+// (유지) 100 MHz 기준 0.5초에 해당하는 50,000,000 tick
+#define TIMER_TICKS_500MS       50000000U
+#define TIMER_RESET_VALUE       (TIMER_TICKS_500MS - 2U)
+
+// (참고) 사용 중인 Vitis BSP의 SDT 여부에 따라 장치 식별자/기준 주소 선택
+#ifndef SDT
+#define GPIO_DEVICE_ID          XPAR_GPIO_0_DEVICE_ID
+#define TIMER_DEVICE_ID         XPAR_TMRCTR_0_DEVICE_ID
+#define INTC_DEVICE_ID          XPAR_INTC_0_DEVICE_ID
+#define TIMER_INTERRUPT_ID      XPAR_INTC_0_TMRCTR_0_VEC_ID
+#define UART_BASEADDR           XPAR_UARTLITE_0_BASEADDR
+#else
+#define GPIO_BASEADDR           XPAR_XGPIO_0_BASEADDR
+#define TIMER_BASEADDR          XPAR_XTMRCTR_0_BASEADDR
+#define UART_BASEADDR           XPAR_XUARTLITE_0_BASEADDR
+#endif
+
+static XGpio Gpio;
+static XTmrCtr Timer;
+
+#ifndef SDT
+static XIntc Intc;
+#endif
+
+// (유지) 인터럽트에서 변경되는 공유 카운터
+volatile u32 interrupt_count = 0U;
+volatile u32 switch_value    = 0U;
+volatile u32 led_state       = 0U;
+volatile u8  last_uart_rx    = 0U;
+
+static u32 uart_led_state = 0U;
+
+// (유지) UART Lite 바이트 전송용 최소 출력 함수
+static void UartPutChar(u8 ch)
+{
+    XUartLite_SendByte(UART_BASEADDR, ch);
+}
+
+static void UartPutString(const char *text)
+{
+    while (*text != '\0') {
+        UartPutChar((u8)*text);
+        text++;
+    }
+}
+
+static void UartPutHexNibble(u8 value)
+{
+    value &amp;= 0x0FU;
+
+    if (value &lt; 10U) {
+        UartPutChar((u8)('0' + value));
+    } else {
+        UartPutChar((u8)('A' + (value - 10U)));
+    }
+}
+
+static void UartPutHex16(u16 value)
+{
+    int shift;
+
+    for (shift = 12; shift &gt;= 0; shift -= 4) {
+        UartPutHexNibble((u8)(value &gt;&gt; shift));
+    }
+}
+
+static void UartPutHex32(u32 value)
+{
+    int shift;
+
+    for (shift = 28; shift &gt;= 0; shift -= 4) {
+        UartPutHexNibble((u8)(value &gt;&gt; shift));
+    }
+}
+
+static void PrintHelp(void)
+{
+    UartPutString("\r\nCommands\r\n");
+    UartPutString("  1 : LED14 ON\r\n");
+    UartPutString("  0 : LED14 OFF\r\n");
+    UartPutString("  r : Read status\r\n");
+    UartPutString("  h : Help\r\n");
+}
+
+// (유지) 터미널의 'r' 명령에 현재 SW/LED/IRQ 상태를 출력
+static void PrintStatus(void)
+{
+    UartPutString("\r\nSW=0x");
+    UartPutHex16((u16)switch_value);
+    UartPutString(" LED=0x");
+    UartPutHex16((u16)led_state);
+    UartPutString(" IRQ=0x");
+    UartPutHex32(interrupt_count);
+    UartPutString("\r\n");
+}
+
+// (유지) Timer 인터럽트 콜백은 카운트만 증가시켜 실행 시간을 최소화
+static void TimerCallback(void *CallBackRef, u8 TmrCtrNumber)
+{
+    (void)CallBackRef;
+    (void)TmrCtrNumber;
+    interrupt_count++;
+}
+
+// (유지) AXI GPIO 드라이버 초기화; 채널 방향은 기존 BD 설정을 사용
+static int InitGpio(void)
+{
+#ifndef SDT
+    return XGpio_Initialize(&amp;Gpio, GPIO_DEVICE_ID);
+#else
+    return XGpio_Initialize(&amp;Gpio, GPIO_BASEADDR);
+#endif
+}
+
+// (유지) Timer SelfTest → 콜백 등록 → Down Count/Auto Reload/IRQ 설정
+static int InitTimer(void)
+{
+    int status;
+
+#ifndef SDT
+    status = XTmrCtr_Initialize(&amp;Timer, TIMER_DEVICE_ID);
+#else
+    status = XTmrCtr_Initialize(&amp;Timer, TIMER_BASEADDR);
+#endif
+
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    status = XTmrCtr_SelfTest(&amp;Timer, TIMER0);
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    XTmrCtr_SetHandler(&amp;Timer, TimerCallback, &amp;Timer);
+    XTmrCtr_SetOptions(
+        &amp;Timer,
+        TIMER0,
+        XTC_DOWN_COUNT_OPTION |
+        XTC_AUTO_RELOAD_OPTION |
+        XTC_INT_MODE_OPTION
+    );
+    XTmrCtr_SetResetValue(&amp;Timer, TIMER0, TIMER_RESET_VALUE);
+
+    return XST_SUCCESS;
+}
+
+// (유지) AXI INTC/CPU 인터럽트를 Timer 인터럽트 핸들러와 연결
+static int SetupInterruptSystem(void)
+{
+    int status;
+
+#ifndef SDT
+    status = XIntc_Initialize(&amp;Intc, INTC_DEVICE_ID);
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    status = XIntc_Connect(
+        &amp;Intc,
+        TIMER_INTERRUPT_ID,
+        (XInterruptHandler)XTmrCtr_InterruptHandler,
+        (void *)&amp;Timer
+    );
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    status = XIntc_Start(&amp;Intc, XIN_REAL_MODE);
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    XIntc_Enable(&amp;Intc, TIMER_INTERRUPT_ID);
+
+    Xil_ExceptionInit();
+    Xil_ExceptionRegisterHandler(
+        XIL_EXCEPTION_ID_INT,
+        (Xil_ExceptionHandler)XIntc_InterruptHandler,
+        &amp;Intc
+    );
+    Xil_ExceptionEnable();
+#else
+    status = XSetupInterruptSystem(
+        &amp;Timer,
+        (XInterruptHandler)XTmrCtr_InterruptHandler,
+        Timer.Config.IntrId,
+        Timer.Config.IntrParent,
+        XINTERRUPT_DEFAULT_PRIORITY
+    );
+
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+#endif
+
+    return XST_SUCCESS;
+}
+
+// (유지) UART RX/TX FIFO를 초기화하며 UART 자체 IRQ는 사용하지 않음
+static void InitUart(void)
+{
+    /* RX/TX FIFO clear. UART interrupt remains disabled. */
+    XUartLite_WriteReg(
+        UART_BASEADDR,
+        XUL_CONTROL_REG_OFFSET,
+        0x03U
+    );
+}
+
+// (유지) 폴링 방식으로 문자 '1'/'0'을 LED14 상태에 반영
+static void HandleUartCommand(void)
+{
+    // 수신 데이터가 없으면 곧바로 반환해 SW 읽기·Timer 동작을 막지 않음
+    if (XUartLite_IsReceiveEmpty(UART_BASEADDR)) {
+        return;
+    }
+
+    last_uart_rx = XUartLite_RecvByte(UART_BASEADDR);
+
+    switch (last_uart_rx) {
+    case '1':
+        uart_led_state = UART_LED_MASK;
+        UartPutString("\r\nLED14=ON\r\n");
+        break;
+
+    case '0':
+        uart_led_state = 0U;
+        UartPutString("\r\nLED14=OFF\r\n");
+        break;
+
+    case 'r':
+    case 'R':
+        PrintStatus();
+        break;
+
+    case 'h':
+    case 'H':
+        PrintHelp();
+        break;
+
+    case '\r':
+    case '\n':
+        break;
+
+    default:
+        UartPutString("\r\nUnknown command. Press h.\r\n");
+        break;
+    }
+}
+
+// (핵심) SW0, UART 명령, Timer heartbeat의 비트를 합쳐 LED 출력 계산
+static void UpdateLedOutput(void)
+{
+    u32 new_led_state;
+    u32 heartbeat_state;
+
+    if ((interrupt_count &amp; 1U) != 0U) {
+        heartbeat_state = HEARTBEAT_LED_MASK;
+    } else {
+        heartbeat_state = 0U;
+    }
+
+    // SW0(bit0) + UART(bit14) + Timer(bit15)를 비트 OR로 합침
+    // sw[15:1] 입력은 유지하지만 현재 LED1~13에는 출력하지 않음
+    new_led_state =
+        (switch_value &amp; SW_LED_MASK) |
+        uart_led_state |
+        heartbeat_state;
+
+    // LED 값이 실제로 바뀌었을 때만 AXI GPIO 출력 레지스터에 기록
+    if (new_led_state != led_state) {
+        led_state = new_led_state;
+        XGpio_DiscreteWrite(
+            &amp;Gpio,
+            GPIO_LED_CHANNEL,
+            led_state
+        );
+    }
+}
+
+// (핵심) GPIO/UART/Timer/Interrupt를 준비한 뒤 입력→출력을 반복
+int main(void)
+{
+    int status;
+
+    status = InitGpio();
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    InitUart();
+
+    status = InitTimer();
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    status = SetupInterruptSystem();
+    if (status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+
+    led_state = 0U;
+    XGpio_DiscreteWrite(&amp;Gpio, GPIO_LED_CHANNEL, led_state);
+
+    UartPutString("\r\nSoC 10 Integrated System Ready\r\n");
+    PrintHelp();
+
+    XTmrCtr_Start(&amp;Timer, TIMER0);
+
+    // SW 값을 읽고 → UART 명령 처리 → 최종 LED 값을 출력하는 메인 루프
+    while (1) {
+        switch_value = XGpio_DiscreteRead(
+            &amp;Gpio,
+            GPIO_SW_CHANNEL
+        );
+
+        HandleUartCommand();
+        UpdateLedOutput();
+    }
+
+    return XST_SUCCESS;
+}
+</code></pre><details class="prof-code"><summary>교수용 원본 코드 줄별 해석 · 4번 코드 (306줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>쉬운 설명</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;xparameters.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &quot;xgpio.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &quot;xuartlite_l.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &quot;xtmrctr.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>5</td><td><code>#include &quot;xstatus.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>6</td><td><code>#include &quot;xil_types.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>7</td><td><code>#include &quot;xil_exception.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>9</td><td><code>#ifdef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>10</td><td><code>#include &quot;xinterrupt_wrap.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>11</td><td><code>#else</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>12</td><td><code>#include &quot;xintc.h&quot;</code></td><td>함수·자료형 정의가 들어 있는 헤더 파일을 불러옵니다.</td></tr><tr><td>13</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>15</td><td><code>/*</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>16</td><td><code> * SoC 11 - 사용자 Top 기반 MicroBlaze V + GPIO/UART/Timer/INTC 실습</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>17</td><td><code> *</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>18</td><td><code> * GPIO Channel 1 : LED[15:0] output</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>19</td><td><code> * GPIO Channel 2 : SW[15:0] input</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>20</td><td><code> *</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>21</td><td><code> * LED ownership:</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>22</td><td><code> *   LED0      : SW0 mirror (SW_LED_MASK의 bit0만 사용)</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>23</td><td><code> *   LED[13:1] : 현재 C 출력에서는 0 (하드웨어 핀은 분리하지 않음)</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>24</td><td><code> *   LED14     : UART command control ('1' = ON, '0' = OFF)</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>25</td><td><code> *   LED15     : Timer interrupt heartbeat</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>26</td><td><code> *</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>27</td><td><code> * UART : Polling, 115200 8N1</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>28</td><td><code> * Timer: 100 MHz, 0.5 s interval, Down Count + Auto Reload + Interrupt</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>29</td><td><code> * IRQ  : AXI Timer -&gt; AXI INTC -&gt; MicroBlaze V</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>30</td><td><code> */</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>32</td><td><code>// (참고) AXI GPIO Channel 1: LED 출력, Channel 2: 스위치 입력</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>33</td><td><code>#define GPIO_LED_CHANNEL        1U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>34</td><td><code>#define GPIO_SW_CHANNEL         2U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>36</td><td><code>// (변경) 11장 독립 실습: 스위치 한 비트(SW0)만 LED0에 반영</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>37</td><td><code>#define SW_LED_MASK             0x00000001U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>38</td><td><code>// (유지) bit14=UART 표시, bit15=Timer 표시. SW_LED_MASK와 비트 중복 금지</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>39</td><td><code>#define UART_LED_MASK           0x00004000U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>40</td><td><code>#define HEARTBEAT_LED_MASK      0x00008000U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>42</td><td><code>#define TIMER0                  0U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>43</td><td><code>// (유지) 100 MHz 기준 0.5초에 해당하는 50,000,000 tick</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>44</td><td><code>#define TIMER_TICKS_500MS       50000000U</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>45</td><td><code>#define TIMER_RESET_VALUE       (TIMER_TICKS_500MS - 2U)</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>47</td><td><code>// (참고) 사용 중인 Vitis BSP의 SDT 여부에 따라 장치 식별자/기준 주소 선택</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>48</td><td><code>#ifndef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>49</td><td><code>#define GPIO_DEVICE_ID          XPAR_GPIO_0_DEVICE_ID</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>50</td><td><code>#define TIMER_DEVICE_ID         XPAR_TMRCTR_0_DEVICE_ID</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>51</td><td><code>#define INTC_DEVICE_ID          XPAR_INTC_0_DEVICE_ID</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>52</td><td><code>#define TIMER_INTERRUPT_ID      XPAR_INTC_0_TMRCTR_0_VEC_ID</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>53</td><td><code>#define UART_BASEADDR           XPAR_UARTLITE_0_BASEADDR</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>54</td><td><code>#else</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>55</td><td><code>#define GPIO_BASEADDR           XPAR_XGPIO_0_BASEADDR</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>56</td><td><code>#define TIMER_BASEADDR          XPAR_XTMRCTR_0_BASEADDR</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>57</td><td><code>#define UART_BASEADDR           XPAR_XUARTLITE_0_BASEADDR</code></td><td>컴파일 시 치환할 매크로 또는 상수를 정의합니다. 실제 하드웨어 주소인지 확인합니다.</td></tr><tr><td>58</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>60</td><td><code>static XGpio Gpio;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>61</td><td><code>static XTmrCtr Timer;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>63</td><td><code>#ifndef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>64</td><td><code>static XIntc Intc;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>65</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>67</td><td><code>// (유지) 인터럽트에서 변경되는 공유 카운터</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>68</td><td><code>volatile u32 interrupt_count = 0U;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>69</td><td><code>volatile u32 switch_value    = 0U;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>70</td><td><code>volatile u32 led_state       = 0U;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>71</td><td><code>volatile u8  last_uart_rx    = 0U;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>73</td><td><code>static u32 uart_led_state = 0U;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>75</td><td><code>// (유지) UART Lite 바이트 전송용 최소 출력 함수</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>76</td><td><code>static void UartPutChar(u8 ch)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>77</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>78</td><td><code>    XUartLite_SendByte(UART_BASEADDR, ch);</code></td><td>UART 수신·송신용 AMD 드라이버 함수입니다. 송수신 방향과 바이트 크기를 확인합니다.</td></tr><tr><td>79</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>81</td><td><code>static void UartPutString(const char *text)</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>82</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>83</td><td><code>    while (*text != '\0') {</code></td><td>반복 조건과 종료 조건을 구분해 무한 대기를 방지합니다.</td></tr><tr><td>84</td><td><code>        UartPutChar((u8)*text);</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>85</td><td><code>        text++;</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>86</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>87</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>89</td><td><code>static void UartPutHexNibble(u8 value)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>90</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>91</td><td><code>    value &amp;= 0x0FU;</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>93</td><td><code>    if (value &lt; 10U) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>94</td><td><code>        UartPutChar((u8)('0' + value));</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>95</td><td><code>    } else {</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>96</td><td><code>        UartPutChar((u8)('A' + (value - 10U)));</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>97</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>98</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>100</td><td><code>static void UartPutHex16(u16 value)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>101</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>102</td><td><code>    int shift;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>104</td><td><code>    for (shift = 12; shift &gt;= 0; shift -= 4) {</code></td><td>반복 조건과 종료 조건을 구분해 무한 대기를 방지합니다.</td></tr><tr><td>105</td><td><code>        UartPutHexNibble((u8)(value &gt;&gt; shift));</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>106</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>107</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>109</td><td><code>static void UartPutHex32(u32 value)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>110</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>111</td><td><code>    int shift;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>113</td><td><code>    for (shift = 28; shift &gt;= 0; shift -= 4) {</code></td><td>반복 조건과 종료 조건을 구분해 무한 대기를 방지합니다.</td></tr><tr><td>114</td><td><code>        UartPutHexNibble((u8)(value &gt;&gt; shift));</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>115</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>116</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>118</td><td><code>static void PrintHelp(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>119</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>120</td><td><code>    UartPutString(&quot;\r\nCommands\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>121</td><td><code>    UartPutString(&quot;  1 : LED14 ON\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>122</td><td><code>    UartPutString(&quot;  0 : LED14 OFF\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>123</td><td><code>    UartPutString(&quot;  r : Read status\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>124</td><td><code>    UartPutString(&quot;  h : Help\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>125</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>127</td><td><code>// (유지) 터미널의 'r' 명령에 현재 SW/LED/IRQ 상태를 출력</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>128</td><td><code>static void PrintStatus(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>129</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>130</td><td><code>    UartPutString(&quot;\r\nSW=0x&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>131</td><td><code>    UartPutHex16((u16)switch_value);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>132</td><td><code>    UartPutString(&quot; LED=0x&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>133</td><td><code>    UartPutHex16((u16)led_state);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>134</td><td><code>    UartPutString(&quot; IRQ=0x&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>135</td><td><code>    UartPutHex32(interrupt_count);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>136</td><td><code>    UartPutString(&quot;\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>137</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>139</td><td><code>// (유지) Timer 인터럽트 콜백은 카운트만 증가시켜 실행 시간을 최소화</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>140</td><td><code>static void TimerCallback(void *CallBackRef, u8 TmrCtrNumber)</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>141</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>142</td><td><code>    (void)CallBackRef;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>143</td><td><code>    (void)TmrCtrNumber;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>144</td><td><code>    interrupt_count++;</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>145</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>147</td><td><code>// (유지) AXI GPIO 드라이버 초기화; 채널 방향은 기존 BD 설정을 사용</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>148</td><td><code>static int InitGpio(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>149</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>150</td><td><code>#ifndef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>151</td><td><code>    return XGpio_Initialize(&amp;Gpio, GPIO_DEVICE_ID);</code></td><td>AXI GPIO 드라이버 호출입니다. 채널 번호와 입력·출력 방향을 확인합니다.</td></tr><tr><td>152</td><td><code>#else</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>153</td><td><code>    return XGpio_Initialize(&amp;Gpio, GPIO_BASEADDR);</code></td><td>AXI GPIO 드라이버 호출입니다. 채널 번호와 입력·출력 방향을 확인합니다.</td></tr><tr><td>154</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>155</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>157</td><td><code>// (유지) Timer SelfTest → 콜백 등록 → Down Count/Auto Reload/IRQ 설정</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>158</td><td><code>static int InitTimer(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>159</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>160</td><td><code>    int status;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>162</td><td><code>#ifndef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>163</td><td><code>    status = XTmrCtr_Initialize(&amp;Timer, TIMER_DEVICE_ID);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>164</td><td><code>#else</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>165</td><td><code>    status = XTmrCtr_Initialize(&amp;Timer, TIMER_BASEADDR);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>166</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>168</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>169</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>170</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>172</td><td><code>    status = XTmrCtr_SelfTest(&amp;Timer, TIMER0);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>173</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>174</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>175</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>177</td><td><code>    XTmrCtr_SetHandler(&amp;Timer, TimerCallback, &amp;Timer);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>178</td><td><code>    XTmrCtr_SetOptions(</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>179</td><td><code>        &amp;Timer,</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>180</td><td><code>        TIMER0,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>181</td><td><code>        XTC_DOWN_COUNT_OPTION |</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>182</td><td><code>        XTC_AUTO_RELOAD_OPTION |</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>183</td><td><code>        XTC_INT_MODE_OPTION</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>184</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>185</td><td><code>    XTmrCtr_SetResetValue(&amp;Timer, TIMER0, TIMER_RESET_VALUE);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>187</td><td><code>    return XST_SUCCESS;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>188</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>190</td><td><code>// (유지) AXI INTC/CPU 인터럽트를 Timer 인터럽트 핸들러와 연결</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>191</td><td><code>static int SetupInterruptSystem(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>192</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>193</td><td><code>    int status;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>195</td><td><code>#ifndef SDT</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>196</td><td><code>    status = XIntc_Initialize(&amp;Intc, INTC_DEVICE_ID);</code></td><td>AXI Interrupt Controller 드라이버 호출입니다. 등록·마스크·시작·ACK 역할을 확인합니다.</td></tr><tr><td>197</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>198</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>199</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>201</td><td><code>    status = XIntc_Connect(</code></td><td>AXI Interrupt Controller 드라이버 호출입니다. 등록·마스크·시작·ACK 역할을 확인합니다.</td></tr><tr><td>202</td><td><code>        &amp;Intc,</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>203</td><td><code>        TIMER_INTERRUPT_ID,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>204</td><td><code>        (XInterruptHandler)XTmrCtr_InterruptHandler,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>205</td><td><code>        (void *)&amp;Timer</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>206</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>207</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>208</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>209</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>211</td><td><code>    status = XIntc_Start(&amp;Intc, XIN_REAL_MODE);</code></td><td>AXI Interrupt Controller 드라이버 호출입니다. 등록·마스크·시작·ACK 역할을 확인합니다.</td></tr><tr><td>212</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>213</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>214</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>216</td><td><code>    XIntc_Enable(&amp;Intc, TIMER_INTERRUPT_ID);</code></td><td>AXI Interrupt Controller 드라이버 호출입니다. 등록·마스크·시작·ACK 역할을 확인합니다.</td></tr><tr><td>218</td><td><code>    Xil_ExceptionInit();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>219</td><td><code>    Xil_ExceptionRegisterHandler(</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>220</td><td><code>        XIL_EXCEPTION_ID_INT,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>221</td><td><code>        (Xil_ExceptionHandler)XIntc_InterruptHandler,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>222</td><td><code>        &amp;Intc</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>223</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>224</td><td><code>    Xil_ExceptionEnable();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>225</td><td><code>#else</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>226</td><td><code>    status = XSetupInterruptSystem(</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>227</td><td><code>        &amp;Timer,</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>228</td><td><code>        (XInterruptHandler)XTmrCtr_InterruptHandler,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>229</td><td><code>        Timer.Config.IntrId,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>230</td><td><code>        Timer.Config.IntrParent,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>231</td><td><code>        XINTERRUPT_DEFAULT_PRIORITY</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>232</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>234</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>235</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>236</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>237</td><td><code>#endif</code></td><td>조건부 컴파일 전처리기입니다. 어떤 코드 부분이 활성화되는지 확인합니다.</td></tr><tr><td>239</td><td><code>    return XST_SUCCESS;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>240</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>242</td><td><code>// (유지) UART RX/TX FIFO를 초기화하며 UART 자체 IRQ는 사용하지 않음</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>243</td><td><code>static void InitUart(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>244</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>245</td><td><code>    /* RX/TX FIFO clear. UART interrupt remains disabled. */</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>246</td><td><code>    XUartLite_WriteReg(</code></td><td>UART 수신·송신용 AMD 드라이버 함수입니다. 송수신 방향과 바이트 크기를 확인합니다.</td></tr><tr><td>247</td><td><code>        UART_BASEADDR,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>248</td><td><code>        XUL_CONTROL_REG_OFFSET,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>249</td><td><code>        0x03U</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>250</td><td><code>    );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>251</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>253</td><td><code>// (유지) 폴링 방식으로 문자 '1'/'0'을 LED14 상태에 반영</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>254</td><td><code>static void HandleUartCommand(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>255</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>256</td><td><code>    // 수신 데이터가 없으면 곧바로 반환해 SW 읽기·Timer 동작을 막지 않음</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>257</td><td><code>    if (XUartLite_IsReceiveEmpty(UART_BASEADDR)) {</code></td><td>UART 수신·송신용 AMD 드라이버 함수입니다. 송수신 방향과 바이트 크기를 확인합니다.</td></tr><tr><td>258</td><td><code>        return;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>259</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>261</td><td><code>    last_uart_rx = XUartLite_RecvByte(UART_BASEADDR);</code></td><td>UART 수신·송신용 AMD 드라이버 함수입니다. 송수신 방향과 바이트 크기를 확인합니다.</td></tr><tr><td>263</td><td><code>    switch (last_uart_rx) {</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>264</td><td><code>    case '1':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>265</td><td><code>        uart_led_state = UART_LED_MASK;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>266</td><td><code>        UartPutString(&quot;\r\nLED14=ON\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>267</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>269</td><td><code>    case '0':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>270</td><td><code>        uart_led_state = 0U;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>271</td><td><code>        UartPutString(&quot;\r\nLED14=OFF\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>272</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>274</td><td><code>    case 'r':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>275</td><td><code>    case 'R':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>276</td><td><code>        PrintStatus();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>277</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>279</td><td><code>    case 'h':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>280</td><td><code>    case 'H':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>281</td><td><code>        PrintHelp();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>282</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>284</td><td><code>    case '\r':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>285</td><td><code>    case '\n':</code></td><td>입력값·상태에 따라 여러 경로 중 하나를 고릅니다.</td></tr><tr><td>286</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>288</td><td><code>    default:</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>289</td><td><code>        UartPutString(&quot;\r\nUnknown command. Press h.\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>290</td><td><code>        break;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>291</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>292</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>294</td><td><code>// (핵심) SW0, UART 명령, Timer heartbeat의 비트를 합쳐 LED 출력 계산</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>295</td><td><code>static void UpdateLedOutput(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>296</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>297</td><td><code>    u32 new_led_state;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>298</td><td><code>    u32 heartbeat_state;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>300</td><td><code>    if ((interrupt_count &amp; 1U) != 0U) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>301</td><td><code>        heartbeat_state = HEARTBEAT_LED_MASK;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>302</td><td><code>    } else {</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>303</td><td><code>        heartbeat_state = 0U;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>304</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>306</td><td><code>    // SW0(bit0) + UART(bit14) + Timer(bit15)를 비트 OR로 합침</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>307</td><td><code>    // sw[15:1] 입력은 유지하지만 현재 LED1~13에는 출력하지 않음</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>308</td><td><code>    new_led_state =</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>309</td><td><code>        (switch_value &amp; SW_LED_MASK) |</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>310</td><td><code>        uart_led_state |</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>311</td><td><code>        heartbeat_state;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>313</td><td><code>    // LED 값이 실제로 바뀌었을 때만 AXI GPIO 출력 레지스터에 기록</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>314</td><td><code>    if (new_led_state != led_state) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>315</td><td><code>        led_state = new_led_state;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>316</td><td><code>        XGpio_DiscreteWrite(</code></td><td>AXI GPIO 드라이버 호출입니다. 채널 번호와 입력·출력 방향을 확인합니다.</td></tr><tr><td>317</td><td><code>            &amp;Gpio,</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>318</td><td><code>            GPIO_LED_CHANNEL,</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>319</td><td><code>            led_state</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>320</td><td><code>        );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>321</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>322</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>324</td><td><code>// (핵심) GPIO/UART/Timer/Interrupt를 준비한 뒤 입력→출력을 반복</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>325</td><td><code>int main(void)</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>326</td><td><code>{</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>327</td><td><code>    int status;</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>329</td><td><code>    status = InitGpio();</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>330</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>331</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>332</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>334</td><td><code>    InitUart();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>336</td><td><code>    status = InitTimer();</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>337</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>338</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>339</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>341</td><td><code>    status = SetupInterruptSystem();</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>342</td><td><code>    if (status != XST_SUCCESS) {</code></td><td>조건식이 참인 경우에만 이후 분기 처리합니다.</td></tr><tr><td>343</td><td><code>        return XST_FAILURE;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>344</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>346</td><td><code>    led_state = 0U;</code></td><td>오른쪽 표현식을 계산해 왼쪽 변수·설정에 대입합니다.</td></tr><tr><td>347</td><td><code>    XGpio_DiscreteWrite(&amp;Gpio, GPIO_LED_CHANNEL, led_state);</code></td><td>AXI GPIO 드라이버 호출입니다. 채널 번호와 입력·출력 방향을 확인합니다.</td></tr><tr><td>349</td><td><code>    UartPutString(&quot;\r\nSoC 10 Integrated System Ready\r\n&quot;);</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>350</td><td><code>    PrintHelp();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>352</td><td><code>    XTmrCtr_Start(&amp;Timer, TIMER0);</code></td><td>AXI Timer 드라이버 호출입니다. 타이머의 시작·정지·설정·상태 읽기 중 어느 역할인지 분리합니다.</td></tr><tr><td>354</td><td><code>    // SW 값을 읽고 → UART 명령 처리 → 최종 LED 값을 출력하는 메인 루프</code></td><td>주석입니다. 대상 포트·함수의 목적을 설명한 문장이므로 실제 명령과 구분합니다.</td></tr><tr><td>355</td><td><code>    while (1) {</code></td><td>반복 조건과 종료 조건을 구분해 무한 대기를 방지합니다.</td></tr><tr><td>356</td><td><code>        switch_value = XGpio_DiscreteRead(</code></td><td>AXI GPIO 드라이버 호출입니다. 채널 번호와 입력·출력 방향을 확인합니다.</td></tr><tr><td>357</td><td><code>            &amp;Gpio,</code></td><td>연산자와 피연산자의 폭·부호·우선순위를 확인하고 결과값을 추적합니다.</td></tr><tr><td>358</td><td><code>            GPIO_SW_CHANNEL</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>359</td><td><code>        );</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>361</td><td><code>        HandleUartCommand();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>362</td><td><code>        UpdateLedOutput();</code></td><td>이 줄의 변수명·함수명·포트명을 원본 회로의 신호 경로와 연결해 이해합니다.</td></tr><tr><td>363</td><td><code>    }</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr><tr><td>365</td><td><code>    return XST_SUCCESS;</code></td><td>함수를 종료하고 필요하면 결과값을 호출자에게 돌려줍니다.</td></tr><tr><td>366</td><td><code>}</code></td><td>구문 블록의 시작 또는 끝을 나타냅니다.</td></tr></tbody></table></div></details>
+<h3>⑤ Platform·Application Build 및 ELF 확인</h3>
+<ol class="procedure">
+<li>Vitis Explorer에서 <code>soc11_user_top_platform</code>이 새 XSA로 <strong>Build</strong> 완료됐는지 확인합니다. XSA를 다시 지정한 경우 <strong>Platform을 먼저 Rebuild</strong>합니다.</li>
+<li><code>soc11_user_top_app</code>을 선택하고 <strong>Flow → Build</strong>를 실행합니다. 빌드 로그의 <strong>Build Finished successfully</strong> 메시지와 <strong>Output</strong>에 생성된 <code>soc11_user_top_app.elf</code>를 확인합니다.</li>
+<li><strong>ELF가 생성되지 않으면</strong> Console의 첫 번째 컴파일·링커 오류와 <code>xparameters.h</code>, <code>lscript.ld</code>, 선택한 Domain을 확인합니다. 빌드 완료를 임의로 가정하지 않습니다.</li>
+</ol>
+<h3>⑥ FPGA 다운로드 · ELF 실행</h3>
+<ol class="procedure">
+<li>Vivado <strong>Hardware Manager → Open Target → Program Device</strong>에서 11장 사용자 Top으로 생성한 새 Bitstream을 Basys3에 다운로드합니다.</li>
+<li>Vitis에서 <code>soc11_user_top_app</code>의 <strong>Run/Debug 설정(launch.json)</strong>을 열어 대상 하드웨어와 새 <code>.elf</code>를 선택하고 <strong>Run</strong> 또는 <strong>Debug</strong>를 실행합니다.</li>
+<li>Ubuntu <strong>moserial</strong>에서 <code>115200</code>, <code>8N1</code>, <strong>Flow Control Off</strong>로 USB-UART 포트를 열고, 시작 메시지·<code>1</code>/<code>0</code>/<code>r</code> 명령과 아래 보드 출력을 확인합니다.</li>
+</ol>
+<h3>보드에서 확인</h3>
+<div class="tablewrap"><table><thead><tr><th>조작</th><th>예상 결과</th></tr></thead><tbody>
+<tr><td>SW0 OFF → ON</td><td>LED0 OFF → ON</td></tr>
+<tr><td>SW1~SW13 조작</td><td>LED1~13은 스위치 입력에 따라 바뀌지 않음</td></tr>
+<tr><td>UART <code>1</code> / <code>0</code> 전송</td><td>LED14 ON / OFF</td></tr>
+<tr><td>Timer 실행 / BTNC 누름</td><td>LED15 주기적 변화 / 시스템 Reset</td></tr>
+</tbody></table></div>
+</section>
+<section class="step-card" id="s05">
+<div class="section-top"><span class="step">SECTION 05</span><span class="category">입출력 연결</span></div><h2>Basys3 보드 입출력 구성</h2>
+<div class="tablewrap"><table><thead><tr><th>자원</th><th>핀</th><th>11장 예제의 사용</th></tr></thead><tbody>
+<tr><td>SW0 / LED0</td><td>V17 / U16</td><td>AXI GPIO 입력 → MicroBlaze V C → AXI GPIO 출력</td></tr>
+<tr><td>SW1~15</td><td>11장 XDC</td><td>AXI GPIO 입력은 유지, 1비트 예제 출력에는 미반영</td></tr>
+<tr><td>LED1~13</td><td>11장 XDC</td><td>11장 C 마스크 기준 OFF</td></tr>
+<tr><td>LED14</td><td>P1</td><td>UART 명령 <code>1</code>/<code>0</code> 표시</td></tr>
+<tr><td>LED15</td><td>L1</td><td>Timer/INTC heartbeat</td></tr>
+<tr><td>BTNC</td><td>U18</td><td>SoC Reset</td></tr>
+<tr><td>RsRx / RsTx</td><td>B18 / A18</td><td>USB-UART 수신·송신</td></tr>
+</tbody></table></div>
+<div class="flow">SW0 (V17) → sw[0] → sw_tri_i[0]
+                      │
+                      ▼
+                  AXI GPIO → MicroBlaze V
+                      │          │
+                      │      SW_LED_MASK (bit 0)
+                      ▼          ▼
+                AXI GPIO LED 출력 → led_tri_o[0] → led[0] (U16)
+
+UART_0_rxd → UART Lite / C → led[14] (P1)
+Timer / INTC → C           → led[15] (L1)</div>
+</section>
+
+<section class="step-card" id="s06">
+<div class="section-top"><span class="step">SECTION 06</span><span class="category">실습 파일</span></div>
+<h2>실습 파일</h2>
+<p><a href="https://github.com/Yuul-Jung/soc/blob/main/MicroBlaze_V_SoC01_41/pages/soc/10_microblaze_gpio_uart_timer_integration.html">제1부 10장 실습 본문</a> ·
+<a href="https://github.com/Yuul-Jung/soc/blob/main/MicroBlaze_V_SoC01_41/code/soc10/main.c">10장 원본 C 소스</a> ·
+<a href="../part01/chapters/../files/p1_11/main_soc11.c">11장 1비트 C 소스</a> ·
+<a href="../part01/chapters/../files/p1_11/basys3_soc11_top.v">11장 Top Verilog 소스</a> ·
+<a href="https://github.com/Yuul-Jung/soc/blob/main/MicroBlaze_V_SoC01_41/code/soc10/basys3_soc10_integrated.xdc">10장 저장소 참고 XDC</a> ·
+<a href="../part01/chapters/../files/p1_11/basys3_soc11_top.xdc">11장 사용자 Top XDC</a></p>
+</section>
+<footer class="footer">제1부 11장 · 사용자 Top과 1비트 GPIO 제어</footer>
+<section class="prof-card" id="prof-summary"><h2>교수용 검토 질문과 연결</h2><p>① 실제 C 함수·RTL 신호명·AXI 주소와 그림의 화살표를 1:1로 추적해 봅니다.</p><p>② 이번 장에서 새로 추가한 부분과 전 장에서 유지한 부분을 구분합니다.</p><p>③ 기능검증·합성·실물 동작이 각각 어디까지 증명되었는지 원본 기록을 읽어 설명합니다.</p></section></main></div></body></html>

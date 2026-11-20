@@ -1,0 +1,408 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="보정 완료 샘플 선택 → 경보 우선순위 → 표시 정책"><title>교수용 상세 해설서 | 제2부 19장 | BME280 RAW 센서·보정 계수·경보</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch19"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 19/20</p><h1>제19장 · BME280 복합 환경 제어</h1><p>보정 완료 샘플 선택 → 경보 우선순위 → 표시 정책</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 19장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> BME280은 온도·기압·습도를 원시 디지털 레지스터로 제공합니다. 실제 물리 단위를 얻으려면 제조사 제공 보정 계수를 적용해야 하므로 RAW 데이터 해석과 보정 완료된 수치 판단을 구별합니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="BME280 Register → I2C/SPI RAW → 보정(미완료) → 경보 정책"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">BME280 Register</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">I2C/SPI RAW</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">보정(미완료)</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">경보 정책</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> Chip-ID와 Raw8 비트 분리 시험은 Bosch Compensation 구현이 아닙니다. 보정된 가상 입력으로 테스트한 경보와 실물 측정 정확도를 혼동하지 않습니다.</p><p class="prof-small"><a href="../part02_2/guide/ch19_bme280_environment_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch18_teacher_v02.html">이전 장</a> · <a href="ch20_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>과제 개요</h2><p>BME280(비엠이280, 기압·온도·습도 센서)와 기존 DHT22, DS18B20, DS3231 RTC, PIR 센서의 데이터를 <strong>센서별 독립 인터페이스 → 공통 제어 정책 → 표시·경보</strong>로 통합한다. 핵심은 센서 종류가 늘어나도 기존 Controller와 Top의 기능 로직을 변경하지 않는 것이다.</p><p>BME280 Chip-ID·Raw ADC 레지스터, 센서 선택 우선순위, 경보 정책과 표시 페이지를 C/RTL 자가검증으로 확인한다.</p><p class="warn"><strong>검증 경계:</strong> BME280 Raw ADC로부터 실제 ℃·%RH·Pa로 보정하는 Bosch Calibration/Compensation 코드는 미구현이다. 테스트벤치의 BME280 입력은 <em>상류에서 이미 보정했다고 가정한 가상값</em>이다. 실제 I²C 버스 결합, AXI IP, Vivado·Vitis·실물 검증은 아직 수행하지 않았다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>전체 계층형 구조도</h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 445" aria-label="BME280, 기존 센서 모듈, 환경 정책, 표시 경보 인터페이스" role="img"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7z" fill="#497f9c"/></marker></defs>
+<rect x="12" y="12" width="1026" height="420" rx="12" fill="#f8fbfd" stroke="#b9d3e1" stroke-width="2"/>
+<text x="28" y="45" font-size="15" font-weight="700" fill="#375d77">독립 입력 계층 · Sensor / Event Source</text>
+<g text-anchor="middle" fill="#173d59" font-size="16">
+<rect x="35" y="70" width="195" height="66" rx="9" fill="#dcebf8" stroke="#7babc1"/><text x="132" y="97">DS18B20</text><text x="132" y="117" font-size="12">온도 + valid</text>
+<rect x="255" y="70" width="195" height="66" rx="9" fill="#dcebf8" stroke="#7babc1"/><text x="352" y="97">DHT22</text><text x="352" y="117" font-size="12">온습도 + valid</text>
+<rect x="475" y="70" width="195" height="66" rx="9" fill="#dcebf8" stroke="#7babc1"/><text x="572" y="97">BME280</text><text x="572" y="117" font-size="12">보정 완료 샘플 필요</text>
+<rect x="695" y="70" width="145" height="66" rx="9" fill="#dcebf8" stroke="#7babc1"/><text x="767" y="96">DS3231 RTC</text><text x="767" y="117" font-size="12">시·분 + valid</text>
+<rect x="865" y="70" width="145" height="66" rx="9" fill="#f5dfba" stroke="#bd9b65"/><text x="937" y="96">PIR IRQ</text><text x="937" y="117" font-size="12">event_pending</text>
+<rect x="317" y="202" width="416" height="97" rx="12" fill="#cde9df" stroke="#6aa994" stroke-width="2"/><text x="525" y="232" font-size="20">environment_policy.v</text><text x="525" y="254" font-size="14">우선순위 · 유효 데이터 · 표시 페이지</text><text x="525" y="277" font-size="14">PIR &gt; 고온 &gt; 고습</text>
+<rect x="92" y="351" width="359" height="63" rx="9" fill="#e6e7f6" stroke="#a2aacf"/><text x="271" y="377">FND / LCD 표시 어댑터</text><text x="271" y="397" font-size="12">실제 연결 미구현</text>
+<rect x="594" y="351" width="359" height="63" rx="9" fill="#e6e7f6" stroke="#a2aacf"/><text x="774" y="377">MicroBlaze V AXI 제어</text><text x="774" y="397" font-size="12">실제 연결 미구현</text></g>
+<path d="M132 136V166H525M352 136V166M572 136V166M767 136V166H525M937 136V166H525M525 166V202M525 299V330H271V351M525 330H774V351" fill="none" stroke="#497f9c" stroke-width="2.6" marker-end="url(#arrow)"/></svg><p>기존 14~18장 RTL은 수정하지 않는다. 각 센서에서 검증된 값이 들어오면 정책 모듈이 저장·표시·경보를 결정한다. 상류 센서 실제 출력과 이 모듈을 연결하는 Adapter(어댑터, 인터페이스 변환기), AXI 통합, I²C 공용 버스는 아직 실행 검증을 마치지 않았다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>센서 데이터 단위와 우선순위</h2><table><tr><th>출처</th><th>입력 단위</th><th>정규화·표시 단위</th></tr><tr><td>DS18B20</td><td>1/16℃ signed raw</td><td>0.1℃ 정수 근삿값</td></tr><tr><td>DHT22</td><td>0.1℃, 0.1%RH</td><td>그대로</td></tr><tr><td>BME280</td><td>보정 완료 0.01℃, 0.001%RH, Pa</td><td>0.1℃, 0.1%RH, Pa</td></tr><tr><td>DS3231 RTC</td><td>24시간제 시/분</td><td>HHMM 정수 표시</td></tr><tr><td>HC-SR501 PIR</td><td>Sticky Pending</td><td>감지 1 / 미감지 0</td></tr></table>
+<p>온도 선택 순서는 <strong>BME280 → DHT22 → DS18B20</strong>, 습도 선택 순서는 <strong>BME280 → DHT22</strong>이다. 선택한 BME280 값이 물리 범위를 벗어나면 DHT22 또는 DS18B20으로 되돌아간다.</p><p>기존 센서의 단위가 서로 달라도, 정책 계층에서는 0.1℃·0.1%RH 형태의 일관된 값을 처리하도록 정의한다. 이 단계에서 데이터 전환 우선순위가 바뀔 수는 있지만 센서별 최신 시각이 일치한다는 보장은 아직 없다.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>BME280 Chip-ID 및 레지스터 구조</h2><table><tr><th>항목</th><th>레지스터·값</th><th>기능</th></tr><tr><td>I²C 주소</td><td>0x76 / 0x77</td><td>모듈 SDO 핀 상태에 따라 결정</td></tr><tr><td>CHIP_ID</td><td>0xD0 → 0x60</td><td>BME280 제품 확인</td></tr><tr><td>Calibration</td><td>0x88~0xA1, 0xE1~0xE7</td><td>온도·습도·기압 보정 계수</td></tr><tr><td>CTRL_HUM</td><td>0xF2</td><td>습도 Oversampling 설정</td></tr><tr><td>CTRL_MEAS</td><td>0xF4</td><td>온도·기압 Oversampling 및 모드</td></tr><tr><td>DATA</td><td>0xF7~0xFE (8바이트)</td><td>압력 20bit, 온도 20bit, 습도 16bit의 Raw ADC</td></tr></table>
+<p><strong>중요:</strong> ID가 0x58인 BMP280(비엠피280)은 기압·온도 센서이며 BME280과 다르다. BME280의 실제 물리량은 보정 계수를 이용해 Bosch 공식 알고리즘을 적용해야 한다. Raw ADC 값을 온도나 기압으로 표시하면 기술적으로 잘못된 결과가 된다.</p>
+<p>공식 근거: <a href="https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf">Bosch BME280 데이터시트</a> · <a href="https://github.com/boschsensortec/BME280_SensorAPI">Bosch 공식 BME280 SensorAPI</a>.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>환경 경보 및 표시 정책</h2><table><tr><th>우선순위</th><th>조건</th><th>alarm_reason</th></tr><tr><td>1</td><td>PIR 이벤트 Pending</td><td>1 — PIR</td></tr><tr><td>2</td><td>선택 온도 30.0℃ 이상</td><td>2 — HIGH TEMP</td></tr><tr><td>3</td><td>선택 습도 80.0%RH 이상</td><td>3 — HIGH HUM</td></tr><tr><td>4</td><td>위 조건 없음</td><td>0 — NORMAL</td></tr></table>
+<p>동시에 여러 조건이 발생하면 위쪽의 한 가지 원인을 대표 경보로 출력한다. PIR은 제18장 이벤트 Pending을 재사용하며, 이 모듈이 별도로 IRQ ACK를 처리하지 않는다.</p>
+<table><tr><th>display_page</th><th>표시 항목</th><th>데이터 조건</th></tr><tr><td>0</td><td>온도(0.1℃)</td><td>BME280, DHT22, DS18B20 중 유효</td></tr><tr><td>1</td><td>상대습도(0.1%RH)</td><td>BME280 또는 DHT22 유효</td></tr><tr><td>2</td><td>기압(Pa)</td><td>보정 완료 BME280 샘플 유효</td></tr><tr><td>3</td><td>시각(HHMM)</td><td>RTC 유효</td></tr><tr><td>4</td><td>PIR Pending</td><td>0/1</td></tr></table>
+<p><code>page_next_pulse</code>마다 표시 페이지가 0→1→2→3→4→0 순서로 순환한다. 해당 페이지의 데이터가 없는 경우 <code>display_valid=0</code>으로 표시하도록 하며, 실제 FND 자리별 포맷 또는 LCD ASCII 변환은 기존 표시 Controller와의 후속 연결이 필요하다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>전체 RTL·C·자가검증 테스트벤치</h2><p>정책 컨트롤러는 기존 센서를 직접 변경하지 않고 이미 검증된 데이터만 수신한다. Bosch의 BME280 레지스터 구조를 확인하는 C 드라이버는 추후 I²C Read 구현과 연결할 수 있는 Callback(콜백, 외부 통신 함수를 전달하는 인터페이스) 형태다.</p><details><summary>rtl/environment_policy.v — 전체 소스코드</summary><div class="codeblock"><div class="codebar"><span>rtl/environment_policy.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-19 Reusable integrated environment policy controller.
+// Inputs are ALREADY DECODED sample values: not a physical I2C driver.
+// DHT22: 0.1%RH + signed 0.1C; DS18B20: signed 1/16C.
+// BME280: OPTIONAL upstream compensated 0.01C, 0.001%RH and Pa.
+// RTC: ALREADY DECODED 24h hour/minute. PIR input is sticky event pending.
+// Priority: PIR &gt; TEMP HIGH &gt; HUM HIGH &gt; OK. No hardware actuator output.
+// Display round-robin pages: temperature, humidity, pressure, RTC, PIR.
+// Page selection is a presentation policy, not an LCD byte-level protocol.
+module environment_policy #(
+    parameter signed [15:0] TEMP_ALARM_TENTHS = 16'sd300,
+    parameter [15:0] HUM_ALARM_TENTHS = 16'd800
+)(
+    input wire clk, input wire resetn,
+    input wire dht_valid, input wire signed [15:0] dht_temp_tenths,
+    input wire [15:0] dht_hum_tenths,
+    input wire ds_valid, input wire signed [15:0] ds_temp_raw,
+    input wire bme_valid, input wire signed [31:0] bme_temp_centi,
+    input wire [31:0] bme_hum_milli, input wire [31:0] bme_pressure_pa,
+    input wire rtc_valid, input wire [4:0] rtc_hour, input wire [5:0] rtc_minute,
+    input wire pir_event_pending,
+    input wire page_next_pulse,
+    output reg [2:0] display_page,
+    output reg display_valid,
+    output reg signed [31:0] display_value,
+    output reg [2:0] display_source, // 1 DHT, 2 DS, 3 BME, 4 RTC, 5 PIR
+    output reg [2:0] alarm_reason, // 0 none, 1 PIR, 2 high-temp, 3 high-humidity
+    output wire alarm_active,
+    output reg [31:0] accepted_updates
+);
+    reg dht_seen,ds_seen,bme_seen,rtc_seen;
+    reg signed [15:0] dht_t;
+    reg [15:0] dht_h;
+    reg signed [15:0] ds_t;
+    reg signed [31:0] bme_t;
+    reg [31:0] bme_h,bme_p;
+    reg [4:0] hour_reg;
+    reg [5:0] min_reg;
+
+    wire bme_temp_sane = (bme_t &gt;= -32'sd4000 &amp;&amp;
+                           bme_t &lt;= 32'sd8500);
+    wire bme_hum_sane = (bme_h &lt;= 32'd100000);
+    wire bme_pressure_sane = (bme_p &gt;= 32'd30000 &amp;&amp;
+                              bme_p &lt;= 32'd110000);
+    wire bme_usable = bme_seen &amp;&amp; bme_temp_sane &amp;&amp; bme_hum_sane &amp;&amp;
+                      bme_pressure_sane;
+    wire dht_usable = dht_seen &amp;&amp; dht_h&lt;=16'd1000 &amp;&amp;
+                      dht_t&gt;=-16'sd400 &amp;&amp; dht_t&lt;=16'sd800;
+    wire ds_usable = ds_seen &amp;&amp; ds_t&gt;=-16'sd880 &amp;&amp;
+                     ds_t&lt;=16'sd2000;
+    wire rtc_usable = rtc_seen &amp;&amp; hour_reg&lt;=5'd23 &amp;&amp;
+                      min_reg&lt;=6'd59;
+    // Select one coherent temperature source; bme is preferred if valid.
+    reg signed [31:0] temp_selected;
+    reg [31:0] hum_selected;
+    reg temp_available,hum_available;
+    reg [2:0] temp_src,hum_src;
+    always @(*) begin
+        temp_selected=0;hum_selected=0;
+        temp_available=0;hum_available=0;
+        temp_src=0;hum_src=0;
+        if(bme_usable) begin
+            temp_selected=bme_t / 32'sd10; // centi-C to tenth-C
+            hum_selected=bme_h / 32'd100;  // milli-% to tenth-%
+            temp_available=1;hum_available=1;
+            temp_src=3;hum_src=3;
+        end else begin
+            if(dht_usable) begin
+                temp_selected=dht_t;hum_selected=dht_h;
+                temp_available=1;hum_available=1;
+                temp_src=1;hum_src=1;
+            end else if(ds_usable) begin
+                // signed signed raw, convert 1/16C into 1/10C;
+                // integer truncates towards zero, acceptable display approx.
+                temp_selected=($signed(ds_t)*32'sd10)/32'sd16;
+                temp_available=1;temp_src=2;
+            end
+        end
+    end
+    assign alarm_active=(alarm_reason!=0);
+    always @(*) begin
+        alarm_reason=0;
+        if(pir_event_pending) alarm_reason=1;
+        else if(temp_available &amp;&amp;
+                temp_selected &gt;= TEMP_ALARM_TENTHS)
+            alarm_reason=2;
+        else if(hum_available &amp;&amp;
+                hum_selected &gt;= HUM_ALARM_TENTHS)
+            alarm_reason=3;
+    end
+    always @(*) begin
+        display_valid=0;display_value=0;display_source=0;
+        case(display_page)
+        0:if(temp_available)begin
+            display_valid=1;display_value=temp_selected;
+            display_source=temp_src;
+        end
+        1:if(hum_available)begin
+            display_valid=1;display_value=$signed(hum_selected);
+            display_source=hum_src;
+        end
+        2:if(bme_usable)begin
+            display_valid=1;display_value=$signed(bme_p);
+            display_source=3;
+        end
+        3:if(rtc_usable)begin
+            display_valid=1;
+            display_value=hour_reg*32'd100+min_reg;
+            display_source=4;
+        end
+        4:begin
+            display_valid=1;
+            display_value=pir_event_pending ? 32'sd1 : 32'sd0;
+            display_source=5;
+        end
+        default:begin display_valid=0;end
+        endcase
+    end
+    always @(posedge clk) begin
+        if(!resetn)begin
+            dht_seen&lt;=0;ds_seen&lt;=0;bme_seen&lt;=0;rtc_seen&lt;=0;
+            dht_t&lt;=0;dht_h&lt;=0;ds_t&lt;=0;
+            bme_t&lt;=0;bme_h&lt;=0;bme_p&lt;=0;hour_reg&lt;=0;min_reg&lt;=0;
+            display_page&lt;=0;accepted_updates&lt;=0;
+        end else begin
+            if(page_next_pulse)
+                display_page &lt;= (display_page==4) ? 0 : display_page+1'b1;
+            if(dht_valid) begin
+                dht_seen&lt;=1;dht_t&lt;=dht_temp_tenths;dht_h&lt;=dht_hum_tenths;
+            end
+            if(ds_valid) begin ds_seen&lt;=1;ds_t&lt;=ds_temp_raw;end
+            if(bme_valid) begin
+                bme_seen&lt;=1;bme_t&lt;=bme_temp_centi;
+                bme_h&lt;=bme_hum_milli;bme_p&lt;=bme_pressure_pa;
+            end
+            if(rtc_valid) begin
+                rtc_seen&lt;=1;hour_reg&lt;=rtc_hour;min_reg&lt;=rtc_minute;
+            end
+            // Count ACCEPTED DATA update cycles, not physical sensors.
+            if(dht_valid || ds_valid || bme_valid || rtc_valid)
+                if(accepted_updates!=32'hffffffff)
+                    accepted_updates&lt;=accepted_updates+1;
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (144줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-19 Reusable integrated environment policy controller.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Inputs are ALREADY DECODED sample values: not a physical I2C driver.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// DHT22: 0.1%RH + signed 0.1C; DS18B20: signed 1/16C.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// BME280: OPTIONAL upstream compensated 0.01C, 0.001%RH and Pa.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// RTC: ALREADY DECODED 24h hour/minute. PIR input is sticky event pending.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>// Priority: PIR &gt; TEMP HIGH &gt; HUM HIGH &gt; OK. No hardware actuator output.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>8</td><td><code>// Display round-robin pages: temperature, humidity, pressure, RTC, PIR.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>// Page selection is a presentation policy, not an LCD byte-level protocol.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>10</td><td><code>module environment_policy #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>11</td><td><code>    parameter signed [15:0] TEMP_ALARM_TENTHS = 16'sd300,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>    parameter [15:0] HUM_ALARM_TENTHS = 16'd800</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>14</td><td><code>    input wire clk, input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    input wire dht_valid, input wire signed [15:0] dht_temp_tenths,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>    input wire [15:0] dht_hum_tenths,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>17</td><td><code>    input wire ds_valid, input wire signed [15:0] ds_temp_raw,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>18</td><td><code>    input wire bme_valid, input wire signed [31:0] bme_temp_centi,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>19</td><td><code>    input wire [31:0] bme_hum_milli, input wire [31:0] bme_pressure_pa,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>20</td><td><code>    input wire rtc_valid, input wire [4:0] rtc_hour, input wire [5:0] rtc_minute,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>21</td><td><code>    input wire pir_event_pending,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>22</td><td><code>    input wire page_next_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>23</td><td><code>    output reg [2:0] display_page,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>24</td><td><code>    output reg display_valid,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>25</td><td><code>    output reg signed [31:0] display_value,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>26</td><td><code>    output reg [2:0] display_source, // 1 DHT, 2 DS, 3 BME, 4 RTC, 5 PIR</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>27</td><td><code>    output reg [2:0] alarm_reason, // 0 none, 1 PIR, 2 high-temp, 3 high-humidity</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>28</td><td><code>    output wire alarm_active,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>29</td><td><code>    output reg [31:0] accepted_updates</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>30</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>    reg dht_seen,ds_seen,bme_seen,rtc_seen;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>32</td><td><code>    reg signed [15:0] dht_t;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>33</td><td><code>    reg [15:0] dht_h;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>34</td><td><code>    reg signed [15:0] ds_t;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>35</td><td><code>    reg signed [31:0] bme_t;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>36</td><td><code>    reg [31:0] bme_h,bme_p;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>37</td><td><code>    reg [4:0] hour_reg;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>38</td><td><code>    reg [5:0] min_reg;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>40</td><td><code>    wire bme_temp_sane = (bme_t &gt;= -32'sd4000 &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>41</td><td><code>                           bme_t &lt;= 32'sd8500);</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>42</td><td><code>    wire bme_hum_sane = (bme_h &lt;= 32'd100000);</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>43</td><td><code>    wire bme_pressure_sane = (bme_p &gt;= 32'd30000 &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>44</td><td><code>                              bme_p &lt;= 32'd110000);</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>45</td><td><code>    wire bme_usable = bme_seen &amp;&amp; bme_temp_sane &amp;&amp; bme_hum_sane &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>46</td><td><code>                      bme_pressure_sane;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>47</td><td><code>    wire dht_usable = dht_seen &amp;&amp; dht_h&lt;=16'd1000 &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>48</td><td><code>                      dht_t&gt;=-16'sd400 &amp;&amp; dht_t&lt;=16'sd800;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>49</td><td><code>    wire ds_usable = ds_seen &amp;&amp; ds_t&gt;=-16'sd880 &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>50</td><td><code>                     ds_t&lt;=16'sd2000;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>51</td><td><code>    wire rtc_usable = rtc_seen &amp;&amp; hour_reg&lt;=5'd23 &amp;&amp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>52</td><td><code>                      min_reg&lt;=6'd59;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>53</td><td><code>    // Select one coherent temperature source; bme is preferred if valid.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>54</td><td><code>    reg signed [31:0] temp_selected;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>55</td><td><code>    reg [31:0] hum_selected;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>56</td><td><code>    reg temp_available,hum_available;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>57</td><td><code>    reg [2:0] temp_src,hum_src;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>58</td><td><code>    always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>59</td><td><code>        temp_selected=0;hum_selected=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>60</td><td><code>        temp_available=0;hum_available=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>        temp_src=0;hum_src=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>62</td><td><code>        if(bme_usable) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>63</td><td><code>            temp_selected=bme_t / 32'sd10; // centi-C to tenth-C</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>64</td><td><code>            hum_selected=bme_h / 32'd100;  // milli-% to tenth-%</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>65</td><td><code>            temp_available=1;hum_available=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>66</td><td><code>            temp_src=3;hum_src=3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>67</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>68</td><td><code>            if(dht_usable) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>69</td><td><code>                temp_selected=dht_t;hum_selected=dht_h;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>70</td><td><code>                temp_available=1;hum_available=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>71</td><td><code>                temp_src=1;hum_src=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>72</td><td><code>            end else if(ds_usable) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>73</td><td><code>                // signed signed raw, convert 1/16C into 1/10C;</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>74</td><td><code>                // integer truncates towards zero, acceptable display approx.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>75</td><td><code>                temp_selected=($signed(ds_t)*32'sd10)/32'sd16;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>76</td><td><code>                temp_available=1;temp_src=2;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>77</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>79</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>80</td><td><code>    assign alarm_active=(alarm_reason!=0);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>81</td><td><code>    always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>82</td><td><code>        alarm_reason=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>83</td><td><code>        if(pir_event_pending) alarm_reason=1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>84</td><td><code>        else if(temp_available &amp;&amp;</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>85</td><td><code>                temp_selected &gt;= TEMP_ALARM_TENTHS)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>86</td><td><code>            alarm_reason=2;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>87</td><td><code>        else if(hum_available &amp;&amp;</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>88</td><td><code>                hum_selected &gt;= HUM_ALARM_TENTHS)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>89</td><td><code>            alarm_reason=3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>90</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>91</td><td><code>    always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>92</td><td><code>        display_valid=0;display_value=0;display_source=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>93</td><td><code>        case(display_page)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>94</td><td><code>        0:if(temp_available)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>95</td><td><code>            display_valid=1;display_value=temp_selected;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>96</td><td><code>            display_source=temp_src;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>97</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>98</td><td><code>        1:if(hum_available)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>99</td><td><code>            display_valid=1;display_value=$signed(hum_selected);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>100</td><td><code>            display_source=hum_src;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>101</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>102</td><td><code>        2:if(bme_usable)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>103</td><td><code>            display_valid=1;display_value=$signed(bme_p);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>104</td><td><code>            display_source=3;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>105</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>106</td><td><code>        3:if(rtc_usable)begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>107</td><td><code>            display_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>108</td><td><code>            display_value=hour_reg*32'd100+min_reg;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>109</td><td><code>            display_source=4;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>110</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>111</td><td><code>        4:begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>112</td><td><code>            display_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>113</td><td><code>            display_value=pir_event_pending ? 32'sd1 : 32'sd0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>114</td><td><code>            display_source=5;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>115</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>116</td><td><code>        default:begin display_valid=0;end</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>117</td><td><code>        endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>118</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>119</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>120</td><td><code>        if(!resetn)begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>121</td><td><code>            dht_seen&lt;=0;ds_seen&lt;=0;bme_seen&lt;=0;rtc_seen&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>122</td><td><code>            dht_t&lt;=0;dht_h&lt;=0;ds_t&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>123</td><td><code>            bme_t&lt;=0;bme_h&lt;=0;bme_p&lt;=0;hour_reg&lt;=0;min_reg&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>124</td><td><code>            display_page&lt;=0;accepted_updates&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>125</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>126</td><td><code>            if(page_next_pulse)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>127</td><td><code>                display_page &lt;= (display_page==4) ? 0 : display_page+1'b1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>128</td><td><code>            if(dht_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>129</td><td><code>                dht_seen&lt;=1;dht_t&lt;=dht_temp_tenths;dht_h&lt;=dht_hum_tenths;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>130</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>131</td><td><code>            if(ds_valid) begin ds_seen&lt;=1;ds_t&lt;=ds_temp_raw;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>132</td><td><code>            if(bme_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>133</td><td><code>                bme_seen&lt;=1;bme_t&lt;=bme_temp_centi;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>134</td><td><code>                bme_h&lt;=bme_hum_milli;bme_p&lt;=bme_pressure_pa;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>135</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>136</td><td><code>            if(rtc_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>137</td><td><code>                rtc_seen&lt;=1;hour_reg&lt;=rtc_hour;min_reg&lt;=rtc_minute;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>138</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>139</td><td><code>            // Count ACCEPTED DATA update cycles, not physical sensors.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>140</td><td><code>            if(dht_valid || ds_valid || bme_valid || rtc_valid)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>141</td><td><code>                if(accepted_updates!=32'hffffffff)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>142</td><td><code>                    accepted_updates&lt;=accepted_updates+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>143</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>144</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>145</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/bme280_probe.h — 전체 소스코드</summary><div class="codeblock"><div class="codebar"><span>sw/bme280_probe.h · C · 소스 원문</span></div><pre><code>#ifndef P2_19_BME280_PROBE_H
+#define P2_19_BME280_PROBE_H
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+// Raw ADC codes are not physical temperature/pressure/humidity values.
+// Never feed these into environment_policy's compensated input ports.
+typedef struct {
+    uint32_t adc_pressure_20;
+    uint32_t adc_temperature_20;
+    uint16_t adc_humidity_16;
+} bme280_raw_t;
+typedef int (*bme280_read_fn)(void *ctx, uint8_t addr7,
+                              uint8_t reg, uint8_t *dst, size_t len);
+typedef enum {
+    BME280_PROBE_OK=0, BME280_PROBE_BAD_ARG=-1,
+    BME280_PROBE_BUS=-2, BME280_PROBE_NOT_BME280=-3
+} bme280_probe_status_t;
+bme280_probe_status_t bme280_probe_id(bme280_read_fn read_reg,
+    void *ctx,uint8_t addr7);
+bme280_probe_status_t bme280_read_raw8(bme280_read_fn read_reg,
+    void *ctx,uint8_t addr7,bme280_raw_t *raw);
+#endif
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (22줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#ifndef P2_19_BME280_PROBE_H</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>#define P2_19_BME280_PROBE_H</code></td><td>상수 또는 전처리 매크로 정의입니다. Register Map의 주소·비트와 연결해 봅니다.</td></tr><tr><td>3</td><td><code>#include &lt;stdint.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &lt;stddef.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>// Raw ADC codes are not physical temperature/pressure/humidity values.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// Never feed these into environment_policy's compensated input ports.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>    uint32_t adc_pressure_20;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>    uint32_t adc_temperature_20;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>    uint16_t adc_humidity_16;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>} bme280_raw_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>typedef int (*bme280_read_fn)(void *ctx, uint8_t addr7,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>13</td><td><code>                              uint8_t reg, uint8_t *dst, size_t len);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>typedef enum {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>    BME280_PROBE_OK=0, BME280_PROBE_BAD_ARG=-1,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>16</td><td><code>    BME280_PROBE_BUS=-2, BME280_PROBE_NOT_BME280=-3</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>} bme280_probe_status_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>bme280_probe_status_t bme280_probe_id(bme280_read_fn read_reg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>    void *ctx,uint8_t addr7);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>bme280_probe_status_t bme280_read_raw8(bme280_read_fn read_reg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>    void *ctx,uint8_t addr7,bme280_raw_t *raw);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>#endif</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>sw/bme280_probe.c — 전체 소스코드</summary><div class="codeblock"><div class="codebar"><span>sw/bme280_probe.c · C · 소스 원문</span></div><pre><code>#include "bme280_probe.h"
+// Bosch Sensortec BME280: 7bit addr 0x76/0x77; ID register D0 -&gt; 0x60.
+// Data 0xF7..0xFE: pressure MSB/LSB/XLSB, temp, then humidity.
+// Compensation needs device-specific calibration registers and Bosch's
+// compensation algorithms. This helper exposes ONLY raw ADC words.
+static int address_ok(uint8_t addr7)
+{
+    return addr7==0x76u || addr7==0x77u;
+}
+bme280_probe_status_t bme280_probe_id(bme280_read_fn read_reg,
+    void *ctx,uint8_t addr7)
+{
+    uint8_t id=0;
+    if(!read_reg || !address_ok(addr7)) return BME280_PROBE_BAD_ARG;
+    if(read_reg(ctx,addr7,0xd0u,&amp;id,1)!=0) return BME280_PROBE_BUS;
+    return id==0x60u ? BME280_PROBE_OK : BME280_PROBE_NOT_BME280;
+}
+bme280_probe_status_t bme280_read_raw8(bme280_read_fn read_reg,
+    void *ctx,uint8_t addr7,bme280_raw_t *raw)
+{
+    uint8_t bytes[8];
+    bme280_raw_t decoded;
+    if(!read_reg || !raw || !address_ok(addr7))
+        return BME280_PROBE_BAD_ARG;
+    if(read_reg(ctx,addr7,0xf7u,bytes,sizeof(bytes))!=0)
+        return BME280_PROBE_BUS;
+    decoded.adc_pressure_20 = ((uint32_t)bytes[0]&lt;&lt;12) |
+          ((uint32_t)bytes[1]&lt;&lt;4) | (uint32_t)(bytes[2]&gt;&gt;4);
+    decoded.adc_temperature_20 = ((uint32_t)bytes[3]&lt;&lt;12) |
+          ((uint32_t)bytes[4]&lt;&lt;4) | (uint32_t)(bytes[5]&gt;&gt;4);
+    decoded.adc_humidity_16 = (uint16_t)(((uint16_t)bytes[6]&lt;&lt;8) |
+                                            (uint16_t)bytes[7]);
+    *raw=decoded;
+    return BME280_PROBE_OK;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (35줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;bme280_probe.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>// Bosch Sensortec BME280: 7bit addr 0x76/0x77; ID register D0 -&gt; 0x60.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Data 0xF7..0xFE: pressure MSB/LSB/XLSB, temp, then humidity.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Compensation needs device-specific calibration registers and Bosch's</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// compensation algorithms. This helper exposes ONLY raw ADC words.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>static int address_ok(uint8_t addr7)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>8</td><td><code>    return addr7==0x76u || addr7==0x77u;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>9</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>10</td><td><code>bme280_probe_status_t bme280_probe_id(bme280_read_fn read_reg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    void *ctx,uint8_t addr7)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>13</td><td><code>    uint8_t id=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>    if(!read_reg || !address_ok(addr7)) return BME280_PROBE_BAD_ARG;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>15</td><td><code>    if(read_reg(ctx,addr7,0xd0u,&amp;id,1)!=0) return BME280_PROBE_BUS;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>16</td><td><code>    return id==0x60u ? BME280_PROBE_OK : BME280_PROBE_NOT_BME280;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>17</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>18</td><td><code>bme280_probe_status_t bme280_read_raw8(bme280_read_fn read_reg,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>    void *ctx,uint8_t addr7,bme280_raw_t *raw)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>21</td><td><code>    uint8_t bytes[8];</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>    bme280_raw_t decoded;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>23</td><td><code>    if(!read_reg || !raw || !address_ok(addr7))</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>24</td><td><code>        return BME280_PROBE_BAD_ARG;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>25</td><td><code>    if(read_reg(ctx,addr7,0xf7u,bytes,sizeof(bytes))!=0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>26</td><td><code>        return BME280_PROBE_BUS;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>27</td><td><code>    decoded.adc_pressure_20 = ((uint32_t)bytes[0]&lt;&lt;12) |</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>28</td><td><code>          ((uint32_t)bytes[1]&lt;&lt;4) | (uint32_t)(bytes[2]&gt;&gt;4);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>29</td><td><code>    decoded.adc_temperature_20 = ((uint32_t)bytes[3]&lt;&lt;12) |</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>30</td><td><code>          ((uint32_t)bytes[4]&lt;&lt;4) | (uint32_t)(bytes[5]&gt;&gt;4);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>31</td><td><code>    decoded.adc_humidity_16 = (uint16_t)(((uint16_t)bytes[6]&lt;&lt;8) |</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>32</td><td><code>                                            (uint16_t)bytes[7]);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>33</td><td><code>    *raw=decoded;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>34</td><td><code>    return BME280_PROBE_OK;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>35</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_environment_policy.v — 전체 소스코드</summary><div class="codeblock"><div class="codebar"><span>tests/tb_environment_policy.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+module tb_environment_policy;
+    reg clk=0;always #5 clk=~clk;
+    reg resetn=0,dht_valid=0,ds_valid=0,bme_valid=0,rtc_valid=0;
+    reg signed [15:0] dht_t=0,ds_t=0;
+    reg [15:0] dht_h=0;
+    reg signed [31:0] bme_t=0;
+    reg [31:0] bme_h=0,bme_p=0;
+    reg [4:0] hh=0;reg [5:0] mm=0;
+    reg pir=0,next=0;
+    wire [2:0] page,source,alarm;
+    wire valid,active;
+    wire signed [31:0] value;
+    wire [31:0] updates;
+    environment_policy dut(
+        .clk(clk),.resetn(resetn),
+        .dht_valid(dht_valid),.dht_temp_tenths(dht_t),
+        .dht_hum_tenths(dht_h),.ds_valid(ds_valid),
+        .ds_temp_raw(ds_t),.bme_valid(bme_valid),
+        .bme_temp_centi(bme_t),.bme_hum_milli(bme_h),
+        .bme_pressure_pa(bme_p),.rtc_valid(rtc_valid),
+        .rtc_hour(hh),.rtc_minute(mm),
+        .pir_event_pending(pir),.page_next_pulse(next),
+        .display_page(page),.display_valid(valid),
+        .display_value(value),.display_source(source),
+        .alarm_reason(alarm),.alarm_active(active),
+        .accepted_updates(updates)
+    );
+    task tick;
+        begin @(negedge clk);end
+    endtask
+    task advance_page;
+        begin
+            tick();next=1;tick();next=0;#1;
+        end
+    endtask
+    task check_display;
+        input [2:0] p;
+        input v;
+        input signed [31:0] n;
+        input [2:0] src;
+        begin
+            #1;
+            if(page!==p || valid!==v || (v &amp;&amp; (value!==n || source!==src)))
+                $fatal(1,"display page=%0d valid=%0d value=%0d source=%0d expected %0d %0d %0d %0d",
+                    page,valid,value,source,p,v,n,src);
+        end
+    endtask
+    initial begin
+        repeat(3)tick();resetn=1;tick();
+        check_display(0,0,0,0);
+        if(alarm!==0 || updates!==0) $fatal(1,"reset defaults");
+        $display("P2_19_ENV_RESET_NO_STALE_DATA_PASS");
+
+        tick();ds_t=16'sd400;ds_valid=1;tick();ds_valid=0;#1;
+        check_display(0,1,250,2);
+        if(alarm!==0) $fatal(1,"DS temperature unexpectedly alarming");
+        $display("P2_19_ENV_DS18B20_FALLBACK_PASS");
+
+        tick();dht_t=16'sd310;dht_h=16'd650;dht_valid=1;
+        tick();dht_valid=0;#1;
+        check_display(0,1,310,1);
+        if(alarm!==2 || !active) $fatal(1,"DHT hot alarm");
+        advance_page();check_display(1,1,650,1);
+        advance_page();check_display(2,0,0,0);
+        advance_page();check_display(3,0,0,0);
+        advance_page();check_display(4,1,0,5);
+        advance_page();check_display(0,1,310,1);
+        $display("P2_19_ENV_DHT_THRESHOLD_AND_PAGE_ROTATION_PASS");
+
+        // DHT humidity alarm after temperature below 30.0C
+        tick();dht_t=16'sd250;dht_h=16'd850;dht_valid=1;
+        tick();dht_valid=0;#1;
+        if(alarm!==3) $fatal(1,"humidity alarm not selected");
+        $display("P2_19_ENV_HUMIDITY_ALARM_PASS");
+
+        // BME280 sample is ALREADY compensated upstream; pressure in Pa.
+        tick();bme_t=32'sd2400;bme_h=32'd40000;
+        bme_p=32'd101325;bme_valid=1;
+        tick();bme_valid=0;#1;
+        check_display(0,1,240,3);
+        if(alarm!==0) $fatal(1,"valid BME should clear alarm");
+        advance_page();check_display(1,1,400,3);
+        advance_page();check_display(2,1,101325,3);
+        $display("P2_19_ENV_BME280_OPTIONAL_PRIORITY_PASS");
+
+        // Corrupt BME humidity &gt;100%, policy falls back to DHT
+        tick();bme_t=2500;bme_h=200000;bme_p=101325;bme_valid=1;
+        tick();bme_valid=0;#1;
+        advance_page();check_display(3,0,0,0);
+        advance_page();check_display(4,1,0,5);
+        advance_page();check_display(0,1,250,1);
+        if(alarm!==3) $fatal(1,"bad BME should not suppress DHT alarm");
+        $display("P2_19_ENV_INVALID_BME_FALLBACK_PASS");
+
+        // Valid calendar time, 14:37 -&gt; HHMM 1437
+        tick();hh=5'd14;mm=6'd37;rtc_valid=1;
+        tick();rtc_valid=0;#1;
+        advance_page();advance_page();advance_page();
+        check_display(3,1,1437,4);
+        $display("P2_19_ENV_RTC_DISPLAY_PASS");
+
+        // PIR alarm ALWAYS overrides high temp/high humidity.
+        tick();pir=1;#1;
+        if(alarm!==1 || !active) $fatal(1,"PIR alarm priority");
+        advance_page();check_display(4,1,1,5);
+        tick();pir=0;#1;
+        if(alarm!==3) $fatal(1,"PIR clearing priority");
+        $display("P2_19_ENV_PIR_ALARM_PRIORITY_PASS");
+
+        if(updates!==6) $fatal(1,"updates expected 6 got %0d",updates);
+        $display("P2_19_ENV_UPDATE_ACCOUNTING_PASS");
+        $display("P2_19_ENVIRONMENT_POLICY_RTL PASS");
+        $finish;
+    end
+    initial begin #300000;$fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (109줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>module tb_environment_policy;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>3</td><td><code>    reg clk=0;always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>4</td><td><code>    reg resetn=0,dht_valid=0,ds_valid=0,bme_valid=0,rtc_valid=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>5</td><td><code>    reg signed [15:0] dht_t=0,ds_t=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>6</td><td><code>    reg [15:0] dht_h=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>    reg signed [31:0] bme_t=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>    reg [31:0] bme_h=0,bme_p=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>    reg [4:0] hh=0;reg [5:0] mm=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>    reg pir=0,next=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>    wire [2:0] page,source,alarm;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>    wire valid,active;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>    wire signed [31:0] value;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>14</td><td><code>    wire [31:0] updates;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>    environment_policy dut(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>        .clk(clk),.resetn(resetn),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>17</td><td><code>        .dht_valid(dht_valid),.dht_temp_tenths(dht_t),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>18</td><td><code>        .dht_hum_tenths(dht_h),.ds_valid(ds_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>19</td><td><code>        .ds_temp_raw(ds_t),.bme_valid(bme_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>        .bme_temp_centi(bme_t),.bme_hum_milli(bme_h),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>21</td><td><code>        .bme_pressure_pa(bme_p),.rtc_valid(rtc_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>        .rtc_hour(hh),.rtc_minute(mm),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>23</td><td><code>        .pir_event_pending(pir),.page_next_pulse(next),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>        .display_page(page),.display_valid(valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>        .display_value(value),.display_source(source),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>26</td><td><code>        .alarm_reason(alarm),.alarm_active(active),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>27</td><td><code>        .accepted_updates(updates)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>28</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>29</td><td><code>    task tick;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>30</td><td><code>        begin @(negedge clk);end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>31</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>32</td><td><code>    task advance_page;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>33</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>34</td><td><code>            tick();next=1;tick();next=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>35</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>36</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>37</td><td><code>    task check_display;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>38</td><td><code>        input [2:0] p;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>39</td><td><code>        input v;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>40</td><td><code>        input signed [31:0] n;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>41</td><td><code>        input [2:0] src;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>42</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>43</td><td><code>            #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>44</td><td><code>            if(page!==p || valid!==v || (v &amp;&amp; (value!==n || source!==src)))</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>45</td><td><code>                $fatal(1,&quot;display page=%0d valid=%0d value=%0d source=%0d expected %0d %0d %0d %0d&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>46</td><td><code>                    page,valid,value,source,p,v,n,src);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>47</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>48</td><td><code>    endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>49</td><td><code>    initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>50</td><td><code>        repeat(3)tick();resetn=1;tick();</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>51</td><td><code>        check_display(0,0,0,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>52</td><td><code>        if(alarm!==0 || updates!==0) $fatal(1,&quot;reset defaults&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>53</td><td><code>        $display(&quot;P2_19_ENV_RESET_NO_STALE_DATA_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>55</td><td><code>        tick();ds_t=16'sd400;ds_valid=1;tick();ds_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>56</td><td><code>        check_display(0,1,250,2);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>        if(alarm!==0) $fatal(1,&quot;DS temperature unexpectedly alarming&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>58</td><td><code>        $display(&quot;P2_19_ENV_DS18B20_FALLBACK_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>60</td><td><code>        tick();dht_t=16'sd310;dht_h=16'd650;dht_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>61</td><td><code>        tick();dht_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>62</td><td><code>        check_display(0,1,310,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>63</td><td><code>        if(alarm!==2 || !active) $fatal(1,&quot;DHT hot alarm&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>64</td><td><code>        advance_page();check_display(1,1,650,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>65</td><td><code>        advance_page();check_display(2,0,0,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>        advance_page();check_display(3,0,0,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>67</td><td><code>        advance_page();check_display(4,1,0,5);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>68</td><td><code>        advance_page();check_display(0,1,310,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>69</td><td><code>        $display(&quot;P2_19_ENV_DHT_THRESHOLD_AND_PAGE_ROTATION_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>71</td><td><code>        // DHT humidity alarm after temperature below 30.0C</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>72</td><td><code>        tick();dht_t=16'sd250;dht_h=16'd850;dht_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>73</td><td><code>        tick();dht_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>74</td><td><code>        if(alarm!==3) $fatal(1,&quot;humidity alarm not selected&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>75</td><td><code>        $display(&quot;P2_19_ENV_HUMIDITY_ALARM_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>77</td><td><code>        // BME280 sample is ALREADY compensated upstream; pressure in Pa.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>78</td><td><code>        tick();bme_t=32'sd2400;bme_h=32'd40000;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>79</td><td><code>        bme_p=32'd101325;bme_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>80</td><td><code>        tick();bme_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>81</td><td><code>        check_display(0,1,240,3);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>82</td><td><code>        if(alarm!==0) $fatal(1,&quot;valid BME should clear alarm&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>83</td><td><code>        advance_page();check_display(1,1,400,3);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>84</td><td><code>        advance_page();check_display(2,1,101325,3);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>85</td><td><code>        $display(&quot;P2_19_ENV_BME280_OPTIONAL_PRIORITY_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>87</td><td><code>        // Corrupt BME humidity &gt;100%, policy falls back to DHT</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>88</td><td><code>        tick();bme_t=2500;bme_h=200000;bme_p=101325;bme_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>89</td><td><code>        tick();bme_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>90</td><td><code>        advance_page();check_display(3,0,0,0);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>91</td><td><code>        advance_page();check_display(4,1,0,5);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>92</td><td><code>        advance_page();check_display(0,1,250,1);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>        if(alarm!==3) $fatal(1,&quot;bad BME should not suppress DHT alarm&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>94</td><td><code>        $display(&quot;P2_19_ENV_INVALID_BME_FALLBACK_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>96</td><td><code>        // Valid calendar time, 14:37 -&gt; HHMM 1437</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>97</td><td><code>        tick();hh=5'd14;mm=6'd37;rtc_valid=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>98</td><td><code>        tick();rtc_valid=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>99</td><td><code>        advance_page();advance_page();advance_page();</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>100</td><td><code>        check_display(3,1,1437,4);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>101</td><td><code>        $display(&quot;P2_19_ENV_RTC_DISPLAY_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>103</td><td><code>        // PIR alarm ALWAYS overrides high temp/high humidity.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>104</td><td><code>        tick();pir=1;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>105</td><td><code>        if(alarm!==1 || !active) $fatal(1,&quot;PIR alarm priority&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>106</td><td><code>        advance_page();check_display(4,1,1,5);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>107</td><td><code>        tick();pir=0;#1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>108</td><td><code>        if(alarm!==3) $fatal(1,&quot;PIR clearing priority&quot;);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>109</td><td><code>        $display(&quot;P2_19_ENV_PIR_ALARM_PRIORITY_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>111</td><td><code>        if(updates!==6) $fatal(1,&quot;updates expected 6 got %0d&quot;,updates);</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>112</td><td><code>        $display(&quot;P2_19_ENV_UPDATE_ACCOUNTING_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>113</td><td><code>        $display(&quot;P2_19_ENVIRONMENT_POLICY_RTL PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>114</td><td><code>        $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>115</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>116</td><td><code>    initial begin #300000;$fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>117</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/test_bme280_probe.c — 전체 소스코드</summary><div class="codeblock"><div class="codebar"><span>tests/test_bme280_probe.c · C · 소스 원문</span></div><pre><code>#include "../sw/bme280_probe.h"
+#include &lt;assert.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdio.h&gt;
+typedef struct {
+    uint8_t regs[256];
+    uint8_t captured_addr, captured_reg;
+    size_t captured_len;
+    int fail;
+} bus_t;
+static int mock_read(void *ctx,uint8_t a,uint8_t reg,uint8_t *d,size_t n)
+{
+    bus_t *bus=(bus_t*)ctx;
+    bus-&gt;captured_addr=a;bus-&gt;captured_reg=reg;bus-&gt;captured_len=n;
+    if(bus-&gt;fail || (size_t)reg+n&gt;256u)return -1;
+    memcpy(d,bus-&gt;regs+reg,n);
+    return 0;
+}
+int main(void)
+{
+    bus_t b={0};
+    bme280_raw_t raw={0};
+    b.regs[0xd0]=0x60;
+    assert(bme280_probe_id(mock_read,&amp;b,0x76)==BME280_PROBE_OK);
+    assert(b.captured_addr==0x76 &amp;&amp; b.captured_reg==0xd0 &amp;&amp;
+           b.captured_len==1);
+    b.regs[0xd0]=0x58; // BMP280 is pressure/temp only; not BME280.
+    assert(bme280_probe_id(mock_read,&amp;b,0x77)==BME280_PROBE_NOT_BME280);
+    assert(bme280_probe_id(mock_read,&amp;b,0x75)==BME280_PROBE_BAD_ARG);
+    puts("P2_19_BME280_ID_BMP280_REJECT_PASS");
+    // Raw pressure 0xABCDE, raw temperature 0x54321, humidity 0xA55A.
+    const uint8_t data[8]={0xab,0xcd,0xe0,0x54,0x32,0x10,0xa5,0x5a};
+    memcpy(b.regs+0xf7,data,8);
+    assert(bme280_read_raw8(mock_read,&amp;b,0x77,&amp;raw)==BME280_PROBE_OK);
+    assert(raw.adc_pressure_20==0xabcde &amp;&amp;
+           raw.adc_temperature_20==0x54321 &amp;&amp;
+           raw.adc_humidity_16==0xa55a);
+    assert(b.captured_addr==0x77 &amp;&amp; b.captured_reg==0xf7 &amp;&amp;
+           b.captured_len==8);
+    puts("P2_19_BME280_RAW8_DECODER_PASS");
+    b.fail=1;
+    assert(bme280_probe_id(mock_read,&amp;b,0x76)==BME280_PROBE_BUS);
+    assert(bme280_read_raw8(mock_read,&amp;b,0x76,&amp;raw)==BME280_PROBE_BUS);
+    puts("P2_19_BME280_BUS_ERROR_PASS");
+    puts("P2_19_BME280_HOST_C_PASS");
+    return 0;
+}
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (47줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;../sw/bme280_probe.h&quot;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>2</td><td><code>#include &lt;assert.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>3</td><td><code>#include &lt;string.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>4</td><td><code>#include &lt;stdio.h&gt;</code></td><td>이 프로그램에서 사용할 자료형과 함수의 헤더를 불러옵니다.</td></tr><tr><td>5</td><td><code>typedef struct {</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>6</td><td><code>    uint8_t regs[256];</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>    uint8_t captured_addr, captured_reg;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>    size_t captured_len;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>    int fail;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>} bus_t;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>static int mock_read(void *ctx,uint8_t a,uint8_t reg,uint8_t *d,size_t n)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>12</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>13</td><td><code>    bus_t *bus=(bus_t*)ctx;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>    bus-&gt;captured_addr=a;bus-&gt;captured_reg=reg;bus-&gt;captured_len=n;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>15</td><td><code>    if(bus-&gt;fail || (size_t)reg+n&gt;256u)return -1;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>16</td><td><code>    memcpy(d,bus-&gt;regs+reg,n);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>18</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>19</td><td><code>int main(void)</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>20</td><td><code>{</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>21</td><td><code>    bus_t b={0};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>22</td><td><code>    bme280_raw_t raw={0};</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>23</td><td><code>    b.regs[0xd0]=0x60;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>24</td><td><code>    assert(bme280_probe_id(mock_read,&amp;b,0x76)==BME280_PROBE_OK);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>25</td><td><code>    assert(b.captured_addr==0x76 &amp;&amp; b.captured_reg==0xd0 &amp;&amp;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>26</td><td><code>           b.captured_len==1);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>27</td><td><code>    b.regs[0xd0]=0x58; // BMP280 is pressure/temp only; not BME280.</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>28</td><td><code>    assert(bme280_probe_id(mock_read,&amp;b,0x77)==BME280_PROBE_NOT_BME280);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>29</td><td><code>    assert(bme280_probe_id(mock_read,&amp;b,0x75)==BME280_PROBE_BAD_ARG);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>30</td><td><code>    puts(&quot;P2_19_BME280_ID_BMP280_REJECT_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>    // Raw pressure 0xABCDE, raw temperature 0x54321, humidity 0xA55A.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>32</td><td><code>    const uint8_t data[8]={0xab,0xcd,0xe0,0x54,0x32,0x10,0xa5,0x5a};</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>33</td><td><code>    memcpy(b.regs+0xf7,data,8);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>34</td><td><code>    assert(bme280_read_raw8(mock_read,&amp;b,0x77,&amp;raw)==BME280_PROBE_OK);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>35</td><td><code>    assert(raw.adc_pressure_20==0xabcde &amp;&amp;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>36</td><td><code>           raw.adc_temperature_20==0x54321 &amp;&amp;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>37</td><td><code>           raw.adc_humidity_16==0xa55a);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>38</td><td><code>    assert(b.captured_addr==0x77 &amp;&amp; b.captured_reg==0xf7 &amp;&amp;</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>39</td><td><code>           b.captured_len==8);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>40</td><td><code>    puts(&quot;P2_19_BME280_RAW8_DECODER_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>41</td><td><code>    b.fail=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>42</td><td><code>    assert(bme280_probe_id(mock_read,&amp;b,0x76)==BME280_PROBE_BUS);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>43</td><td><code>    assert(bme280_read_raw8(mock_read,&amp;b,0x76,&amp;raw)==BME280_PROBE_BUS);</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>44</td><td><code>    puts(&quot;P2_19_BME280_BUS_ERROR_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>45</td><td><code>    puts(&quot;P2_19_BME280_HOST_C_PASS&quot;);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>46</td><td><code>    return 0;</code></td><td>함수 종료 또는 호출자에게 결과를 반환합니다.</td></tr><tr><td>47</td><td><code>}</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>Ubuntu에서 수행</h3><div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 실행 예시</span></div><pre><code># 최초 1회: Ubuntu 패키지 목록 갱신 및 Icarus 설치
+sudo apt update
+sudo apt install -y iverilog
+
+# 저장소 루트에서 BME280 모의 레지스터 C 검사
+bash part02/chapters/P2_19_Lesson/tests/run_host_tests.sh
+
+# 멀티 센서 환경 정책 RTL 시뮬레이션
+bash part02/chapters/P2_19_Lesson/tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (7줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code># 최초 1회: Ubuntu 패키지 목록 갱신 및 Icarus 설치</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>sudo apt update</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>sudo apt install -y iverilog</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>5</td><td><code># 저장소 루트에서 BME280 모의 레지스터 C 검사</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>bash part02/chapters/P2_19_Lesson/tests/run_host_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>8</td><td><code># 멀티 센서 환경 정책 RTL 시뮬레이션</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>9</td><td><code>bash part02/chapters/P2_19_Lesson/tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p><code>sudo apt update</code>는 패키지 목록을 갱신한다. <code>sudo apt install -y iverilog</code>는 RTL 시뮬레이터를 설치한다. 마지막 두 명령은 실제 FPGA나 BME280 실물이 아닌 모의 데이터를 사용한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>검증 결과와 제한</h2><table><tr><th>검증 항목</th><th>결과 범위</th></tr><tr><td>BME280 ID(0x60), BMP280 ID(0x58) 구분</td><td>모의 I²C C 단위시험</td></tr><tr><td>BME280 Pressure/Temperature/Humidity Raw8 해독</td><td>모의 I²C C 단위시험</td></tr><tr><td>DS18B20 → DHT22 → BME280 우선순위</td><td>RTL 시뮬레이션</td></tr><tr><td>고온·고습·PIR 경보 및 우선순위</td><td>RTL 시뮬레이션</td></tr><tr><td>표시 페이지 전환·RTC 및 모듈 미연결 처리</td><td>RTL 시뮬레이션</td></tr><tr><td>실제 BME280 보정 공식·상류 연결</td><td>미구현·NOT_RUN</td></tr><tr><td>I²C 여러 장치 공용 버스 및 MicroBlaze V AXI 통합</td><td>미구현·NOT_RUN</td></tr><tr><td>Vivado 합성·타이밍 및 실물 센서</td><td>현 단계에서 보류</td></tr><tr><td>UVM 및 실제 브라우저 렌더</td><td>NOT_RUN</td></tr></table>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/actions/workflows/p2-19-environment-verification.yml">제19장 GitHub Actions 실행 이력</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/docs/P2_19_SIM_VERIFICATION_20261111.md">19장 검증 보고서</a>.</p><p class="warn">가장 중요한 후속 위험은 <strong>오래된 센서값을 무기한 최신으로 취급하는 문제</strong>다. 현재 RTL은 Valid 수신 후 최신 값 저장은 하지만, 시간 경과에 따른 Stale Timeout(데이터 유효기간 만료) 처리를 하지 않는다. 실제 환경 제어·액추에이터 구동 전에 반드시 추가해야 한다.</p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>후속 과제와 핵심 정리</h2><p>19.1 BME280 Chip-ID·Raw 데이터 → 19.2 기존 DS18B20·DHT22·RTC·PIR 샘플 표준화 → 19.3 환경 경보 우선순위·페이지 → 19.4 Bosch 보정·I²C 공용버스·AXI·FND/LCD 연동으로 확장한다.</p>
+<p>20장 종합 SoC 단계에서는 각 IP별 IRQ, AXI 주소, 센서 정상/오류, 데이터 갱신 주기, 실제 표시 자리수의 의미를 구분하고 누적 통합한다. 19장의 유닛 테스트를 실제 여러 IP의 통합 성공으로 보고하지 않는다.</p><p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_19_Lesson/README.md">19장 코드 및 검증 목차</a> · <a href="../part02_2/guide/ch18_pir_irq_v05.html">18장 PIR IRQ</a> · <a href="../part02_2/guide/index.html#tech-tree">제2부 후반부 편성표</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① BME280 RAW 센서·보정 계수·경보의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"../../easy02/ch15_teacher_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>

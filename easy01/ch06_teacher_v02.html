@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<meta content="Basys3 MicroBlaze V SoC에서 AXI GPIO를 연결하고 16개 Slide Switch 상태를 읽어 16개 LED에 그대로 출력하는 실습 자료." name="description">
+<title>교수용 상세 해설서 | 제1부 06장 | SoC 06 · AXI GPIO</title>
+<style>
+
+:root{
+  --paper:#F1F2EE;--card:#FFFFFF;--ink:#15171C;--ink-2:#4A4F5A;--ink-3:#858B96;
+  --line:#DDDFD8;--line-strong:#C9CCC3;--accent:#4635B1;--accent-soft:#EDEAFA;
+  --yellow:#FFD24A;--good:#1F6F4A;--good-bg:#EEF8F3;--warn:#7A4D14;--warn-bg:#FDF3E7;
+  --maxw:1560px;--sidebar:260px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:22px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.72;-webkit-font-smoothing:antialiased}
+a{color:inherit} code,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+
+/* top */
+.topbar{background:#fff;border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:var(--maxw);margin:0 auto;padding:12px 34px;display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:.88rem;color:var(--ink-2)}
+.breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.breadcrumb a{text-decoration:none;color:var(--ink)}.breadcrumb .sep{color:#B0B4BC}
+.brand{font-family:"SFMono-Regular",Consolas,monospace;font-size:.75rem;color:var(--ink-3)}
+
+/* hero */
+.hero{position:relative;background:var(--ink);color:#F1F2EE;overflow:hidden;border-bottom:1px solid #111}
+.hero-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(255,255,255,.052) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.052) 1px,transparent 1px);background-size:28px 28px}
+.hero-inner{position:relative;max-width:var(--maxw);margin:0 auto;padding:72px 34px 58px}
+.hero-kicker{display:inline-block;margin:0 0 16px;padding-bottom:7px;border-bottom:2px solid var(--yellow);color:var(--yellow);font-weight:700;font-size:.96rem}
+.hero h1{margin:0;max-width:1100px;font-size:clamp(1.9rem,4.2vw,3.15rem);line-height:1.18;letter-spacing:-.03em;word-break:keep-all;overflow-wrap:normal;text-wrap:balance}
+.hero-desc{margin:22px 0 0;max-width:760px;color:#BBC0C8;font-size:1rem;font-weight:300}
+.hero-meta{margin-top:30px;display:flex;flex-wrap:wrap;gap:9px}
+.chip{border:1px solid rgba(255,255,255,.22);padding:5px 10px;border-radius:2px;color:#E6E8EC;font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+.hero-brief{margin-top:38px;padding-top:28px;border-top:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.hero-brief article{padding:15px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11)}
+.hero-brief h2{margin:0 0 6px;color:#fff;font-size:.9rem}.hero-brief p{margin:0;color:#ADB2BA;font-size:.86rem;line-height:1.62}
+
+/* main */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 34px 92px;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);gap:38px;align-items:start}
+.flow-nav{position:sticky;top:0;max-height:100vh;overflow:auto;padding:38px 0;scrollbar-width:thin}
+.nav-title{margin:0 0 7px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;letter-spacing:.08em;color:var(--ink-3);font-weight:700}
+.nav-help{margin:0 0 19px;color:var(--ink-3);font-size:.76rem}.phase{margin:20px 0 7px;font-size:.72rem;font-weight:700;color:var(--ink-3)}
+.timeline{list-style:none;margin:0;padding:0 0 0 10px;position:relative}.timeline::before{content:"";position:absolute;left:20px;top:12px;bottom:12px;width:1px;background:#CFD2CB}
+.timeline li{position:relative;margin:0;padding:0}
+.timeline a{position:relative;display:grid;grid-template-columns:27px 1fr;gap:10px;align-items:start;text-decoration:none;color:var(--ink-2);padding:5px 6px 5px 0;font-size:.80rem;line-height:1.4;transition:color .15s,transform .15s}
+.timeline .n{z-index:1;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:1px solid #C9CDC5;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.64rem;font-weight:700}
+.timeline a:hover{color:var(--accent);transform:translateX(2px)}.timeline a.active{color:var(--accent);font-weight:650}
+.timeline a.active .n{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+main{padding-top:38px;min-width:0}
+.overview-card{background:#FBFBF9;border:1px solid var(--line);margin-bottom:18px;padding:28px 32px}
+.overview-card h2{margin:0 0 16px;font-size:1.24rem}.stage-flow{display:flex;align-items:center;gap:7px;overflow-x:auto;padding:4px 0 8px}
+.stage{min-width:max-content;padding:9px 11px;border:1px solid var(--line);background:#fff;font-size:.82rem;color:var(--ink-2)}.arrow{color:var(--accent);font-weight:800;flex:none}
+
+/* source sections */
+.step-card{background:var(--card);border:1px solid var(--line);padding:32px 40px 36px;margin-bottom:16px;scroll-margin-top:18px}
+.step-card h2{margin:0 0 17px;font-size:1.36rem;letter-spacing:-.025em}.step-card h3{font-size:1rem;margin:24px 0 9px}
+.step-anchor{scroll-margin-top:22px}
+.step{display:inline-block;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:4px 8px;border-radius:2px;margin:3px 0 7px}
+p{color:var(--ink-2)}ul,ol{color:var(--ink-2)}li{margin:5px 0}
+.flow{background:#FBFBF9;border:1px solid var(--line);border-left:3px solid var(--accent);padding:17px 19px;margin:16px 0;font-weight:600;color:#2C2F38;overflow-x:auto}
+.codeblock-pre{margin:12px 0 18px;background:#FBFBF9;color:#282C34;padding:17px 19px;border:1px solid var(--line);border-left:3px solid #B9B2E8;border-radius:0;overflow:auto;line-height:1.72;font-size:.84rem}
+.inline,p code,li code,td code{font-family:"SFMono-Regular",Consolas,monospace;font-size:.87em;background:#F4F4F1;border:1px solid var(--line);padding:1px 5px;border-radius:2px}
+.note,.warn,.ok{padding:14px 16px;border-radius:0;margin:16px 0;border:1px solid var(--line);font-size:.91rem}
+.note{background:var(--accent-soft);border-color:#DAD4F6;color:#3A2F8C}.warn{background:var(--warn-bg);border-color:#F0DCBE;color:var(--warn)}.ok{background:var(--good-bg);border-color:#CFE8DB;color:#18573C}
+.table-wrap{overflow-x:auto;margin:14px 0 20px}table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:680px;table-layout:auto}th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);word-break:keep-all;overflow-wrap:break-word}
+thead th{font-size:.78rem;color:var(--ink-3);font-weight:700;border-bottom:1px solid var(--line-strong)}td:first-child{color:var(--ink);font-weight:600}
+
+/* summary/nav */
+.summary{background:#F8F7FD;border:1px solid #D8D3F2;border-left:5px solid var(--accent);color:var(--ink)}.summary h2{color:var(--ink)}.summary li,.summary p{color:var(--ink-2)}.summary code{background:#fff;border-color:#D8D3F2}
+.chapter-nav{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;margin-top:26px}
+.chapter-nav a,.chapter-nav span{display:flex;align-items:center;padding:13px 14px;background:#fff;border:1px solid var(--line);text-decoration:none;font-size:.88rem;color:var(--ink)}
+.chapter-nav .home{justify-content:center}.chapter-nav .next{justify-content:flex-end;text-align:right}.chapter-nav .disabled{color:#A0A5AD;background:#F7F7F4}
+.site-footer{max-width:var(--maxw);margin:0 auto;padding:0 34px 38px;color:var(--ink-3);font-family:"SFMono-Regular",Consolas,monospace;font-size:.76rem}
+
+/* index compatibility */
+.home-main{max-width:1380px;margin:0 auto;padding:42px 30px 90px}.home-section,.card{background:#fff;border:1px solid var(--line);padding:30px 34px}
+.home-section h2,.card h2{margin-top:0}
+
+@media(max-width:920px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 20px 62px}.flow-nav{position:static;max-height:none;padding:28px 0 8px;border-bottom:1px solid var(--line)}
+  .timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.timeline::before{display:none}
+  main{padding-top:26px}.hero-inner{padding:58px 20px 48px}.hero-brief{grid-template-columns:1fr}.topbar-inner{padding:11px 20px}
+  .step-card,.overview-card{padding:24px 21px 27px}.site-footer{padding:0 20px 34px}
+}
+@media(max-width:600px){.timeline{grid-template-columns:1fr}.brand{display:none}.chapter-nav{grid-template-columns:1fr}.chapter-nav .next,.chapter-nav .home{justify-content:flex-start;text-align:left}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+
+/* technical figures */
+.tech-figure{margin:18px 0 24px;padding:14px;background:#FBFBF9;border:1px solid var(--line);overflow-x:auto}
+.tech-figure img{display:block;width:auto;height:auto;max-width:100%;margin:0 auto}
+.tech-figure figcaption{margin-top:10px;color:var(--ink-3);font-size:.78rem;line-height:1.55;text-align:center}
+.source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:700px){.source-grid{grid-template-columns:1fr}}
+
+/* original-source figure references: no technical redraws */
+.source-figure-ref{margin:18px 0 24px;padding:22px 24px;background:#FBFBF9;border:1px solid var(--line);border-left:4px solid var(--accent)}
+.source-figure-ref .source-kicker{margin:0 0 6px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.source-figure-ref h3{margin:0 0 8px;font-size:1.06rem;color:var(--ink)}
+.source-figure-ref p{margin:6px 0 12px}
+.source-figure-link{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#fff;border:1px solid var(--line-strong);text-decoration:none;font-size:.84rem;font-weight:700;color:var(--accent)}
+.source-figure-link:hover{border-color:var(--accent)}
+.resource-table th:first-child,.resource-table td:first-child{width:28%}
+main,.step-card,.overview-card{max-width:100%;min-width:0}
+
+/* Concise self-contained source presentation. */
+.polished-source{border-top:4px solid var(--accent);}
+.source-group{margin:30px 0 0;}
+.source-group>h2{padding-bottom:9px;border-bottom:2px solid var(--accent);}
+.source-file{margin:18px 0 30px;border:1px solid var(--line);background:#fff;}
+.source-file-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;background:#f4f4f1;border-bottom:1px solid var(--line);font-family:"IBM Plex Mono",monospace;}
+.source-file-header span{font-size:.72rem;font-weight:700;color:var(--accent);}.source-file-header strong{font-size:.84rem;overflow-wrap:anywhere}.source-file-header small{color:var(--ink-3);}
+.full-source-code{margin:0;border:0;border-bottom:1px solid var(--line);}.full-source-code pre{max-height:none;white-space:pre;tab-size:4;}
+.source-explain{padding:18px 20px 20px;}.source-explain h3{margin:0 0 12px}.source-explain p{margin:7px 0}.source-role{display:inline-block;padding:3px 7px;margin-right:5px;background:#eceafc;color:#4635b1;font:700 .7rem/1.2 "IBM Plex Mono",monospace;}
+.source-path{color:var(--ink-3);font-size:.82rem}.external-note{padding:12px 14px;border-left:3px solid #a45a22;background:#fff6ed;}
+.code-repeat-note{padding:9px 12px;border-left:3px solid var(--line);color:var(--ink-3);font-size:.88rem;}
+.verification-link{max-width:1350px;margin:18px auto;padding:0 22px}.verification-link a{display:inline-block;padding:9px 12px;border:1px solid var(--line);background:#fff;text-decoration:none;font-weight:700}
+@media(max-width:760px){.source-file-header{grid-template-columns:1fr}.source-file-header small{text-align:left}}
+
+
+
+/* SoC chapter extensions */
+.lesson-goal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.lesson-goal article{border:1px solid var(--line);background:#FBFBF9;padding:15px 16px}
+.lesson-goal strong{display:block;font-size:.82rem;color:var(--accent);margin-bottom:5px}
+.lesson-goal p{margin:0;font-size:.84rem;line-height:1.55}
+.manual-figure{margin:20px 0 24px;border:1px solid var(--line);background:#fff;padding:14px}
+.manual-figure img{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff}
+.manual-figure figcaption{margin:10px 4px 2px;color:var(--ink-3);font-size:.78rem;line-height:1.58;text-align:center}
+.manual-figure .figure-source{display:block;margin-top:4px;font-size:.74rem}
+.manual-figure .figure-source a{color:var(--accent);font-weight:700;text-decoration:none}
+.manual-figure.compact img{max-height:640px}
+.step-seq{counter-reset:socstep;list-style:none;padding:0;margin:18px 0}
+.step-seq>li{counter-increment:socstep;position:relative;margin:0 0 12px;padding:16px 18px 16px 58px;border:1px solid var(--line);background:#FBFBF9}
+.step-seq>li::before{content:counter(socstep, decimal-leading-zero);position:absolute;left:16px;top:16px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font:700 .7rem/1 "SFMono-Regular",Consolas,monospace}
+.step-seq h3{margin:0 0 7px;font-size:1rem}.step-seq p{margin:5px 0}.step-seq ul{margin:6px 0}
+.gate{border-left:5px solid var(--good);background:var(--good-bg)}
+.danger{border-left:5px solid #A23B3B;background:#FFF2F2;border-top:1px solid #F0CCCC;border-right:1px solid #F0CCCC;border-bottom:1px solid #F0CCCC;padding:14px 16px;margin:16px 0;color:#733}
+.signal-map{font-family:"SFMono-Regular",Consolas,monospace;background:#15171C;color:#E7EAF0;padding:19px 20px;overflow-x:auto;line-height:1.7;margin:16px 0;border-left:4px solid var(--yellow)}
+.acceptance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.acceptance div{padding:13px 15px;border:1px solid var(--line);background:#FBFBF9}.acceptance strong{display:block;margin-bottom:4px}
+.version-badge{display:inline-block;padding:3px 8px;border:1px solid rgba(255,255,255,.22);font-family:"SFMono-Regular",Consolas,monospace;font-size:.72rem;color:#E8E8EE}
+@media(max-width:900px){.lesson-goal{grid-template-columns:repeat(2,minmax(0,1fr))}.acceptance{grid-template-columns:1fr}}
+@media(max-width:560px){.lesson-goal{grid-template-columns:1fr}}
+
+
+/* Chapters 01-10: shared top navigation */
+.topbar{background:#fff;border-bottom:1px solid #DDDFD8}
+.topbar .topbar-inner,.topbar .top-inner{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 18px}
+.topbar .breadcrumb,.topbar .top-inner>span:first-child{font-size:.86rem;line-height:1.6;color:#4A4F5A}
+.topbar a,.topbar .breadcrumb a{color:#333743;text-decoration:none}
+.topbar a:hover,.topbar .breadcrumb a:hover{text-decoration:underline;color:#4635B1}
+.topbar .breadcrumb strong,.topbar .top-inner b{color:#15171C;font-weight:800}
+.topbar .brand,.topbar .meta{font-size:.76rem;color:#747B86;letter-spacing:0}
+@media(max-width:600px){.topbar .topbar-inner,.topbar .top-inner{padding:10px 14px}}
+</style>
+<style>
+/* MicroBlaze V 배포: 기존 스타일 유지, 좌측 세부 목차와 폭 제한 */
+:root{--sidebar:260px;--maxw:1520px}body{overflow-wrap:anywhere}.wrap{grid-template-columns:260px minmax(0,1fr)}.wrap>main{min-width:0}.flow-nav{position:sticky;top:0;max-height:100vh;overflow-y:auto}.step-card,.card,.section-card{min-width:0}figure{max-width:100%;margin-left:0;margin-right:0}figure img,img{display:block;max-width:100%;height:auto;object-fit:contain;margin-left:auto;margin-right:auto}figure img{max-height:760px}table{min-width:0!important;width:100%;table-layout:fixed}td,th{overflow-wrap:anywhere;white-space:normal!important}pre{max-width:100%;overflow-x:auto;white-space:pre;tab-size:4}.table-wrap{max-width:100%;overflow-x:auto}.resource-table td,.resource-table a{overflow-wrap:anywhere}.runtime-scope{display:none}@media(max-width:1050px){.wrap{grid-template-columns:225px minmax(0,1fr);gap:22px;padding-left:20px;padding-right:20px}.flow-nav{width:auto}td,th{padding:10px!important}}@media(max-width:760px){.wrap{display:block;padding-left:14px;padding-right:14px}.flow-nav{position:relative;max-height:340px;margin-bottom:22px}.hero-inner{padding:34px 20px}.hero-brief{grid-template-columns:1fr}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border:1px solid #d9dce2;margin:12px 0}td{border:0;border-bottom:1px solid #e5e7eb}td:before{content:attr(data-label);display:block;font-size:11px;color:#6b7280;font-weight:650}td:first-child{background:#f3f1fa}.step-card{padding:22px 17px}pre{font-size:12px}}
+
+/* Readability and keyboard access; original chapter layout retained. */
+:root{--ink-3:#626975}
+body{font-family:"Noto Sans KR","Noto Sans CJK KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.skip-link{position:fixed;left:16px;top:12px;z-index:1000;transform:translateY(-180%);padding:10px 16px;background:#fff;color:#33218f;border:3px solid #4635b1;font-weight:700}
+.skip-link:focus{transform:none}
+:focus-visible{outline:3px solid #6547cf;outline-offset:4px}
+.signal-map:focus-visible,pre:focus-visible,.table-wrap:focus-visible{outline-offset:2px}
+.signal-map{white-space:pre;font-family:"SFMono-Regular",Consolas,"Liberation Mono","Noto Sans CJK KR",monospace;font-size:.9375rem;line-height:1.8;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.signal-map.signal-table{white-space:normal}
+.signal-table table{min-width:0;width:100%;font-size:.9rem;color:#e7eaf0;line-height:1.7}
+.signal-table th,.signal-table td{color:inherit;padding:10px 12px;border-color:#414650;overflow-wrap:anywhere;word-break:normal}
+.signal-table thead th{color:#ffd24a;font-size:.84rem}
+.signal-table tbody th{font-weight:600}
+.signal-table td:first-child{color:inherit;font-weight:400}
+.signal-table code{font:inherit;background:none;border:0;padding:0;color:inherit}
+pre{font-size:.9rem;line-height:1.75;tab-size:4;max-width:100%;overscroll-behavior-x:contain}
+.codeblock-pre{font-size:.9rem}
+.flow,p,li,td,th,.source-path,.source-file-header strong{overflow-wrap:anywhere}
+.timeline a{font-size:.875rem;line-height:1.55;padding-top:7px;padding-bottom:7px}
+.timeline .n{font-size:.75rem}
+.nav-title,.nav-help,.phase{color:#626975}
+.tech-figure figcaption,.manual-figure figcaption{color:#555d69;font-size:.875rem;line-height:1.7}
+.manual-figure .figure-source{font-size:.8125rem}
+.figure-original{display:inline-block;margin-top:8px;padding:4px 9px;border:1px solid var(--line-strong,#c9ccc3);background:#fff;color:var(--accent,#4635b1);font-size:.8125rem;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.figure-image-link{display:block}
+.figure-image-link:focus-visible{outline-offset:5px}
+.manual-figure.compact img{max-height:none}
+thead th{color:#626975;font-size:.84rem}
+.hero-desc{font-weight:400}
+main[tabindex="-1"]:focus{outline:none}
+@media(max-width:600px){
+ .signal-map{padding:15px 12px;font-size:.875rem}
+ .signal-table{padding:10px 8px}.signal-table th,.signal-table td{padding:8px 6px;font-size:.8125rem}
+ .tech-figure,.manual-figure{padding:10px}
+ .step-card h2{line-height:1.5;overflow-wrap:anywhere}
+ .chip{overflow-wrap:anywhere;max-width:100%}
+}
+@media(forced-colors:active){:focus-visible{outline:3px solid Highlight}.signal-map{border:1px solid CanvasText}.figure-original{border:1px solid LinkText}}
+
+
+.signal-map{scrollbar-width:auto;scrollbar-color:#9da6b4 #252a33}
+@media(max-width:760px){
+ table thead{display:block!important;position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);white-space:nowrap!important}
+ .signal-table td:first-child{background:#252a33}
+ .signal-table td::before{color:#ffd24a;font-size:.8125rem;font-weight:700}
+}
+.lesson-check{margin:14px 0;padding:11px 15px;border-left:3px solid var(--accent);background:#f5f3fd;color:#34304e;font-size:.93rem}
+.lesson-actions{margin:12px 0 18px;padding-left:26px}.lesson-actions li{margin:9px 0;padding-left:3px}
+.flow-center{text-align:center;white-space:normal;overflow-wrap:anywhere}
+.minor{color:var(--ink-3);font-size:.87rem}
+.bitline{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;padding:14px;margin:12px 0;background:#FBFBF9;border:1px solid var(--line)}
+.bitline code{font-size:.91rem;white-space:normal;overflow-wrap:anywhere;letter-spacing:.03em}
+.step-card details{padding:14px 18px;margin:15px 0;background:#fafaf9;border:1px solid var(--line)}
+.step-card details summary{cursor:pointer;font-weight:700;color:var(--accent)}
+.step-card details[open] summary{margin-bottom:12px}
+.step-card h3{margin-top:26px}
+@media(max-width:600px){.bitline{grid-template-columns:1fr}.lesson-actions{padding-left:21px}}
+</style><link rel="stylesheet" href="../part01/legacy/pages/soc/../../assets/reader.css"><script defer src="../part01/legacy/pages/soc/../../assets/reader.js"></script><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;border:1px solid #d6d4ea;border-left:4px solid #4635B1;border-radius:8px;padding:18px 20px;margin:18px 0;color:#1b1c22;line-height:1.75}.prof-banner h2,.prof-card h3{margin:0 0 8px;color:#352994}.prof-banner p,.prof-card p,.prof-code p{margin:7px 0}.prof-flow{max-width:100%;overflow-x:auto}.prof-flow svg{min-width:580px;width:100%;height:auto}.prof-code{border-left-color:#3f7768;background:#fafdfa}.prof-code summary{cursor:pointer;font-weight:700;color:#234e44}.prof-table-wrap{max-width:100%;overflow-x:auto}.prof-table{width:100%;border-collapse:collapse;font-size:.86rem;table-layout:auto}.prof-table th,.prof-table td{border:1px solid #dcded9;padding:6px 10px;text-align:left;vertical-align:top}.prof-table th{background:#ececf6}.prof-table td:first-child{white-space:nowrap}.prof-table td code{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.82rem}.prof-source{font-size:.86rem;color:#555}.prof-explain{margin:12px 0 16px 0;padding:11px 14px;background:#f4f2ff;border-left:3px solid #8877cc;border-radius:4px}.prof-explain strong{color:#352994}.prof-mini{font-size:.9rem;color:#494961}.prof-banner a{color:#4635b1}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px;margin:12px 0}.prof-table{font-size:.81rem}}</style></head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 바로가기</a><div class="topbar"><div class="topbar-inner">
+<div class="breadcrumb"><a href="../part01/legacy/pages/soc/../../index.html">Basys3 SoC + NPU</a><span class="sep">/</span><a href="../part01/legacy/pages/soc/05_axi4_axi4lite_axi4stream.html">SoC 05</a><span class="sep">/</span><strong>SoC 06</strong><span class="sep">/</span><a href="../part01/legacy/pages/soc/07_axi_uart_lite.html">SoC 07</a></div>
+<div class="brand">BASYS3 · MICRO BLAZE V SoC</div>
+</div></div>
+
+<header class="hero"><div class="hero-grid"></div><div class="hero-inner">
+<p class="hero-kicker">Basys3 SoC + NPU · SoC 06</p>
+<h1>AXI GPIO - Switch 입력을 LED 출력으로</h1>
+<p class="hero-desc">Vivado에서 AXI GPIO를 연결하고 Vitis에서 C 프로그램을 작성하여, Basys3 스위치 16개 상태를 LED 16개에 그대로 표시한다.</p>
+<div class="hero-meta">
+<span class="chip">AXI GPIO</span><span class="chip">AXI4-Lite</span><span class="chip">Dual Channel</span><span class="chip">Vivado 2024.2</span><span class="chip">Vitis 2024.2</span><span class="chip">SW[15:0] → LED[15:0]</span>
+</div>
+<div class="hero-brief">
+<article><h2>입력</h2><p>Channel 2에서 Basys3 SW[15:0]을 읽는다.</p></article>
+<article><h2>CPU</h2><aside class="prof-explain"><strong>교수용 보충 — CPU</strong><p>CPU는 BRAM의 명령어를 읽고 실행합니다. 명령어의 주소와 데이터 접근 경로를 각각 추적합니다.</p></aside><p>MicroBlaze V가 AXI4-Lite Register를 Read/Write한다.</p></article>
+<article><h2>출력</h2><p>Channel 1에서 LED[15:0]을 구동한다.</p></article>
+</div>
+</div></header>
+
+<div class="wrap">
+<aside class="flow-nav" aria-label="장별 세부 목차"><div class="reader-tools"><form hidden><label for="chapter-select">장 이동</label><select class="reader-chapter-select" id="chapter-select"><option value="01_microblaze_bram_minimal_soc.html">SoC 01 · MicroBlaze V + BRAM 최소 SoC</option><option value="02_clock_reset_processor_system_reset.html">SoC 02 · Clock / Reset 구조와 Processor System Reset</option><option value="03_microblaze_bram_program_execution.html">SoC 03 · MicroBlaze V 실행 구조와 BRAM 프로그램 실행</option><option value="04_memory_map_memory_mapped_io.html">SoC 04 · Memory Map과 Memory-Mapped I/O</option><option value="05_axi4_axi4lite_axi4stream.html">SoC 05 · AXI4 / AXI4-Lite / AXI4-Stream 구조</option><option value="06_axi_gpio.html" selected>SoC 06 · AXI GPIO</option><option value="07_axi_uart_lite.html">SoC 07 · AXI UART Lite</option><option value="08_axi_timer.html">SoC 08 · AXI Timer</option><option value="09_axi_interrupt_controller.html">SoC 09 · AXI Interrupt Controller</option><option value="10_microblaze_gpio_uart_timer_integration.html">SoC 10 · MicroBlaze V + GPIO + UART + Timer 통합</option><option value="11_register_map_design_principles.html">SoC 11 · Register Map 설계 원칙</option><option value="12_custom_axi4lite_slave_basics.html">SoC 12 · Custom AXI4-Lite Slave 기초</option><option value="13_axi_register_read_write_path.html">SoC 13 · AXI Register Read / Write 경로</option><option value="14_register_bank_rtl_controller.html">SoC 14 · Register Bank + RTL Controller 연결</option><option value="15_microblaze_software_driver.html">SoC 15 · MicroBlaze V Software Driver</option><option value="16_vivado_ip_packaging_reuse.html">SoC 16 · Vivado IP Packaging과 재사용</option><option value="17_existing_verilog_rtl_to_ip.html">SoC 17 · 기존 Verilog RTL을 IP로 변환</option><option value="18_uart_pwm_controller_ip.html">SoC 18 · UART / PWM Controller IP화</option><option value="19_axi_control_status_bridge.html">SoC 19 · AXI Control / Status Bridge</option><option value="20_cdc_reset_safe_design.html">SoC 20 · CDC / Reset 안전 설계</option><option value="21_self_checking_assertion_coverage.html">SoC 21 · Self-Checking Testbench / Assertion / Coverage</option><option value="22_timing_critical_path_wns_tns.html">SoC 22 · Timing / Critical Path / WNS / TNS</option><option value="23_resource_power_thermal.html">SoC 23 · Resource / Power / Thermal</option><option value="24_npu_mac_datapath.html">SoC 24 · NPU Datapath / MAC 기본 구조</option><option value="25_pe_parallel_mac_vector_dot_product.html">SoC 25 · PE / Parallel MAC / Vector Dot Product</option><option value="26_vector_dot_product_controller.html">SoC 26 · Vector Dot Product Controller</option><option value="27_local_bram_address_generator_data_feeding.html">SoC 27 · Local BRAM / Address Generator / Data Feeding</option><option value="28_prefetch_fifo_double_buffer_stall_safe_feeding.html">SoC 28 · Prefetch / FIFO / Double Buffer</option><option value="29_data_reuse_weight_stationary_tiling.html">SoC 29 · Data Reuse / Weight Stationary / Tiling</option><option value="30_bias_requantization_rounding_saturation_int8.html">SoC 30 · Bias / Requantization / Rounding / Saturation / int8 Output</option><option value="31_npu_register_map_microblaze_axi_integration.html">SoC 31 · NPU Register Map / MicroBlaze V Control / Accelerator Integration</option><option value="32_npu_done_interrupt_axi_intc_isr.html">SoC 32 · NPU Done Interrupt / AXI Interrupt Controller / ISR</option><option value="33_axi_bram_tensor_buffer_control_data_plane.html">SoC 33 · AXI BRAM Tensor Buffer / Control Plane &amp; Data Plane</option><option value="34_command_descriptor_job_control.html">SoC 34 · Command / Descriptor / Job Control</option><option value="35_full_npu_accelerator_integration.html">SoC 35 · Full NPU Accelerator Integration</option><option value="36_cpu_npu_end_to_end_software_inference.html">SoC 36 · CPU ↔ NPU End-to-End Software / Inference Flow</option><option value="37_performance_baseline_timing_resource_power_throughput.html">SoC 37 · Performance Baseline / Timing / Resource / Power / Throughput</option><option value="38_bottleneck_analysis_pipelined_bram_read.html">SoC 38 · Bottleneck Analysis / Pipelined BRAM Read Optimization</option><option value="39_parallel4_requantization_optimization.html">SoC 39 · 4-Lane Parallel Requantization Optimization</option><option value="40_prefetch_pingpong_data_compute_overlap.html">SoC 40 · Prefetch / Ping-Pong Buffer / Data-Compute Overlap</option><option value="41_group8_cumulative_signoff_matrix.html">SoC 41 · Group 8 Cumulative Sign-off Matrix</option></select><button type="submit">선택한 장 열기</button></form><div class="reader-links"><a href="../part01/legacy/pages/soc/../../00_overview/START_HERE.html">공통 사양·실습 순서</a><a href="../part01/legacy/pages/soc/../../manifests/soc06_manifest.html">실습 파일</a><a href="../part01/legacy/pages/soc/../../validation/verification.html#soc06">이 장 검증</a></div></div>
+<p class="nav-title">SOC 06 · LEARNING FLOW</p>
+<p class="nav-help">Switch → AXI Read → CPU → AXI Write → LED</p>
+<ol class="timeline"><li><a href="#s01"><span class="n">01</span><span>실습 목표</span></a></li>
+<li><a href="#s02"><span class="n">02</span><span>01장 복제 · Design Sources</span></a></li>
+<li><a href="#s03"><span class="n">03</span><span>AXI GPIO 추가</span></a></li>
+<li><a href="#s04"><span class="n">04</span><span>GPIO 채널 설정</span></a></li>
+<li><a href="#s05"><span class="n">05</span><span>AXI · Clock · Reset 연결</span></a></li>
+<li><a href="#s06"><span class="n">06</span><span>외부 GPIO 포트와 Wrapper</span></a></li>
+<li><a href="#s07"><span class="n">07</span><span>Basys3 XDC 작성</span></a></li>
+<li><a href="#s08"><span class="n">08</span><span>Address Editor와 Register</span></a></li>
+<li><a href="#s09"><span class="n">09</span><span>Validate · Bitstream</span></a></li>
+<li><a href="#s10"><span class="n">10</span><span>XSA 내보내기</span></a></li>
+<li><a href="#s11"><span class="n">11</span><span>Vitis Platform 생성</span></a></li>
+<li><a href="#s12"><span class="n">12</span><span>Vitis Application 생성</span></a></li>
+<li><a href="#s13"><span class="n">13</span><span>main.c 직접 작성</span></a></li>
+<li><a href="#s14"><span class="n">14</span><span>C 코드 한 줄씩 이해</span></a></li>
+<li><a href="#s15"><span class="n">15</span><span>Build · 헤더 갱신 · Debug</span></a></li>
+<li><a href="#s16"><span class="n">16</span><span>Basys3 동작 · 오류 점검</span></a></li><li><a href="#sources"><span class="n">자료</span><span>AMD 공식 문서</span></a></li></ol>
+</aside>
+
+<main id="main-content" tabindex="-1"><section class="prof-banner" id="prof-intro"><h2>교수용 추가 해설 · 제1부 06장</h2><p><strong>이 장에서 설명할 핵심:</strong> CPU가 LED·스위치를 제어하는 구조</p><p>CPU는 AXI 주소에 값을 써서 LED 레지스터를 바꾸고, 입력 채널에서 스위치 값을 읽습니다. GPIO 방향과 채널 설정은 하드웨어와 C 코드 양쪽에서 일치해야 합니다.</p><p><strong>쉽게 풀어 말하기:</strong> XGpio API의 출력값은 AXI 버스를 거쳐 GPIO IP에 저장되고, 핀 XDC가 LED 물리 핀과 연결합니다.</p><div class="prof-flow" role="img" aria-label="C → AXI GPIO → LED / Switch → AXI GPIO → C"><svg viewBox="0 0 910 130" xmlns="http://www.w3.org/2000/svg"><title>현재 장의 데이터·제어 흐름</title><rect x="18" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="114" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="114" dy="0">C</tspan></text><path d="M210 67 H238" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M234 60 L242 67 L234 74" stroke="#4635b1" fill="none"/><rect x="238" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="334" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="334" dy="0">AXI GPIO</tspan></text><path d="M430 67 H458" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M454 60 L462 67 L454 74" stroke="#4635b1" fill="none"/><rect x="458" y="24" width="192" height="84" rx="9" fill="#eef5f2" stroke="#9185d6"/><text x="554" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="554" dy="0">LED / Switch</tspan></text><path d="M650 67 H678" stroke="#4635b1" stroke-width="3" fill="none"/><path d="M674 60 L682 67 L674 74" stroke="#4635b1" fill="none"/><rect x="678" y="24" width="192" height="84" rx="9" fill="#f3f1ff" stroke="#9185d6"/><text x="774" y="56" font-size="13" fill="#27243b" font-weight="700" text-anchor="middle"><tspan x="774" dy="0">AXI GPIO</tspan></text></svg></div><p class="prof-mini"><strong>수업의 판정 기준:</strong> Vivado 실제 Address Editor의 Base Address와 xparameters.h 값을 대조합니다. LED 점멸은 보드에서 실제로 확인해야 합니다.</p><p class="prof-source"><a href="../part01/legacy/pages/soc/06_axi_gpio.html">기존 학습안내서 원문 열기</a> · 기존 사진·도표·원본 코드 및 실습 순서는 이 페이지 안에 그대로 유지하였습니다.</p><nav aria-label="교수용 인접 장 탐색"><a href="index.html">교수용 전체 목차</a> · <a href="ch05_teacher_v02.html">이전 장</a> · <a href="ch07_teacher_v02.html">다음 장</a></nav></section>
+<div class="overview-card"><h2>SoC 06 진행 위치</h2>
+<div class="stage-flow"><span class="stage">SoC 04 Memory Map</span><span class="arrow">→</span><span class="stage">SoC 05 AXI</span><span class="arrow">→</span><span class="stage"><strong>SoC 06 AXI GPIO</strong></span><span class="arrow">→</span><span class="stage">SoC 07 AXI UART Lite</span></div>
+</div>
+
+<section class="step-card" id="s01"><span class="step">SECTION 01</span><h2>AXI GPIO 실습 목표</h2><aside class="prof-explain"><strong>교수용 보충 — AXI GPIO 실습 목표</strong><p>AXI는 CPU와 주변 회로 사이의 규격화된 통신 통로입니다. Address Editor의 실제 주소와 연결을 확인합니다.</p></aside>
+<p><strong>Basys3의 스위치 16개를 읽어서 같은 번호의 LED 16개를 켭니다.</strong> GPIO(지피아이오, 범용 입출력)는 스위치·LED 같은 간단한 주변장치를 제어하는 기능입니다.</p><div class="flow flow-center">SW[15:0] → AXI GPIO Channel 2 → MicroBlaze V → AXI GPIO Channel 1 → LED[15:0]</div><div class="table-wrap" role="region" tabindex="0" aria-label="입력 조작, 예상 출력"><table><thead><tr><th scope="col">입력 조작</th><th scope="col">예상 출력</th></tr></thead><tbody><tr><td data-label="입력 조작">SW0 ON</td><td data-label="예상 출력">LED0 ON</td></tr><tr><td data-label="입력 조작">SW3 ON</td><td data-label="예상 출력">LED3 ON</td></tr><tr><td data-label="입력 조작">SW0 + SW3 ON</td><td data-label="예상 출력">LED0 + LED3 ON</td></tr></tbody></table></div><p>06장에서는 GPIO를 실제 보드에 연결하고 C 프로그램으로 제어합니다. AXI 신호의 상세 이론은 05장을 참고합니다.</p>
+</section>
+
+<section class="step-card" id="s02"><span class="step">SECTION 02</span><h2>01장 프로젝트 복제 · Design Sources 정리</h2>
+<p><strong>06장은 01장에서 검증된 MicroBlaze V + BRAM 프로젝트를 복제하여 이어서 만드는 장입니다.</strong> 04장은 같은 하드웨어를 이용한 메모리 실습이고, 05장은 AXI 이론이므로 06장 시작을 위해 SoC를 다시 만들지 않습니다. <strong>01장 원본 HW와 기존 Vitis 프로젝트는 보존합니다.</strong></p>
+<div class="flow flow-center">01장 성공 프로젝트 → 06장으로 Save As → Block Design 이름 변경 → 새 HDL Wrapper/Top 지정 → 기존 Wrapper 정리 → AXI GPIO 추가</div>
+<div class="table-wrap" role="region" tabindex="0" aria-label="01장에서 06장으로 가져오는 프로젝트 및 Design Sources"><table>
+<thead><tr><th scope="col">구분</th><th scope="col">01장 기존 파일 · 보존</th><th scope="col">06장 새 작업 파일</th></tr></thead>
+<tbody>
+<tr><td data-label="구분">Vivado Project</td><td data-label="01장"><code>~/soc/hw/soc01_microblaze_bram/soc01_microblaze_bram.xpr</code></td><td data-label="06장"><code>~/soc/hw/soc06_axi_gpio/soc06_axi_gpio.xpr</code></td></tr>
+<tr><td data-label="구분">Block Design</td><td data-label="01장"><code>soc01_mb_bram.bd</code></td><td data-label="06장"><code>soc06_axi_gpio.bd</code></td></tr>
+<tr><td data-label="구분">HDL Wrapper</td><td data-label="01장"><code>soc01_mb_bram_wrapper</code></td><td data-label="06장"><code>soc06_axi_gpio_wrapper</code></td></tr>
+<tr><td data-label="구분">Top Module</td><td data-label="01장"><code>soc01_mb_bram_wrapper</code></td><td data-label="06장"><code>soc06_axi_gpio_wrapper</code></td></tr>
+<tr><td data-label="구분">Constraints (XDC)</td><td data-label="01장">기존 Clock / Reset 제약은 유지</td><td data-label="06장"><code>basys3_axi_gpio.xdc</code>를 06장 프로젝트에 독립 보관하고 GPIO 포트를 추가 · SECTION 07</td></tr>
+<tr><td data-label="구분">Vitis Workspace</td><td data-label="01장"><code>~/soc/sw</code></td><td data-label="06장">같은 Workspace 사용 · 별도 <code>soc06_axi_gpio_platform</code>과 <code>soc06_axi_gpio</code> Application 생성</td></tr>
+</tbody></table></div>
+<ol class="lesson-actions">
+<li><strong>기존 01장 프로젝트 열기</strong> — Vivado 2024.2에서 <code>~/soc/hw/soc01_microblaze_bram/soc01_microblaze_bram.xpr</code>을 엽니다. <code>microblaze_riscv_0</code>, Local BRAM 16 KiB, MDM, Clocking Wizard, Reset 및 <code>ILMB/DLMB</code>를 확인합니다. 이때 <code>M_AXI_DP</code>는 주변장치 미연결 상태입니다.</li>
+<li><strong>06장 프로젝트로 복제</strong> — <strong>File → Project → Save As</strong>를 실행해 <code>soc06_axi_gpio</code> 이름으로 <code>~/soc/hw/soc06_axi_gpio/</code>에 저장합니다. 원래 01장 프로젝트를 덮어쓰지 않습니다.</li>
+<li><strong>Block Design을 06장 이름으로 저장</strong> — 복제본에 남아 있는 <code>soc01_mb_bram</code>을 열고 <strong>File → Save Block Design As</strong>에서 이름을 <code>soc06_axi_gpio</code>로 지정합니다. 실제 사용했던 설정은 <strong>Local to Project</strong>, <strong>Add to Design Sources</strong>, <strong>Include Comments</strong> 선택, <strong>Freeze boundary</strong> 해제입니다.</li>
+<li><strong>새 HDL Wrapper 생성</strong> — <strong>Sources → Design Sources</strong>의 <code>soc06_axi_gpio.bd</code>를 우클릭하여 <strong>Create HDL Wrapper</strong> → <strong>Let Vivado manage wrapper and auto-update</strong>를 선택합니다. 생성된 <code>soc06_axi_gpio_wrapper</code>를 <strong>Set as Top</strong>으로 지정합니다.</li>
+<li><strong>기존 Wrapper 정리</strong> — 더 이상 Top으로 사용하지 않는 <code>soc01_mb_bram_wrapper</code>는 <strong>Remove File from Project</strong>만 수행합니다. <strong>Delete files from disk는 선택하지 않습니다.</strong> 원본 Block Design이나 기존 01장 프로젝트 파일도 삭제하지 않습니다.</li>
+<li><strong>Design Sources 및 IP 상태 확인</strong> — 최종 Top이 <code>soc06_axi_gpio_wrapper</code>인지 확인합니다. <strong>Tools → Report → Report IP Status</strong>에서 기존 IP <strong>9개가 모두 Up-to-date / No changes required</strong>였던 정상 화면을 기준으로 확인합니다.</li>
+<li><strong>Constraints 분리</strong> — 06장 프로젝트에서 사용할 XDC를 독립 파일로 관리하고 기존 Clock / Reset 설정을 유지합니다. GPIO용 SW/LED 핀과 Wrapper 포트명은 SECTION 06~07에서 확정합니다. 01장 XDC 파일을 직접 편집하지 않습니다.</li>
+</ol>
+<p class="lesson-check"><strong>화면 확인</strong> 06장 <code>.xpr</code>, Design Sources의 <code>soc06_axi_gpio.bd</code>, Top <code>soc06_axi_gpio_wrapper</code>, 기존 IP 9개 정상 상태를 확인한 후에만 SECTION 03으로 넘어갑니다. 실제 XDC·BD 소스 경로가 01장 폴더를 직접 가리키면 복사 상태를 먼저 점검합니다.</p>
+</section>
+
+<section class="step-card" id="s03"><span class="step">SECTION 03</span><h2>AXI GPIO 추가</h2><aside class="prof-explain"><strong>교수용 보충 — AXI GPIO 추가</strong><p>AXI는 CPU와 주변 회로 사이의 규격화된 통신 통로입니다. Address Editor의 실제 주소와 연결을 확인합니다.</p></aside>
+<ol class="lesson-actions"><li>Vivado의 <strong>IP Integrator → Block Design</strong>을 엽니다.</li><li><strong>Add IP</strong>에서 <code>AXI GPIO</code>를 검색합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="2"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_002_20261026-145616_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Add IP에서 AXI GPIO 검색 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_002_20261026-145616_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Add IP에서 AXI GPIO 검색"></a><figcaption>Add IP에서 AXI GPIO 검색 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_002_20261026-145616_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li><code>AXI GPIO</code>를 추가하여 <code>axi_gpio_0</code>가 나타나는지 확인합니다.</li></ol><p class="lesson-check"><strong>화면 확인</strong> <code>axi_gpio_0</code>에 <code>S_AXI</code>, <code>GPIO</code>, <code>GPIO2</code> 인터페이스가 표시됩니다.</p><p class="minor">하드웨어의 IP 이름 <code>axi_gpio_0</code>는 이후 Vitis의 GPIO 주소 정보와 연결됩니다.</p>
+</section>
+
+<section class="step-card" id="s04"><span class="step">SECTION 04</span><h2>GPIO 채널 설정</h2>
+<ol class="lesson-actions"><li><code>axi_gpio_0</code>를 더블클릭하여 설정 창을 엽니다.</li><li><strong>Enable Dual Channel</strong>을 활성화합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="4"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_004_20261026-155117_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="AXI GPIO 최종 설정: LED 16비트 출력, SW 16비트 입력, 듀얼 채널 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_004_20261026-155117_vivado.webp" alt="실제 Vivado/Vitis 2024.2: AXI GPIO 최종 설정: LED 16비트 출력, SW 16비트 입력, 듀얼 채널"></a><figcaption>AXI GPIO 최종 설정: LED 16비트 출력, SW 16비트 입력, 듀얼 채널 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_004_20261026-155117_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>아래 표처럼 두 채널의 방향과 폭을 지정하고 <strong>OK</strong>를 클릭합니다.</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="설정, Channel 1, Channel 2"><table><thead><tr><th scope="col">설정</th><th scope="col">Channel 1</th><th scope="col">Channel 2</th></tr></thead><tbody><tr><td data-label="설정">GPIO Width</td><td data-label="Channel 1"><code>16</code></td><td data-label="Channel 2"><code>16</code></td></tr><tr><td data-label="설정">GPIO Direction</td><td data-label="Channel 1"><strong>All Outputs</strong></td><td data-label="Channel 2"><strong>All Inputs</strong></td></tr><tr><td data-label="설정">Basys3 연결</td><td data-label="Channel 1">LED 16개</td><td data-label="Channel 2">스위치 16개</td></tr></tbody></table></div><p><strong>Enable Interrupt는 끕니다.</strong> 두 채널의 값을 CPU가 반복해서 읽고 쓰는 가장 간단한 방식으로 실습합니다.</p><figure class="manual-figure compact"><a class="figure-image-link" href="../part01/legacy/pages/soc/../../images/common/original_17.png" target="_blank" rel="noopener"><img loading="lazy" src="../part01/legacy/pages/soc/../../images/common/original_17.png" alt="AMD 공식 AXI GPIO 설정 창 참고 그림"></a><figcaption>AMD PG144의 AXI GPIO 설정 화면 참고 그림. 실제 입력값은 위 표와 현재 Vivado 프로젝트 설정을 따릅니다. <a class="figure-original" href="../part01/legacy/pages/soc/../../images/common/original_17.png" target="_blank" rel="noopener">원본 보기</a></figcaption></figure>
+</section>
+
+<section class="step-card" id="s05"><span class="step">SECTION 05</span><h2>AXI · Clock · Reset 연결</h2><aside class="prof-explain"><strong>교수용 보충 — AXI · Clock · Reset 연결</strong><p>Clock의 주파수·주기·도메인을 확인합니다. 100 MHz의 한 주기는 10 ns입니다.</p></aside>
+<ol class="lesson-actions"><li><code>axi_gpio_0/S_AXI</code>에서 <strong>Run Connection Automation</strong>을 실행합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="6"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_006_20261026-155450_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Run Connection Automation에서 S_AXI 연결 선택 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_006_20261026-155450_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Run Connection Automation에서 S_AXI 연결 선택"></a><figcaption>Run Connection Automation에서 S_AXI 연결 선택 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_006_20261026-155450_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>CPU의 <code>M_AXI_DP</code>와 GPIO의 <code>S_AXI</code> 사이에 <code>axi_smc</code>(AXI SmartConnect)가 생성되는지 확인합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="7"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_007_20261026-155708_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="자동 연결 완료: AXI SmartConnect와 AXI GPIO 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_007_20261026-155708_vivado.webp" alt="실제 Vivado/Vitis 2024.2: 자동 연결 완료: AXI SmartConnect와 AXI GPIO"></a><figcaption>자동 연결 완료: AXI SmartConnect와 AXI GPIO · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_007_20261026-155708_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li><code>s_axi_aclk</code>는 시스템 100 MHz 클록, <code>s_axi_aresetn</code>은 활성 Low 리셋 경로에 연결되는지 확인합니다.</li></ol><div class="flow flow-center">microblaze_riscv_0 / M_AXI_DP → axi_smc → axi_gpio_0 / S_AXI</div><p class="lesson-check"><strong>화면 확인</strong> Vivado <strong>Validate Design</strong>에서 AXI, Clock, Reset 연결 오류가 없어야 합니다.</p>
+</section>
+
+<section class="step-card" id="s06"><span class="step">SECTION 06</span><h2>외부 GPIO 포트와 Wrapper</h2>
+<ol class="lesson-actions"><li>AXI GPIO의 Channel 1 <code>GPIO</code>를 외부 포트로 만듭니다.</li><li>Channel 2 <code>GPIO2</code>도 외부 포트로 만듭니다.</li><li>외부 인터페이스 이름을 각각 <code>led</code>, <code>sw</code>로 지정합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="9"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_009_20261026-160135_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="외부 포트 led, sw 지정 완료 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_009_20261026-160135_vivado.webp" alt="실제 Vivado/Vitis 2024.2: 외부 포트 led, sw 지정 완료"></a><figcaption>외부 포트 led, sw 지정 완료 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_009_20261026-160135_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>SECTION 02에서 만든 <code>soc06_axi_gpio_wrapper</code>를 <strong>Let Vivado manage wrapper and auto-update</strong>로 갱신합니다. 새 GPIO 외부 포트가 Top에 반영되지 않았다면 기존 <code>soc06_axi_gpio.bd</code>에서 <strong>Create HDL Wrapper</strong>를 다시 실행하여 갱신하고 <code>soc06_axi_gpio_wrapper</code>가 Top인지 확인합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="12"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_012_20261026-161957_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Create HDL Wrapper 자동 관리 옵션 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_012_20261026-161957_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Create HDL Wrapper 자동 관리 옵션"></a><figcaption>Create HDL Wrapper 자동 관리 옵션 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_012_20261026-161957_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="13"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_013_20261026-162359_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="최종 Wrapper에 led_tri_o[15:0], sw_tri_i[15:0] 확인 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_013_20261026-162359_vivado.webp" alt="실제 Vivado/Vitis 2024.2: 최종 Wrapper에 led_tri_o[15:0], sw_tri_i[15:0] 확인"></a><figcaption>최종 Wrapper에 led_tri_o[15:0], sw_tri_i[15:0] 확인 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_013_20261026-162359_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="Vivado 외부 인터페이스 이름, HDL Wrapper 실제 포트 이름, 방향"><table><thead><tr><th scope="col">Vivado 외부 인터페이스 이름</th><th scope="col">HDL Wrapper 실제 포트 이름</th><th scope="col">방향</th></tr></thead><tbody><tr><td data-label="Vivado 외부 인터페이스 이름"><code>led</code></td><td data-label="HDL Wrapper 실제 포트 이름"><code>led_tri_o[15:0]</code></td><td data-label="방향">출력</td></tr><tr><td data-label="Vivado 외부 인터페이스 이름"><code>sw</code></td><td data-label="HDL Wrapper 실제 포트 이름"><code>sw_tri_i[15:0]</code></td><td data-label="방향">입력</td></tr></tbody></table></div><p class="lesson-check"><strong>중요</strong> XDC의 <code>get_ports</code>에는 <code>led</code>, <code>sw</code>가 아니라 <strong><code>led_tri_o</code>, <code>sw_tri_i</code></strong>를 사용해야 합니다. HDL Wrapper 코드를 임의로 수정하지 않습니다.</p><details><summary>Wrapper에 변경된 포트가 보이지 않을 때</summary><pre class="codeblock-pre" tabindex="0" role="region" aria-label="Vivado Tcl Console"><code>get_files -all *soc06_axi_gpio.bd
+make_wrapper -files [get_files -all *soc06_axi_gpio.bd] -top -force
+update_compile_order -fileset sources_1</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 1 (3개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>get_files -all *soc06_axi_gpio.bd</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>2</td><td><code>make_wrapper -files [get_files -all *soc06_axi_gpio.bd] -top -force</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>3</td><td><code>update_compile_order -fileset sources_1</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr></tbody></table></div></details><p>Vivado <strong>Tcl Console</strong>에서 Wrapper를 다시 생성합니다. 기존 검증 과정에서 사용한 명령입니다.</p></details>
+</section>
+
+<section class="step-card" id="s07"><span class="step">SECTION 07</span><h2>Basys3 XDC 작성</h2><aside class="prof-explain"><strong>교수용 보충 — Basys3 XDC 작성</strong><p>XDC의 get_ports 이름은 Top 외부 포트 이름과 정확히 일치해야 합니다. PACKAGE_PIN은 FPGA 패키지 핀입니다.</p></aside>
+<p><strong>Basys3-Master.xdc의 기존 핀 번호를 그대로 사용</strong>합니다. 포트 이름만 실제 Wrapper에 맞춥니다.</p><div class="table-wrap" role="region" tabindex="0" aria-label="대상, 예시 핀, XDC 포트명"><table><thead><tr><th scope="col">대상</th><th scope="col">예시 핀</th><th scope="col">XDC 포트명</th></tr></thead><tbody><tr><td data-label="대상">SW0</td><td data-label="예시 핀">V17</td><td data-label="XDC 포트명"><code>sw_tri_i[0]</code></td></tr><tr><td data-label="대상">LED0</td><td data-label="예시 핀">U16</td><td data-label="XDC 포트명"><code>led_tri_o[0]</code></td></tr><tr><td data-label="대상">CLK</td><td data-label="예시 핀">W5</td><td data-label="XDC 포트명"><code>clk</code></td></tr><tr><td data-label="대상">btnC</td><td data-label="예시 핀">U18</td><td data-label="XDC 포트명"><code>btnC</code></td></tr></tbody></table></div><ol class="lesson-actions"><li>기존 XDC의 Clock과 Reset 핀 설정은 유지합니다. Clock Wizard가 만드는 클록 제약과 중복되는 <code>create_clock</code> 명령 때문에 <code>[Constraints 18-1056]</code> 경고가 발생할 수 있습니다. 06장에서는 검증된 하드웨어 설정을 임의로 변경하지 않습니다.</li><li>Switch 16개, LED 16개를 아래처럼 연결합니다.</li><li><strong>Report I/O</strong>에서 포트와 PACKAGE_PIN의 대응을 확인합니다.</li></ol><pre class="codeblock-pre" tabindex="0" role="region" aria-label="06장 XDC Switch 16개 및 LED 16개"><code>## Basys3 Slide Switches
+set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[0]}]
+set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[1]}]
+set_property -dict { PACKAGE_PIN W16 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[2]}]
+set_property -dict { PACKAGE_PIN W17 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[3]}]
+set_property -dict { PACKAGE_PIN W15 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[4]}]
+set_property -dict { PACKAGE_PIN V15 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[5]}]
+set_property -dict { PACKAGE_PIN W14 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[6]}]
+set_property -dict { PACKAGE_PIN W13 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[7]}]
+set_property -dict { PACKAGE_PIN V2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[8]}]
+set_property -dict { PACKAGE_PIN T3  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[9]}]
+set_property -dict { PACKAGE_PIN T2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[10]}]
+set_property -dict { PACKAGE_PIN R3  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[11]}]
+set_property -dict { PACKAGE_PIN W2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[12]}]
+set_property -dict { PACKAGE_PIN U1  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[13]}]
+set_property -dict { PACKAGE_PIN T1  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[14]}]
+set_property -dict { PACKAGE_PIN R2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[15]}]
+
+## Basys3 LEDs
+set_property -dict { PACKAGE_PIN U16 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[0]}]
+set_property -dict { PACKAGE_PIN E19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[1]}]
+set_property -dict { PACKAGE_PIN U19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[2]}]
+set_property -dict { PACKAGE_PIN V19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[3]}]
+set_property -dict { PACKAGE_PIN W18 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[4]}]
+set_property -dict { PACKAGE_PIN U15 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[5]}]
+set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[6]}]
+set_property -dict { PACKAGE_PIN V14 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[7]}]
+set_property -dict { PACKAGE_PIN V13 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[8]}]
+set_property -dict { PACKAGE_PIN V3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[9]}]
+set_property -dict { PACKAGE_PIN W3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[10]}]
+set_property -dict { PACKAGE_PIN U3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[11]}]
+set_property -dict { PACKAGE_PIN P3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[12]}]
+set_property -dict { PACKAGE_PIN N3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[13]}]
+set_property -dict { PACKAGE_PIN P1  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[14]}]
+set_property -dict { PACKAGE_PIN L1  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[15]}]</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 2 (34개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>## Basys3 Slide Switches</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>2</td><td><code>set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[0]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>3</td><td><code>set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[1]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>4</td><td><code>set_property -dict { PACKAGE_PIN W16 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[2]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>5</td><td><code>set_property -dict { PACKAGE_PIN W17 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[3]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>6</td><td><code>set_property -dict { PACKAGE_PIN W15 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[4]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>7</td><td><code>set_property -dict { PACKAGE_PIN V15 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[5]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>8</td><td><code>set_property -dict { PACKAGE_PIN W14 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[6]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>9</td><td><code>set_property -dict { PACKAGE_PIN W13 IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[7]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>10</td><td><code>set_property -dict { PACKAGE_PIN V2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[8]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>11</td><td><code>set_property -dict { PACKAGE_PIN T3  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[9]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>12</td><td><code>set_property -dict { PACKAGE_PIN T2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[10]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>13</td><td><code>set_property -dict { PACKAGE_PIN R3  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[11]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>14</td><td><code>set_property -dict { PACKAGE_PIN W2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[12]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>15</td><td><code>set_property -dict { PACKAGE_PIN U1  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[13]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>16</td><td><code>set_property -dict { PACKAGE_PIN T1  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[14]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>17</td><td><code>set_property -dict { PACKAGE_PIN R2  IOSTANDARD LVCMOS33 } [get_ports {sw_tri_i[15]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>19</td><td><code>## Basys3 LEDs</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>20</td><td><code>set_property -dict { PACKAGE_PIN U16 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[0]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>21</td><td><code>set_property -dict { PACKAGE_PIN E19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[1]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>22</td><td><code>set_property -dict { PACKAGE_PIN U19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[2]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>23</td><td><code>set_property -dict { PACKAGE_PIN V19 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[3]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>24</td><td><code>set_property -dict { PACKAGE_PIN W18 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[4]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>25</td><td><code>set_property -dict { PACKAGE_PIN U15 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[5]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>26</td><td><code>set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[6]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>27</td><td><code>set_property -dict { PACKAGE_PIN V14 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[7]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>28</td><td><code>set_property -dict { PACKAGE_PIN V13 IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[8]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>29</td><td><code>set_property -dict { PACKAGE_PIN V3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[9]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>30</td><td><code>set_property -dict { PACKAGE_PIN W3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[10]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>31</td><td><code>set_property -dict { PACKAGE_PIN U3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[11]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>32</td><td><code>set_property -dict { PACKAGE_PIN P3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[12]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>33</td><td><code>set_property -dict { PACKAGE_PIN N3  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[13]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>34</td><td><code>set_property -dict { PACKAGE_PIN P1  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[14]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr><tr><td>35</td><td><code>set_property -dict { PACKAGE_PIN L1  IOSTANDARD LVCMOS33 } [get_ports {led_tri_o[15]}]</code></td><td>XDC에서 FPGA 포트의 물리적 핀이나 I/O 전압 규격을 지정합니다.</td></tr></tbody></table></div></details><p class="minor">Clock 제약은 기존 프로젝트에서 확인한 설정을 유지합니다. 발생했던 Clock 관련 Critical Warning은 AXI GPIO 포트명 오류와 구별하여 판단합니다.</p>
+</section>
+
+<section class="step-card" id="s08"><span class="step">SECTION 08</span><h2>Address Editor와 GPIO 레지스터</h2><aside class="prof-explain"><strong>교수용 보충 — Address Editor와 GPIO 레지스터</strong><p>레지스터의 시작 주소·오프셋·비트 폭을 구분하고 소프트웨어 상수와 대응시킵니다.</p></aside>
+<ol class="lesson-actions"><li>Block Design의 <strong>Address Editor</strong>를 엽니다.</li><li><code>axi_gpio_0/S_AXI</code>의 기준 주소가 <code>0x40000000</code>인지 확인합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="16"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_016_20261026-165057_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Address Editor에서 AXI GPIO 주소 0x40000000 확인 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_016_20261026-165057_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Address Editor에서 AXI GPIO 주소 0x40000000 확인"></a><figcaption>실제 촬영은 비트스트림 생성 이후 주소를 재확인한 화면입니다. Address Editor에서 AXI GPIO 주소 0x40000000 확인 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_016_20261026-165057_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>아래 네 레지스터는 기준 주소에 오프셋을 더해 접근한다는 점을 확인합니다.</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="레지스터, 오프셋, 이 장에서 하는 일"><table><thead><tr><th scope="col">레지스터</th><th scope="col">오프셋</th><th scope="col">이 장에서 하는 일</th></tr></thead><tbody><tr><td data-label="레지스터"><code>GPIO_DATA</code></td><td data-label="오프셋"><code>+0x00</code></td><td data-label="이 장에서 하는 일">LED 출력값</td></tr><tr><td data-label="레지스터"><code>GPIO_TRI</code></td><td data-label="오프셋"><code>+0x04</code></td><td data-label="이 장에서 하는 일">LED 방향</td></tr><tr><td data-label="레지스터"><code>GPIO2_DATA</code></td><td data-label="오프셋"><code>+0x08</code></td><td data-label="이 장에서 하는 일">스위치 입력값</td></tr><tr><td data-label="레지스터"><code>GPIO2_TRI</code></td><td data-label="오프셋"><code>+0x0C</code></td><td data-label="이 장에서 하는 일">스위치 방향</td></tr></tbody></table></div><p><strong>실제 주소 범위:</strong> <code>0x40000000 ~ 0x4000FFFF</code>(64 KiB 할당 영역). Local BRAM은 <code>0x00000000 ~ 0x00003FFF</code>(16 KiB)입니다. 64 KiB는 주변장치에 할당한 주소 범위이지 GPIO 데이터의 크기가 아닙니다.</p><figure class="manual-figure"><a href="../part01/legacy/pages/soc/../../images/common/original_16.png" target="_blank" rel="noopener" class="figure-image-link"><img loading="lazy" src="../part01/legacy/pages/soc/../../images/common/original_16.png" alt="AMD AXI GPIO 내부 레지스터 구조 참고 그림"></a><figcaption>출처: AMD PG144 · AXI GPIO 내부 구조. <a class="figure-original" href="../part01/legacy/pages/soc/../../images/common/original_16.png" target="_blank" rel="noopener">원본 보기</a></figcaption></figure>
+</section>
+
+<section class="step-card" id="s09"><span class="step">SECTION 09</span><h2>Validate · Bitstream 생성</h2>
+<ol class="lesson-actions"><li>Block Design에서 <strong>Validate Design</strong>을 실행합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="14"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_014_20261026-162732_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Validate Design 성공 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_014_20261026-162732_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Validate Design 성공"></a><figcaption>Validate Design 성공 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_014_20261026-162732_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li><strong>Generate Bitstream</strong>을 실행합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="15"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_015_20261026-164907_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Bitstream Generation 성공 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_015_20261026-164907_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Bitstream Generation 성공"></a><figcaption>Bitstream Generation 성공 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_015_20261026-164907_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>완료 메시지에서 <code>Bitstream Generation successfully completed</code>를 확인합니다.</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="확인 대상, 정상 기준"><table><thead><tr><th scope="col">확인 대상</th><th scope="col">정상 기준</th></tr></thead><tbody><tr><td data-label="확인 대상">Validate Design</td><td data-label="정상 기준"><code>Validation successful</code></td></tr><tr><td data-label="확인 대상">Bitstream</td><td data-label="정상 기준"><code>Bitstream Generation successfully completed</code></td></tr><tr><td data-label="확인 대상">포트 제약</td><td data-label="정상 기준">UCIO-1 또는 NSTD-1 없이 최상위 포트가 제약됨</td></tr></tbody></table></div><p class="minor">이 실습에서는 초기에 <code>sw</code>/<code>led</code> 이름으로 인해 발생한 XDC 오류를 실제 Wrapper 이름으로 수정해 Bitstream 생성을 완료했습니다.</p>
+</section>
+
+<section class="step-card" id="s10"><span class="step">SECTION 10</span><h2>Bitstream 포함 XSA 내보내기</h2>
+<ol class="lesson-actions"><li>Vivado에서 <strong>File → Export → Export Hardware</strong>를 선택합니다.</li><li><strong>Include Bitstream</strong>을 선택합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="17"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_017_20261026-165453_vivado.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Export Hardware에서 Include bitstream 선택 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_017_20261026-165453_vivado.webp" alt="실제 Vivado/Vitis 2024.2: Export Hardware에서 Include bitstream 선택"></a><figcaption>Export Hardware에서 Include bitstream 선택 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_017_20261026-165453_vivado.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>다음 경로에 XSA를 저장합니다.</li></ol><pre class="codeblock-pre" tabindex="0" role="region" aria-label="XSA 저장 경로"><code>~/soc/hw/soc06_axi_gpio/soc06_axi_gpio.xsa</code></pre><p class="lesson-check"><strong>화면 확인</strong> 하드웨어 산출물 <code>.xsa</code>가 만들어지면 Vitis에서 같은 파일을 선택합니다.</p>
+</section>
+
+<section class="step-card" id="s11"><span class="step">SECTION 11</span><h2>Vitis Platform 생성</h2><aside class="prof-explain"><strong>교수용 보충 — Vitis Platform 생성</strong><p>XSA는 하드웨어 기술 정보, ELF는 CPU가 실행할 프로그램입니다. 각각의 생성 단계와 보드 동작을 구별합니다.</p></aside>
+<ol class="lesson-actions"><li>Vitis Unified IDE 2024.2에서 기존 Workspace <code>~/soc/sw</code>를 엽니다.</li><li><strong>File → New Component → Platform</strong>을 선택합니다.</li><li>Platform 이름 <code>soc06_axi_gpio_platform</code>을 입력합니다.</li><li>Hardware 파일로 06장에서 내보낸 <code>soc06_axi_gpio.xsa</code>를 선택합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="20"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_020_20261026-234225_vitis_platform.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Hardware에 soc06_axi_gpio.xsa 선택 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_020_20261026-234225_vitis_platform.webp" alt="실제 Vivado/Vitis 2024.2: Hardware에 soc06_axi_gpio.xsa 선택"></a><figcaption>Hardware에 soc06_axi_gpio.xsa 선택 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_020_20261026-234225_vitis_platform.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>Processor는 <code>microblaze_riscv_0</code>, OS는 <code>standalone</code>으로 선택합니다.</li><li>생성 후 Vitis Explorer에서 <code>soc06_axi_gpio_platform</code> [Platform]을 선택하고, 왼쪽 아래 <strong>FLOW → Build</strong>를 실행합니다. Build 완료 메시지를 확인한 후 Application으로 진행합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="23"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_023_20261026-234510_vitis_platform.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Platform Build Finished successfully 확인 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_023_20261026-234510_vitis_platform.webp" alt="실제 Vivado/Vitis 2024.2: Platform Build Finished successfully 확인"></a><figcaption>Platform Build Finished successfully 확인 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_023_20261026-234510_vitis_platform.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="설정 항목, 입력값"><table><thead><tr><th scope="col">설정 항목</th><th scope="col">입력값</th></tr></thead><tbody><tr><td data-label="설정 항목">Platform</td><td data-label="입력값"><code>soc06_axi_gpio_platform</code></td></tr><tr><td data-label="설정 항목">Processor</td><td data-label="입력값"><code>microblaze_riscv_0</code></td></tr><tr><td data-label="설정 항목">Domain</td><td data-label="입력값"><code>standalone_microblaze_riscv_0</code></td></tr><tr><td data-label="설정 항목">Build 결과</td><td data-label="입력값"><code>Platform Build Finished successfully</code></td></tr></tbody></table></div><p class="lesson-check"><strong>기존 자료와 다른 점</strong> 06장은 <code>soc_01_platform</code>을 덮어쓰지 않고 신규 Platform을 만들었습니다.</p>
+</section>
+
+<section class="step-card" id="s12"><span class="step">SECTION 12</span><h2>Vitis Application 생성</h2><aside class="prof-explain"><strong>교수용 보충 — Vitis Application 생성</strong><p>XSA는 하드웨어 기술 정보, ELF는 CPU가 실행할 프로그램입니다. 각각의 생성 단계와 보드 동작을 구별합니다.</p></aside>
+<ol class="lesson-actions"><li><strong>File → New Component → Application</strong>을 선택합니다.</li><li>Name에 <code>soc06_axi_gpio</code>, Workspace에 <code>~/soc/sw</code>를 입력합니다.</li><li>Platform에서 <code>soc06_axi_gpio_platform</code>을 선택합니다.</li><li>Domain에서 <code>standalone_microblaze_riscv_0</code>를 선택합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="25"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_025_20261026-235114_vitis_app.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Domain standalone_microblaze_riscv_0 선택 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_025_20261026-235114_vitis_app.webp" alt="실제 Vivado/Vitis 2024.2: Domain standalone_microblaze_riscv_0 선택"></a><figcaption>Domain standalone_microblaze_riscv_0 선택 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_025_20261026-235114_vitis_app.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li>Source Files 추가는 건너뛰고 <strong>Finish</strong>를 클릭합니다.</li><li><strong>Sources → src</strong>에 <code>main.c</code> 파일을 만듭니다.</li></ol><p class="lesson-check"><strong>화면 확인</strong> Vitis Explorer에 <code>soc06_axi_gpio</code> [Application]과 <code>soc06_axi_gpio_platform</code> [Platform]이 각각 보여야 합니다.</p>
+</section>
+
+<section class="step-card" id="s13"><span class="step">SECTION 13</span><h2>main.c 작성 — 자동 제공 파일과 직접 작성 코드</h2>
+<p>Vitis의 <strong>Sources → src → main.c</strong>에 아래 코드를 입력합니다. <strong>아래는 <strong>동작을 이해하기 위한 간결 코드</strong>입니다. 저장소의 <a href="../part01/legacy/pages/soc/../../code/soc06/main.c">실습 소스 main.c</a>는 Classic/SDT 초기화 분기와 Watch용 상태 변수를 포함한 별도 구현입니다. <strong>두 소스를 섞어 붙여넣지 않고 하나를 선택하여 사용합니다.</strong></strong></p><pre class="codeblock-pre" tabindex="0" role="region" aria-label="soc06_axi_gpio/src/main.c 전체 코드"><code>#include "xparameters.h"  // Vitis 자동 생성: GPIO 주소 정보
+#include "xgpio.h"        // Vitis 자동 제공: AXI GPIO 제어 함수
+#include "xstatus.h"      // Vitis 자동 제공: 성공·실패 값
+
+#define LED_CH  1         // 직접 지정: Channel 1, LED 출력
+#define SW_CH   2         // 직접 지정: Channel 2, Switch 입력
+
+XGpio Gpio;               // 직접 선언: GPIO를 제어할 변수
+
+int main(void)
+{
+    // 1. AXI GPIO 초기화
+    if (XGpio_Initialize(&amp;Gpio, XPAR_XGPIO_0_BASEADDR)
+        != XST_SUCCESS)
+        return XST_FAILURE;
+
+    // 2. 입출력 방향 지정 (0: 출력, 1: 입력)
+    XGpio_SetDataDirection(&amp;Gpio, LED_CH, 0x0000);
+    XGpio_SetDataDirection(&amp;Gpio, SW_CH,  0xFFFF);
+
+    // 3. Switch 값을 읽어서 LED에 계속 출력
+    while (1) {
+        u32 sw = XGpio_DiscreteRead(&amp;Gpio, SW_CH);
+        XGpio_DiscreteWrite(&amp;Gpio, LED_CH, sw);
+    }
+
+    return 0;
+}</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 4 (22개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;xparameters.h&quot;  // Vitis 자동 생성: GPIO 주소 정보</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>2</td><td><code>#include &quot;xgpio.h&quot;        // Vitis 자동 제공: AXI GPIO 제어 함수</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>3</td><td><code>#include &quot;xstatus.h&quot;      // Vitis 자동 제공: 성공·실패 값</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>5</td><td><code>#define LED_CH  1         // 직접 지정: Channel 1, LED 출력</code></td><td>매크로 상수·이름을 정의합니다. 숫자가 실제 레지스터 주소인지 반드시 원본 Address Editor와 대조합니다.</td></tr><tr><td>6</td><td><code>#define SW_CH   2         // 직접 지정: Channel 2, Switch 입력</code></td><td>매크로 상수·이름을 정의합니다. 숫자가 실제 레지스터 주소인지 반드시 원본 Address Editor와 대조합니다.</td></tr><tr><td>8</td><td><code>XGpio Gpio;               // 직접 선언: GPIO를 제어할 변수</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>10</td><td><code>int main(void)</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr><tr><td>11</td><td><code>{</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr><tr><td>12</td><td><code>    // 1. AXI GPIO 초기화</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>13</td><td><code>    if (XGpio_Initialize(&amp;Gpio, XPAR_XGPIO_0_BASEADDR)</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>14</td><td><code>        != XST_SUCCESS)</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>15</td><td><code>        return XST_FAILURE;</code></td><td>현재 함수를 종료하고, 값이 있으면 호출한 쪽으로 돌려줍니다.</td></tr><tr><td>17</td><td><code>    // 2. 입출력 방향 지정 (0: 출력, 1: 입력)</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>18</td><td><code>    XGpio_SetDataDirection(&amp;Gpio, LED_CH, 0x0000);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>19</td><td><code>    XGpio_SetDataDirection(&amp;Gpio, SW_CH,  0xFFFF);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>21</td><td><code>    // 3. Switch 값을 읽어서 LED에 계속 출력</code></td><td>주석 또는 설명입니다. 코드가 왜 필요한지 나타내므로 실제 명령과 구분해 읽습니다.</td></tr><tr><td>22</td><td><code>    while (1) {</code></td><td>조건이 참인 동안 반복합니다. 종료 조건과 블로킹 가능성을 확인합니다.</td></tr><tr><td>23</td><td><code>        u32 sw = XGpio_DiscreteRead(&amp;Gpio, SW_CH);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>24</td><td><code>        XGpio_DiscreteWrite(&amp;Gpio, LED_CH, sw);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>25</td><td><code>    }</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr><tr><td>27</td><td><code>    return 0;</code></td><td>현재 함수를 종료하고, 값이 있으면 호출한 쪽으로 돌려줍니다.</td></tr><tr><td>28</td><td><code>}</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="코드에 나온 이름, 누가 준비하나요?, 무엇인가요?"><table><thead><tr><th scope="col">코드에 나온 이름</th><th scope="col">누가 준비하나요?</th><th scope="col">무엇인가요?</th></tr></thead><tbody><tr><td data-label="코드에 나온 이름"><code>xparameters.h</code></td><td data-label="누가 준비하나요?">Vitis 자동 생성</td><td data-label="무엇인가요?">하드웨어 주소 정의</td></tr><tr><td data-label="코드에 나온 이름"><code>xgpio.h</code></td><td data-label="누가 준비하나요?">Vitis 자동 제공</td><td data-label="무엇인가요?">GPIO 드라이버 함수</td></tr><tr><td data-label="코드에 나온 이름"><code>xstatus.h</code></td><td data-label="누가 준비하나요?">Vitis 자동 제공</td><td data-label="무엇인가요?">성공·실패 상태값</td></tr><tr><td data-label="코드에 나온 이름"><code>XPAR_XGPIO_0_BASEADDR</code></td><td data-label="누가 준비하나요?">Vitis 자동 생성</td><td data-label="무엇인가요?">현재 GPIO의 기준 주소</td></tr><tr><td data-label="코드에 나온 이름"><code>LED_CH</code>, <code>SW_CH</code></td><td data-label="누가 준비하나요?">직접 지정</td><td data-label="무엇인가요?">LED 채널 1, Switch 채널 2</td></tr><tr><td data-label="코드에 나온 이름"><code>Gpio</code>, <code>sw</code></td><td data-label="누가 준비하나요?">직접 선언</td><td data-label="무엇인가요?">제어 대상과 읽은 스위치 값</td></tr></tbody></table></div><p>함수 맨 끝의 <code>return 0;</code>은 정상 종료값을 반환한다는 뜻입니다. 다만 현재는 <code>while (1)</code>을 계속 실행하므로 보통 이 줄에 도달하지 않습니다.</p><p class="lesson-check"><strong>입력할 파일은 <code>main.c</code> 하나입니다.</strong> BSP 헤더를 복사하거나 직접 만들지 않습니다. <code>xil_types.h</code>의 <code>u32</code>는 드라이버가 포함한 자료형 정의를 통해 사용합니다.</p>
+</section>
+
+<section class="step-card" id="s14"><span class="step">SECTION 14</span><h2>C 코드 한 줄씩 이해</h2>
+<p>처음 사용하는 GPIO 드라이버 프로그램입니다. <strong>자동 제공되는 함수·상수</strong>와 <strong>직접 정한 변수명</strong>을 구분하면서 위에서 아래로 한 줄씩 읽습니다.</p>
+<h3>① GPIO 주소와 함수 가져오기</h3><pre class="codeblock-pre" tabindex="0" role="region" aria-label="헤더 세 줄"><code>#include "xparameters.h"
+#include "xgpio.h"
+#include "xstatus.h"</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 5 (3개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>#include &quot;xparameters.h&quot;</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>2</td><td><code>#include &quot;xgpio.h&quot;</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr><tr><td>3</td><td><code>#include &quot;xstatus.h&quot;</code></td><td>뒤의 헤더 파일을 불러와 사용한 자료형과 함수의 선언을 참조합니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="코드, 쉽게 읽기"><table><thead><tr><th scope="col">코드</th><th scope="col">쉽게 읽기</th></tr></thead><tbody><tr><td data-label="코드"><code>#include</code></td><td data-label="쉽게 읽기">필요한 정의가 들어 있는 헤더를 사용하겠다는 뜻</td></tr><tr><td data-label="코드"><code>xparameters.h</code></td><td data-label="쉽게 읽기">Vivado에서 만든 GPIO의 주소를 알려 줌</td></tr><tr><td data-label="코드"><code>xgpio.h</code></td><td data-label="쉽게 읽기">GPIO를 초기화·읽기·쓰기 할 함수들을 제공</td></tr><tr><td data-label="코드"><code>xstatus.h</code></td><td data-label="쉽게 읽기">성공인지 실패인지 확인할 값 제공</td></tr></tbody></table></div>
+<h3>② 내가 사용할 채널과 변수 지정</h3><pre class="codeblock-pre" tabindex="0" role="region" aria-label="채널과 변수"><code>#define LED_CH  1
+#define SW_CH   2
+XGpio Gpio;</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 6 (3개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>#define LED_CH  1</code></td><td>매크로 상수·이름을 정의합니다. 숫자가 실제 레지스터 주소인지 반드시 원본 Address Editor와 대조합니다.</td></tr><tr><td>2</td><td><code>#define SW_CH   2</code></td><td>매크로 상수·이름을 정의합니다. 숫자가 실제 레지스터 주소인지 반드시 원본 Address Editor와 대조합니다.</td></tr><tr><td>3</td><td><code>XGpio Gpio;</code></td><td>이 문장은 선언·호출·데이터 처리 흐름의 일부입니다. 실제 변수·포트명과 앞뒤 문맥을 함께 읽습니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="코드, 쉽게 읽기"><table><thead><tr><th scope="col">코드</th><th scope="col">쉽게 읽기</th></tr></thead><tbody><tr><td data-label="코드"><code>#define LED_CH 1</code></td><td data-label="쉽게 읽기">LED는 GPIO 채널 1에 연결</td></tr><tr><td data-label="코드"><code>#define SW_CH 2</code></td><td data-label="쉽게 읽기">스위치는 GPIO 채널 2에 연결</td></tr><tr><td data-label="코드"><code>XGpio</code></td><td data-label="쉽게 읽기">AMD가 제공하는 GPIO 관리 자료형</td></tr><tr><td data-label="코드"><code>Gpio</code></td><td data-label="쉽게 읽기">내가 만든 GPIO 관리 변수의 이름</td></tr></tbody></table></div>
+<h3>③ GPIO 초기화</h3><pre class="codeblock-pre" tabindex="0" role="region" aria-label="GPIO 초기화"><code>if (XGpio_Initialize(&amp;Gpio, XPAR_XGPIO_0_BASEADDR)
+    != XST_SUCCESS)
+    return XST_FAILURE;</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 7 (3개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>if (XGpio_Initialize(&amp;Gpio, XPAR_XGPIO_0_BASEADDR)</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>2</td><td><code>    != XST_SUCCESS)</code></td><td>이 줄의 연산자와 피연산자 비트 폭·부호를 확인합니다. 오른쪽 계산 결과가 왼쪽 대상에 어떻게 반영되는지 설명합니다.</td></tr><tr><td>3</td><td><code>    return XST_FAILURE;</code></td><td>현재 함수를 종료하고, 값이 있으면 호출한 쪽으로 돌려줍니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="이름, 쉽게 읽기"><table><thead><tr><th scope="col">이름</th><th scope="col">쉽게 읽기</th></tr></thead><tbody><tr><td data-label="이름"><code>XGpio_Initialize()</code></td><td data-label="쉽게 읽기">GPIO 장치를 사용할 준비를 함</td></tr><tr><td data-label="이름"><code>&amp;Gpio</code></td><td data-label="쉽게 읽기">초기화할 GPIO 변수의 위치(주소)를 전달</td></tr><tr><td data-label="이름"><code>XPAR_XGPIO_0_BASEADDR</code></td><td data-label="쉽게 읽기">Vitis가 알려준 실제 GPIO 기준 주소를 전달</td></tr><tr><td data-label="이름"><code>!= XST_SUCCESS</code></td><td data-label="쉽게 읽기">초기화에 실패했는지 검사</td></tr><tr><td data-label="이름"><code>return XST_FAILURE;</code></td><td data-label="쉽게 읽기">실패하면 프로그램을 종료</td></tr></tbody></table></div><p><code>if</code>는 괄호 안 조건을 검사합니다. <code>!=</code>는 두 값이 서로 다르다는 뜻입니다. 초기화 결과가 <code>XST_SUCCESS</code>와 다르면 <code>return</code>을 실행하여 여기서 끝냅니다.</p><p>Vitis 화면의 회색 <code>InstancePtr:</code>, <code>EffectiveAddr:</code>는 <strong>Inlay Hints(인레이 힌트, 인자 이름 보조 설명)</strong>입니다. 설명만 표시되며 직접 타이핑하지 않습니다.</p>
+<h3>④ LED는 출력, 스위치는 입력</h3><pre class="codeblock-pre" tabindex="0" role="region" aria-label="GPIO 방향"><code>XGpio_SetDataDirection(&amp;Gpio, LED_CH, 0x0000);
+XGpio_SetDataDirection(&amp;Gpio, SW_CH,  0xFFFF);</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 8 (2개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>XGpio_SetDataDirection(&amp;Gpio, LED_CH, 0x0000);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>2</td><td><code>XGpio_SetDataDirection(&amp;Gpio, SW_CH,  0xFFFF);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="인자, 의미"><table><thead><tr><th scope="col">인자</th><th scope="col">의미</th></tr></thead><tbody><tr><td data-label="인자"><code>&amp;Gpio</code></td><td data-label="의미">설정할 GPIO 장치</td></tr><tr><td data-label="인자"><code>LED_CH</code>, <code>SW_CH</code></td><td data-label="의미">설정할 채널 1 또는 2</td></tr><tr><td data-label="인자"><code>0x0000</code></td><td data-label="의미">16비트 모두 0 → LED 출력</td></tr><tr><td data-label="인자"><code>0xFFFF</code></td><td data-label="의미">16비트 모두 1 → 스위치 입력</td></tr></tbody></table></div><div class="bitline"><strong>출력(LED)</strong><code>0000 0000 0000 0000</code><strong>입력(SW)</strong><code>1111 1111 1111 1111</code></div><p>Vitis에 표시되는 <code>Channel:</code>, <code>DirectionMask:</code>도 각각 채널 번호와 입력·출력 설정값을 가리킵니다.</p>
+<h3>⑤ 스위치를 읽어서 LED에 출력</h3><pre class="codeblock-pre" tabindex="0" role="region" aria-label="스위치 읽기 / LED 출력"><code>while (1) {
+    u32 sw = XGpio_DiscreteRead(&amp;Gpio, SW_CH);
+    XGpio_DiscreteWrite(&amp;Gpio, LED_CH, sw);
+}</code></pre><details class="prof-code"><summary>교수용 코드 줄별 풀이 · 코드 블록 9 (4개 유효 줄)</summary><div class="prof-table-wrap"><table class="prof-table"><thead><tr><th>줄</th><th>기존 코드</th><th>쉽게 설명</th></tr></thead><tbody><tr><td>1</td><td><code>while (1) {</code></td><td>조건이 참인 동안 반복합니다. 종료 조건과 블로킹 가능성을 확인합니다.</td></tr><tr><td>2</td><td><code>    u32 sw = XGpio_DiscreteRead(&amp;Gpio, SW_CH);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>3</td><td><code>    XGpio_DiscreteWrite(&amp;Gpio, LED_CH, sw);</code></td><td>Xilinx/AMD 드라이버 함수를 호출합니다. 함수의 인자·반환값을 원본 예제와 연결해 설명합니다.</td></tr><tr><td>4</td><td><code>}</code></td><td>앞서 연 블록·함수·모듈의 범위를 닫습니다.</td></tr></tbody></table></div></details><div class="table-wrap" role="region" tabindex="0" aria-label="코드, 쉽게 읽기"><table><thead><tr><th scope="col">코드</th><th scope="col">쉽게 읽기</th></tr></thead><tbody><tr><td data-label="코드"><code>while (1)</code></td><td data-label="쉽게 읽기">멈추지 않고 계속 반복</td></tr><tr><td data-label="코드"><code>u32</code></td><td data-label="쉽게 읽기">32비트 부호 없는 정수형</td></tr><tr><td data-label="코드"><code>sw</code></td><td data-label="쉽게 읽기">읽은 스위치 상태를 보관할 변수</td></tr><tr><td data-label="코드"><code>XGpio_DiscreteRead(&amp;Gpio, SW_CH)</code></td><td data-label="쉽게 읽기">채널 2의 입력값을 읽음</td></tr><tr><td data-label="코드"><code>XGpio_DiscreteWrite(&amp;Gpio, LED_CH, sw)</code></td><td data-label="쉽게 읽기">읽은 값을 채널 1의 LED에 출력</td></tr></tbody></table></div><div class="flow flow-center">SW0 · SW2 ON → <code>sw = 0x0005</code> → LED0 · LED2 ON</div><p><code>return 0;</code>은 <code>main()</code>이 종료될 때 반환하는 값입니다. 현재 프로그램은 무한 반복하므로 정상 실행 중에는 도달하지 않습니다.</p>
+</section>
+
+<section class="step-card" id="s15"><span class="step">SECTION 15</span><h2>Build → clangd 헤더 갱신 → Debug · Inlay Hints</h2>
+<p>새 Platform을 만든 직후 또는 <code>main.c</code>에 헤더 파일의 빨간 밑줄이 보이면 <strong>Platform → Application 순서로 Build</strong>하고, 코드 분석기만 갱신합니다. Ubuntu나 Vitis를 재부팅하지 않습니다.</p>
+<ol class="lesson-actions">
+<li><strong>Platform Build 확인</strong> — Vitis Explorer에서 <code>soc06_axi_gpio_platform</code> [Platform]을 선택합니다. 왼쪽 아래 <strong>FLOW → Build</strong>를 실행하고 오류 없이 끝났는지 확인합니다. 앞 절에서 이미 정상 빌드했다면 중복 실행할 필요는 없습니다.</li>
+<li><strong>Application Build</strong> — 왼쪽 아래 <strong>FLOW → Component</strong>에서 <code>soc06_axi_gpio</code> [Application]을 선택하고 <strong>Build</strong>를 클릭합니다. <code>Build Finished successfully</code>와 ELF 생성을 확인합니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="30"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_030_20261027-000708_build_debug.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Application Build 성공 로그 발췌(기존 편집기 표시 오류와 별개) 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_030_20261027-000708_build_debug.webp" alt="실제 Vivado/Vitis 2024.2: Application Build 성공 로그 발췌(기존 편집기 표시 오류와 별개)"></a><figcaption>Build 성공 로그 부분을 잘라낸 화면입니다. Application Build 성공 로그 발췌(기존 편집기 표시 오류와 별개) · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_030_20261027-000708_build_debug.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li>
+<li><strong>헤더 인식 갱신</strong> — <code>main.c</code>에 빨간 밑줄이 남아 있으면 <strong>Ctrl + Shift + P</strong> → <code>clangd: Restart language server</code> 검색 → 해당 명령을 실행합니다. <code>clangd</code>(클랭디, C/C++ 코드 분석 서버)만 다시 시작하며 Vitis 프로젝트와 실행 중인 컴퓨터는 그대로 유지합니다.</li>
+<li><strong>빨간 밑줄 재확인</strong> — 잠시 후 <code>xparameters.h</code>, <code>xgpio.h</code>, <code>xstatus.h</code>에 표시됐던 코드 분석 오류가 사라졌는지 확인합니다. <strong>Application Build 자체가 실패했다면</strong> 빨간 밑줄만 지우려 하지 말고 Build 출력의 실제 컴파일 오류부터 해결합니다.</li><li><strong>Settings → launch.json</strong>을 열고 <code>soc06_axi_gpio.bit</code>, <code>soc06_axi_gpio.elf</code>, <code>microblaze_riscv_0</code>를 확인합니다.</li><li><strong>Debug</strong>로 진입합니다. <code>Hart #0 — PAUSED ON BREAKPOINT</code>가 표시되면 <code>main()</code>에서 멈춘 상태입니다.
+<!-- SOC03_SOC06_SELECTED_GUI_START -->
+<figure class="manual-figure verified-gui-figure" data-capture-seq="31"><a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_031_20261027-001239_build_debug.webp" target="_blank" rel="noopener" class="figure-image-link" aria-label="Debug: RISC-V Hart #0, main() 중단점 진입 확대"><img loading="lazy" decoding="async" src="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_031_20261027-001239_build_debug.webp" alt="실제 Vivado/Vitis 2024.2: Debug: RISC-V Hart #0, main() 중단점 진입"></a><figcaption>실제 확인된 Debug 중단점 진입 화면입니다. LED 실물 출력 사진은 아닙니다. Debug: RISC-V Hart #0, main() 중단점 진입 · <a href="../part01/legacy/pages/soc/../../images/soc06/steps/soc06_031_20261027-001239_build_debug.webp" target="_blank" rel="noopener" class="figure-original">원본 확대</a></figcaption></figure>
+<!-- SOC03_SOC06_SELECTED_GUI_END -->
+</li><li><strong>Continue (▶)</strong>를 눌러 프로그램을 계속 실행합니다.</li></ol><div class="table-wrap" role="region" tabindex="0" aria-label="파일 / 화면, 확인 내용"><table><thead><tr><th scope="col">파일 / 화면</th><th scope="col">확인 내용</th></tr></thead><tbody><tr><td data-label="파일 / 화면"><code>soc06_axi_gpio.elf</code></td><td data-label="확인 내용">Application Build 후 자동 생성된 실행 파일</td></tr><tr><td data-label="파일 / 화면"><code>launch.json</code></td><td data-label="확인 내용">Bitstream/ELF 다운로드 및 Debug 설정</td></tr><tr><td data-label="파일 / 화면"><code>main.c</code>의 회색 <code>InstancePtr:</code></td><td data-label="확인 내용">Vitis 편집기의 인자 이름 보조 표시</td></tr></tbody></table></div><h3>Inlay Hints 표시 설정</h3><p>Vitis 상단의 <strong>File → Preferences → Open Settings (UI)</strong>에서 <code>Inlay Hints</code>를 검색하고 <strong>Editor › Inlay Hints: Enabled → On</strong>으로 설정합니다. 직접 입력하는 소스 코드에는 포함되지 않습니다.</p><details><summary>Build는 성공했는데 코드에 빨간 밑줄이 남을 때</summary>
+<ol class="lesson-actions">
+<li>먼저 <code>soc06_axi_gpio_platform</code> [Platform]의 Build 성공 여부를 확인합니다.</li>
+<li><code>soc06_axi_gpio</code> [Application]의 Build 성공 여부를 확인합니다.</li>
+<li><strong>Ctrl + Shift + P</strong> → <code>clangd: Restart language server</code>를 실행하고 <code>main.c</code>를 다시 확인합니다.</li>
+</ol>
+<p><strong>판정 기준:</strong> 실제 컴파일·링크가 성공했는데 편집기에만 빨간 밑줄이 남으면 코드 분석기 경로 갱신 문제일 수 있습니다. 반대로 컴파일러가 <code>fatal error: xparameters.h: No such file or directory</code>처럼 출력한다면 Platform/Domain/BSP 연결을 먼저 확인해야 합니다. <code>#include</code>에 컴퓨터의 절대 경로를 직접 넣거나 헤더를 수동 복사하지 않습니다.</p>
+<p><strong>기존 확인 사례:</strong> 06장에서는 Vitis 재실행 후 오류 표시가 사라진 사례가 있었습니다. 이제는 재실행 전에 <code>clangd</code>만 다시 시작하는 방법을 우선 적용합니다. 해당 방법의 성공 여부는 실행 화면에서 확인합니다.</p>
+</details>
+</section>
+
+<section class="step-card" id="s16"><span class="step">SECTION 16</span><h2>Basys3 동작 확인 · 오류 점검</h2>
+<p>프로그램 실행 후 스위치를 움직이면 같은 번호의 LED가 반응해야 합니다.</p><div class="table-wrap" role="region" tabindex="0" aria-label="보드 조작, 예상 LED 출력"><table><thead><tr><th scope="col">보드 조작</th><th scope="col">예상 LED 출력</th></tr></thead><tbody><tr><td data-label="보드 조작">모두 OFF</td><td data-label="예상 LED 출력">모든 LED 꺼짐</td></tr><tr><td data-label="보드 조작">SW0 ON</td><td data-label="예상 LED 출력">LED0 켜짐</td></tr><tr><td data-label="보드 조작">SW1 ON</td><td data-label="예상 LED 출력">LED1 켜짐</td></tr><tr><td data-label="보드 조작">SW0 + SW3 ON</td><td data-label="예상 LED 출력">LED0 + LED3 켜짐</td></tr><tr><td data-label="보드 조작">SW15 ON</td><td data-label="예상 LED 출력">LED15 켜짐</td></tr><tr><td data-label="보드 조작">모두 ON</td><td data-label="예상 LED 출력">LED 16개 모두 켜짐</td></tr></tbody></table></div><div class="flow flow-center">Switch → Channel 2 입력 → MicroBlaze V → Channel 1 출력 → LED</div><h3>동작하지 않을 때 확인</h3><div class="table-wrap" role="region" tabindex="0" aria-label="증상, 먼저 확인할 곳"><table><thead><tr><th scope="col">증상</th><th scope="col">먼저 확인할 곳</th></tr></thead><tbody><tr><td data-label="증상">LED가 반응하지 않음</td><td data-label="먼저 확인할 곳">Debug가 중단점에 멈추지 않았는지 확인하고 Continue 실행</td></tr><tr><td data-label="증상">SW와 LED 번호가 다름</td><td data-label="먼저 확인할 곳"><code>sw_tri_i[n]</code>, <code>led_tri_o[n]</code> XDC 핀 매핑</td></tr><tr><td data-label="증상">GPIO를 초기화하지 못함</td><td data-label="먼저 확인할 곳">Platform XSA와 <code>XPAR_XGPIO_0_BASEADDR</code></td></tr><tr><td data-label="증상">Bitstream 생성 오류</td><td data-label="먼저 확인할 곳">Wrapper 포트명과 XDC <code>get_ports</code> 일치 여부</td></tr><tr><td data-label="증상">Vitis 헤더에 빨간 밑줄만 표시</td><td data-label="먼저 확인할 곳">Platform Build → Application Build 성공 확인 → <code>Ctrl + Shift + P</code>에서 <code>clangd: Restart language server</code> 실행</td></tr></tbody></table></div><p><strong>실습 확인 기준:</strong> 16개 스위치가 같은 번호의 LED에 대응하는지 보드에서 확인합니다. 빌드·디버그 성공과 실제 보드 동작 검증은 구별합니다.</p>
+</section>
+
+<section class="step-card" id="sources"><span class="step">SOURCE</span><h2>공식 매뉴얼 및 원본 근거</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="공식 매뉴얼 및 원본 근거 · 표"><table class="resource-table" role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">문서</th><th scope="col" role="columnheader">확인 항목</th></tr></thead><tbody role="rowgroup">
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/pg144-axi-gpio" rel="noopener" target="_blank">AMD PG144 · AXI GPIO v2.0</a></td><td data-label="확인 항목" role="cell">AXI GPIO 전체 구조와 공식 Register 정의</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/pg144-axi-gpio/Functional-Description" rel="noopener" target="_blank">AMD PG144 · Functional Description</a></td><td data-label="확인 항목" role="cell">AXI4-Lite, Single/Dual Channel, GPIO Block Diagram</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/pg144-axi-gpio/Register-Space" rel="noopener" target="_blank">AMD PG144 · Register Space</a></td><td data-label="확인 항목" role="cell"><code>GPIO_DATA 0x00</code>, <code>GPIO_TRI 0x04</code>, <code>GPIO2_DATA 0x08</code>, <code>GPIO2_TRI 0x0C</code></td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://docs.amd.com/r/en-US/pg144-axi-gpio/Programming-Sequence" rel="noopener" target="_blank">AMD PG144 · Programming Sequence</a></td><td data-label="확인 항목" role="cell">Input/Output Direction과 Data Read/Write 순서</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://xilinx.github.io/embeddedsw.github.io/gpio/doc/html/api/group__gpio__api.html" rel="noopener" target="_blank">AMD/Xilinx GPIO Driver API</a></td><td data-label="확인 항목" role="cell"><code>XGpio_Initialize</code>, <code>DiscreteRead</code>, <code>DiscreteWrite</code></td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://github.com/Xilinx/embeddedsw/blob/master/XilinxProcessorIPLib/drivers/gpio/examples/xgpio_example.c" rel="noopener" target="_blank">AMD embeddedsw · xgpio_example.c</a></td><td data-label="확인 항목" role="cell">공식 XGpio 초기화와 LED Output 예제 구조</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://digilent.com/reference/_media/basys3:basys3_rm.pdf" rel="noopener" target="_blank">Digilent Basys 3 Reference Manual</a></td><td data-label="확인 항목" role="cell">Figure 16 · 16 Switch / 16 LED 연결과 LED Active-High 구조</td></tr>
+<tr role="row"><td data-label="문서" role="cell"><a href="https://github.com/Digilent/digilent-xdc/blob/master/Basys-3-Master.xdc" rel="noopener" target="_blank">Digilent Basys-3-Master.xdc</a></td><td data-label="확인 항목" role="cell">SW0~SW15, LED0~LED15 FPGA Pin</td></tr>
+</tbody></table></div>
+</section>
+
+<nav class="chapter-nav">
+<a href="../part01/legacy/pages/soc/05_axi4_axi4lite_axi4stream.html">← SoC 05</a><a href="../part01/legacy/pages/soc/../../index.html">전체 목차</a><a href="../part01/legacy/pages/soc/07_axi_uart_lite.html">SoC 07 →</a></nav>
+<section class="prof-card" id="prof-end"><h3>교수용 마무리 질문</h3><p>① 이 장에서 CPU·메모리·IP·외부 장치 중 어느 부분을 추가하거나 연결했나요?</p><p>② 실제 코드의 변수·포트·주소 중 한 개를 골라 입력에서 출력까지 추적해 보세요.</p><p>③ 화면·시뮬레이션·Bitstream·실물 중 어떤 결과를 확인했고 무엇은 미검증인지 구분해 보세요.</p><p>기존 원본의 실습 성공 기록은 신규 재실행 결과와 구분합니다.</p></section></main></div>
+
+<footer class="site-footer">BASYS3 SoC + NPU · MICRO BLAZE V</footer>
+
+</body></html>

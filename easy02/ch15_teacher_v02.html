@@ -1,0 +1,464 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Reset/Presence → Scratchpad → CRC 검사"><title>교수용 상세 해설서 | 제2부 15장 | DS18B20 1-Wire 타임슬롯·온도 계산</title><link rel="stylesheet" href="../part02_2/guide/assets/site.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style id="prof-style">.prof-banner,.prof-card,.prof-code{background:#fff;color:#20212b;border:1px solid #d6d4ea;border-left:4px solid #4635b1;border-radius:8px;margin:16px 0;padding:18px;line-height:1.7}.prof-banner h2,.prof-card h2{margin:0 0 8px;color:#4635b1}.prof-flow{overflow-x:auto;margin:12px 0}.prof-flow svg{min-width:580px;max-width:100%;height:auto}.prof-code{background:#fafffc;border-left-color:#39826c}.prof-code summary{cursor:pointer;font-weight:700;color:#294c3f}.prof-code table{border-collapse:collapse;width:100%;font-size:.84rem}.prof-code td,.prof-code th{border:1px solid #dadce0;padding:7px;vertical-align:top}.prof-code td code{font-size:.84em;white-space:pre-wrap;overflow-wrap:anywhere}.prof-scroll{overflow-x:auto}.prof-tip{background:#f0edff;border-left:4px solid #4635b1;border-radius:4px;margin:9px 0;padding:8px 14px}.prof-small{font-size:.85rem;color:#535565}@media(max-width:860px){.prof-banner,.prof-card,.prof-code{padding:12px}}</style></head><body data-chapter="ch15"><a class="access-skip" href="#main-content">본문 바로가기</a><button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div><header class="hero"><div class="hero-inner"><p class="kicker">BASYS3 · MICROBLAZE V · 제2부 15/20</p><h1>제15장 · DS18B20 1-Wire 온도 측정</h1><p>Reset/Presence → Scratchpad → CRC 검사</p><div class="chips"><span class="chip">원본 코드 유지</span><span class="chip">실습·검증 중심</span><span class="chip">합성·실물 보류</span></div></div></header><div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="prof-banner" id="prof-intro"><h2>제2부 15장 · 교수용 추가 이론과 코드 풀이</h2><p><strong>필요성부터 설명:</strong> 1-Wire는 단일 데이터선으로 명령과 데이터를 주고받지만, 읽기/쓰기 타임슬롯 및 Reset/Presence 타이밍이 엄격합니다. Scratchpad 원시값은 부호와 분해능을 고려해 온도로 변환합니다.</p><p><strong>CPU·RTL·센서·출력 경로:</strong></p><div class="prof-flow" role="img" aria-label="Reset/Presence → 1-Wire Slots → Scratchpad Data → 온도 정수"><svg viewBox="0 0 920 130" xmlns="http://www.w3.org/2000/svg"><title>기능별 신호·데이터 흐름</title><rect x="16" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="110" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">Reset/Presence</text><path d="M204 65 H244" stroke="#4838b2" stroke-width="3"/><path d="M238 59 L244 65 L238 71" stroke="#4838b2" fill="none"/><rect x="244" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="338" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">1-Wire Slots</text><path d="M432 65 H472" stroke="#4838b2" stroke-width="3"/><path d="M466 59 L472 65 L466 71" stroke="#4838b2" fill="none"/><rect x="472" y="25" width="188" height="80" rx="10" fill="#edf8f2" stroke="#8c7ed0"/><text x="566" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">Scratchpad Data</text><path d="M660 65 H700" stroke="#4838b2" stroke-width="3"/><path d="M694 59 L700 65 L694 71" stroke="#4838b2" fill="none"/><rect x="700" y="25" width="188" height="80" rx="10" fill="#f0eeff" stroke="#8c7ed0"/><text x="794" y="69" font-size="13" font-weight="700" fill="#28293d" text-anchor="middle">온도 정수</text></svg></div><p class="prof-tip"><strong>전기·구현·검증상 주의:</strong> 1-Wire 버스는 오픈드레인 방식과 풀업을 사용합니다. 전압·배선·센서 실제 응답을 시뮬레이션과 구분합니다.</p><p class="prof-small"><a href="../part02_2/guide/ch15_ds18b20_v05.html">원본 학습안내서</a> · <a href="index.html">제2부 20장 교수용 목차</a> · <a href="ch14_teacher_v02.html">이전 장</a> · <a href="ch16_teacher_v02.html">다음 장</a></p></section><section class="section" id="s00"><h2><span class="num">00</span>개요</h2><p>DS18B20(디에스18비20)은 1-Wire(원와이어, 단일 데이터선 통신) 디지털 온도 센서다. I²C처럼 클록선이 따로 없고, 하나의 <strong>DQ 데이터선</strong>을 LOW로 당겼다가 놓는 동작의 시간을 측정하여 리셋·명령·데이터를 전달한다.</p>
+<p><strong>최초 실습은 외부 3.3V 전원을 사용하는 센서 한 개</strong>를 대상으로 한다. Reset/Presence, Skip ROM, Convert T, Read Scratchpad, 9바이트 CRC 검증까지 단계적으로 실행한다.</p>
+<p class="warn">실행 결과는 모의 센서에 대한 Icarus Verilog RTL 시뮬레이션이다. Vivado 합성/타이밍, Vitis 실제 MicroBlaze V 타깃, DS18B20 실물 온도 측정은 현 단계에서 수행하지 않았다. 시뮬레이션 PASS가 실제 센서 PASS를 의미하지 않는다.</p></section>
+<section class="section" id="s01"><h2><span class="num">01</span>시스템 계층형 구조도</h2>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1030 325" role="img" aria-label="CPU 명령, DS18B20 컨트롤러, 1-wire 슬롯 엔진, IOBUF, 센서의 계층 구조">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#4d8298"/></marker></defs><rect x="10" y="15" width="1010" height="290" rx="12" fill="#f8fbfd" stroke="#b9d5e2" stroke-width="2"/>
+<g text-anchor="middle" fill="#173d59"><rect x="27" y="52" width="168" height="84" rx="9" fill="#dceef8" stroke="#6a9db7"/><text x="111" y="87" font-size="18">MicroBlaze V</text><text x="111" y="111" font-size="12">AXI 후속 통합</text>
+<rect x="249" y="52" width="226" height="84" rx="9" fill="#d0e9e3" stroke="#69a694"/><text x="362" y="87" font-size="17">ds18b20_controller</text><text x="362" y="111" font-size="12">온도 변환 · CRC8</text>
+<rect x="529" y="52" width="225" height="84" rx="9" fill="#d0e9e3" stroke="#69a694"/><text x="641" y="87" font-size="17">onewire_slot_master</text><text x="641" y="111" font-size="12">µs 타이머 · Reset · Bit</text>
+<rect x="815" y="52" width="181" height="84" rx="9" fill="#f5e1bc" stroke="#c49b57"/><text x="905" y="87" font-size="18">DS18B20</text><text x="905" y="111" font-size="12">DQ · VDD · GND</text>
+<path d="M195 94H249M475 94H529M754 94H815" fill="none" stroke="#4d8298" stroke-width="3" marker-end="url(#a)"/>
+<rect x="529" y="214" width="225" height="57" rx="9" fill="#e6e9f7" stroke="#a7afd2"/><text x="641" y="238" font-size="15">ds18b20_open_drain_io</text><text x="641" y="255" font-size="12">Xilinx IOBUF · Hi-Z</text>
+<path d="M641 136V214" fill="none" stroke="#4d8298" stroke-width="2" marker-end="url(#a)"/></g></svg>
+<p>컨트롤러는 센서 명령·데이터 검증, 슬롯 엔진은 시간 규칙, IOBUF는 실제 단일선의 0/High-Z 핀 동작을 전담한다. Top은 핀 연결만 수행한다.</p></section>
+<section class="section" id="s02"><h2><span class="num">02</span>DS18B20 1-Wire 시간 규칙</h2>
+<table><tr><th>동작</th><th>기본 타이밍</th><th>RTL 구현값</th></tr>
+<tr><td>Reset LOW</td><td>최소 480µs</td><td>480µs</td></tr>
+<tr><td>Presence 확인</td><td>Reset 해제 후 15~60µs에 시작, LOW 60~240µs</td><td>해제 약 70µs 후 LOW 샘플</td></tr>
+<tr><td>Write 1</td><td>짧게 LOW 후 해제</td><td>LOW 6µs, 해제 64µs</td></tr>
+<tr><td>Write 0</td><td>길게 LOW</td><td>LOW 60µs, 해제 10µs</td></tr>
+<tr><td>Read</td><td>LOW 시작 후 15µs 이내 샘플</td><td>LOW 6µs, 해제 9µs 뒤 샘플, 총 70µs</td></tr>
+<tr><td>12비트 온도 변환</td><td>최대 750ms</td><td>750,000µs 대기</td></tr></table>
+<p>모든 명령 바이트와 데이터 바이트는 <strong>LSB First(최하위 비트부터 전송)</strong> 방식이다. 앞선 SPI와 I²C의 MSB First 흐름과 구분해야 한다. <a href="https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf">Analog Devices DS18B20 공식 데이터시트</a>.</p></section>
+<section class="section" id="s03"><h2><span class="num">03</span>온도 측정 전체 알고리즘</h2>
+<div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code>START
+  ↓
+RESET 480µs LOW → Presence 확인
+  ↓
+0xCC · Skip ROM
+  ↓
+0x44 · Convert T
+  ↓
+최대 750ms 온도 변환 대기
+  ↓
+RESET → Presence 확인
+  ↓
+0xCC · Skip ROM
+  ↓
+0xBE · Read Scratchpad
+  ↓
+9바이트(72비트) 읽기 · LSB First
+  ↓
+처음 8바이트 CRC-8 계산
+  ↓
+마지막 9번째 바이트 CRC와 비교
+  ├─ 불일치 → error_code 2 / 유효 온도 미갱신
+  └─ 일치   → temperature_raw 갱신 / done_pulse</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 1 (23줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>START</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>2</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>3</td><td><code>RESET 480µs LOW → Presence 확인</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>4</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>5</td><td><code>0xCC · Skip ROM</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>6</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>7</td><td><code>0x44 · Convert T</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>8</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>9</td><td><code>최대 750ms 온도 변환 대기</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>RESET → Presence 확인</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>12</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>0xCC · Skip ROM</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>14</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>15</td><td><code>0xBE · Read Scratchpad</code></td><td>16진수는 주소·레지스터 마스크·입력값 중 어떤 역할인지 정의부를 확인합니다.</td></tr><tr><td>16</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>9바이트(72비트) 읽기 · LSB First</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>18</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>처음 8바이트 CRC-8 계산</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>  ↓</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>마지막 9번째 바이트 CRC와 비교</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>22</td><td><code>  ├─ 불일치 → error_code 2 / 유효 온도 미갱신</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>23</td><td><code>  └─ 일치   → temperature_raw 갱신 / done_pulse</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>첫 Reset에서 센서가 Presence로 응답하지 않으면 오류 코드 1을 발생시킨다. 단일 센서라서 <code>Skip ROM(0xCC)</code>을 사용하며, 여러 센서가 연결된 환경에는 ROM Search/Match 명령이 필요하다.</p></section>
+<section class="section" id="s04"><h2><span class="num">04</span>온도 데이터 형식과 계산</h2>
+<table><tr><th>Raw(16비트)</th><th>의미</th><th>온도(°C)</th></tr><tr><td><code>0x0191</code></td><td>부호 있는 정수 401, 단위 1/16°C</td><td>+25.0625</td></tr><tr><td><code>0x0000</code></td><td>정수 0</td><td>0.0000</td></tr><tr><td><code>0xFF5E</code></td><td>16비트 signed 값 −162</td><td>−10.1250</td></tr></table>
+<p>12비트 모드에서 한 계수의 해상도는 <strong>0.0625°C</strong>이다. Scratchpad 0번 바이트는 온도의 하위 8비트, 1번 바이트는 상위 8비트다. 단순히 16비트 unsigned 숫자로 표시하지 않고 signed 값으로 해석해야 한다.</p>
+<p>CRC-8 다항식은 <code>x⁸+x⁵+x⁴+1</code>이고, LSB-first 구현은 비트 이동과 XOR 상수 <code>0x8C</code>를 활용한다. 9번째 바이트 CRC와 일치할 때에만 공개 온도 데이터를 갱신한다.</p></section>
+<section class="section" id="s05"><h2><span class="num">05</span>DS18B20 배선 및 안전</h2>
+<table><tr><th>센서 핀</th><th>Basys3 기준</th><th>주의</th></tr><tr><td>VDD</td><td>3.3V 외부전원 공급</td><td>부품 버전·핀 배열 확인</td></tr><tr><td>GND</td><td>Basys3 GND와 공통</td><td>배선 전 전원 OFF</td></tr><tr><td>DQ</td><td>FPGA I/O 1개, Open-drain</td><td>약 4.7kΩ을 3.3V에 풀업</td></tr></table>
+<p class="warn">Basys3 FPGA 신호선에 5V를 연결하지 않는다. 전원 없이 DQ로 센서에 전류를 공급하는 기생전원 모드는 이 RTL에서 지원하지 않으며 별도 Strong Pullup 설계가 필요하다. XDC 핀은 현행 프로젝트의 기존 센서·서보·모터 핀 점유 상태를 확인할 때 확정한다.</p></section>
+<section class="section" id="s06"><h2><span class="num">06</span>RTL 전체 소스 및 자가검증 테스트벤치</h2><p>아래 코드는 보드와 독립된 슬롯 엔진, 온도 컨트롤러, Vivado용 IOBUF 경계 및 self-checking 시뮬레이션 파일이다.</p><details><summary>rtl/onewire_slot_master.v — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>rtl/onewire_slot_master.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-15 1-Wire slot engine: reset/presence, write bit, read bit.
+// Single system clk, open-drain dq_drive_low (1=LOW; 0=Hi-Z).
+// CLK_HZ must be an integer multiple of 1 MHz.
+module onewire_slot_master #(
+    parameter integer CLK_HZ=100000000
+)(
+    input wire clk,input wire resetn,
+    input wire cmd_valid,output wire cmd_ready,
+    input wire [1:0] cmd_op, // 0=RESET, 1=WRITE, 2=READ
+    input wire cmd_bit,
+    input wire dq_in,output reg dq_drive_low,
+    output reg done_pulse,output reg presence,
+    output reg read_bit
+);
+    localparam integer CYCLES_PER_US=CLK_HZ/1000000;
+    localparam [2:0] IDLE=0, RESET_LOW=1, PRES_WAIT=2,
+        PRES_RECOVER=3, SLOT_LOW=4, READ_WAIT=5,
+        SLOT_RELEASE=6, FINISH=7;
+    reg [2:0] state;
+    reg [31:0] us_div;
+    reg [15:0] remain;
+    reg [1:0] op_q;
+    reg bit_q;
+    wire tick_us = (us_div == CYCLES_PER_US-1);
+    assign cmd_ready=(state==IDLE);
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=IDLE;us_div&lt;=0;remain&lt;=0;
+            op_q&lt;=0;bit_q&lt;=0;dq_drive_low&lt;=0;
+            done_pulse&lt;=0;presence&lt;=0;read_bit&lt;=1;
+        end else begin
+            done_pulse&lt;=0;
+            if(state==IDLE) us_div&lt;=0;
+            else if(tick_us) us_div&lt;=0;
+            else us_div&lt;=us_div+1;
+            if(state==IDLE) begin
+                dq_drive_low&lt;=0;
+                if(cmd_valid) begin
+                    op_q&lt;=cmd_op;bit_q&lt;=cmd_bit;
+                    if(cmd_op==0) begin
+                        presence&lt;=0;dq_drive_low&lt;=1;
+                        remain&lt;=16'd480;state&lt;=RESET_LOW;
+                    end else if(cmd_op==1 || cmd_op==2) begin
+                        dq_drive_low&lt;=1;
+                        remain&lt;= (cmd_op==2 || cmd_bit) ? 16'd6 : 16'd60;
+                        state&lt;=SLOT_LOW;
+                    end else begin
+                        state&lt;=FINISH;
+                    end
+                end
+            end else if(tick_us) begin
+                if(remain&gt;1) remain&lt;=remain-1;
+                else begin
+                    case(state)
+                    RESET_LOW: begin
+                        dq_drive_low&lt;=0;remain&lt;=16'd70;
+                        state&lt;=PRES_WAIT;
+                    end
+                    PRES_WAIT: begin
+                        presence&lt;=~dq_in;remain&lt;=16'd410;
+                        state&lt;=PRES_RECOVER;
+                    end
+                    PRES_RECOVER: state&lt;=FINISH;
+                    SLOT_LOW: begin
+                        dq_drive_low&lt;=0;
+                        if(op_q==2) begin
+                            remain&lt;=16'd9;state&lt;=READ_WAIT;
+                        end else begin
+                            remain&lt;=bit_q ? 16'd64 : 16'd10;
+                            state&lt;=SLOT_RELEASE;
+                        end
+                    end
+                    READ_WAIT: begin
+                        read_bit&lt;=dq_in;
+                        remain&lt;=16'd55;state&lt;=SLOT_RELEASE;
+                    end
+                    SLOT_RELEASE: state&lt;=FINISH;
+                    FINISH: state&lt;=IDLE;
+                    default: state&lt;=IDLE;
+                    endcase
+                end
+            end
+            if(state==FINISH &amp;&amp; tick_us) begin
+                done_pulse&lt;=1;
+                dq_drive_low&lt;=0;
+            end
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 2 (90줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-15 1-Wire slot engine: reset/presence, write bit, read bit.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Single system clk, open-drain dq_drive_low (1=LOW; 0=Hi-Z).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// CLK_HZ must be an integer multiple of 1 MHz.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>module onewire_slot_master #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>6</td><td><code>    parameter integer CLK_HZ=100000000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>7</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>8</td><td><code>    input wire clk,input wire resetn,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>9</td><td><code>    input wire cmd_valid,output wire cmd_ready,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>10</td><td><code>    input wire [1:0] cmd_op, // 0=RESET, 1=WRITE, 2=READ</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>11</td><td><code>    input wire cmd_bit,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire dq_in,output reg dq_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    output reg done_pulse,output reg presence,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    output reg read_bit</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>16</td><td><code>    localparam integer CYCLES_PER_US=CLK_HZ/1000000;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>17</td><td><code>    localparam [2:0] IDLE=0, RESET_LOW=1, PRES_WAIT=2,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>        PRES_RECOVER=3, SLOT_LOW=4, READ_WAIT=5,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>        SLOT_RELEASE=6, FINISH=7;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    reg [2:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    reg [31:0] us_div;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>22</td><td><code>    reg [15:0] remain;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>23</td><td><code>    reg [1:0] op_q;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>24</td><td><code>    reg bit_q;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>25</td><td><code>    wire tick_us = (us_div == CYCLES_PER_US-1);</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>26</td><td><code>    assign cmd_ready=(state==IDLE);</code></td><td>조합회로에서 오른쪽 계산 결과를 왼쪽 출력에 계속 연결합니다.</td></tr><tr><td>27</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>28</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>29</td><td><code>            state&lt;=IDLE;us_div&lt;=0;remain&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>30</td><td><code>            op_q&lt;=0;bit_q&lt;=0;dq_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>31</td><td><code>            done_pulse&lt;=0;presence&lt;=0;read_bit&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>32</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>33</td><td><code>            done_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>34</td><td><code>            if(state==IDLE) us_div&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>35</td><td><code>            else if(tick_us) us_div&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>36</td><td><code>            else us_div&lt;=us_div+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>37</td><td><code>            if(state==IDLE) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>38</td><td><code>                dq_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>39</td><td><code>                if(cmd_valid) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>40</td><td><code>                    op_q&lt;=cmd_op;bit_q&lt;=cmd_bit;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>41</td><td><code>                    if(cmd_op==0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>42</td><td><code>                        presence&lt;=0;dq_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>43</td><td><code>                        remain&lt;=16'd480;state&lt;=RESET_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>44</td><td><code>                    end else if(cmd_op==1 || cmd_op==2) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>45</td><td><code>                        dq_drive_low&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>46</td><td><code>                        remain&lt;= (cmd_op==2 || cmd_bit) ? 16'd6 : 16'd60;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>47</td><td><code>                        state&lt;=SLOT_LOW;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>48</td><td><code>                    end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>49</td><td><code>                        state&lt;=FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>50</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>51</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>52</td><td><code>            end else if(tick_us) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>53</td><td><code>                if(remain&gt;1) remain&lt;=remain-1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>54</td><td><code>                else begin</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>55</td><td><code>                    case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>56</td><td><code>                    RESET_LOW: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>57</td><td><code>                        dq_drive_low&lt;=0;remain&lt;=16'd70;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>58</td><td><code>                        state&lt;=PRES_WAIT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>59</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>60</td><td><code>                    PRES_WAIT: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>61</td><td><code>                        presence&lt;=~dq_in;remain&lt;=16'd410;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>62</td><td><code>                        state&lt;=PRES_RECOVER;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>63</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>64</td><td><code>                    PRES_RECOVER: state&lt;=FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>65</td><td><code>                    SLOT_LOW: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>66</td><td><code>                        dq_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>67</td><td><code>                        if(op_q==2) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>68</td><td><code>                            remain&lt;=16'd9;state&lt;=READ_WAIT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>69</td><td><code>                        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>70</td><td><code>                            remain&lt;=bit_q ? 16'd64 : 16'd10;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>71</td><td><code>                            state&lt;=SLOT_RELEASE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>72</td><td><code>                        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>73</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>74</td><td><code>                    READ_WAIT: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>75</td><td><code>                        read_bit&lt;=dq_in;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>76</td><td><code>                        remain&lt;=16'd55;state&lt;=SLOT_RELEASE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>                    SLOT_RELEASE: state&lt;=FINISH;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>79</td><td><code>                    FINISH: state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>                    default: state&lt;=IDLE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>                    endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>82</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>83</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>84</td><td><code>            if(state==FINISH &amp;&amp; tick_us) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>85</td><td><code>                done_pulse&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>86</td><td><code>                dq_drive_low&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>87</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>88</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>89</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>90</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/ds18b20_controller.v — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>rtl/ds18b20_controller.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// DS18B20 one externally-powered device on bus (VDD, DQ, GND).
+// Reset -&gt; Skip ROM(CC) -&gt; Convert T(44) -&gt; 750ms wait
+// -&gt; Reset -&gt; Skip ROM(CC) -&gt; Read Scratchpad(BE) -&gt; 9 bytes -&gt; CRC8.
+// No strong-pullup/parasite-power support, multi-drop addressing,
+// variable resolution, interrupt, or AXI interface in this version.
+module ds18b20_controller #(
+    parameter integer CLK_HZ=100000000,
+    parameter integer CONVERT_WAIT_US=750000
+)(
+    input wire clk,input wire resetn,input wire start_pulse,
+    input wire dq_in,output wire dq_drive_low,
+    output reg busy,output reg done_pulse,output reg error_pulse,
+    output reg [2:0] error_code, // 1=missing presence, 2=CRC
+    output reg signed [15:0] temperature_raw
+);
+    localparam [3:0] IDLE=0,ISSUE=1,WAIT_OP=2,
+        CHECK_RESET=3,WRITE_ADV=4,WAIT_CONVERT=5,
+        READ_ADV=6,COMPLETE=7,FAULT=8;
+    reg [3:0] state;
+    // phases: reset0, CC, 44, wait, reset1, CC, BE, read9
+    reg [2:0] phase;
+    reg [7:0] tx_data;
+    reg [3:0] bit_index;
+    reg [3:0] byte_index;
+    reg [7:0] scratchpad_byte;
+    reg [7:0] crc;
+    reg [7:0] low_temp;
+    reg [7:0] high_temp;
+    reg [31:0] conv_div;
+    reg [31:0] conv_remaining;
+    reg cmd_valid;
+    reg [1:0] cmd_op;
+    reg cmd_bit;
+    wire cmd_ready,slot_done,presence,read_bit;
+    onewire_slot_master #(.CLK_HZ(CLK_HZ)) u_slot (
+        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),
+        .cmd_ready(cmd_ready),.cmd_op(cmd_op),.cmd_bit(cmd_bit),
+        .dq_in(dq_in),.dq_drive_low(dq_drive_low),
+        .done_pulse(slot_done),.presence(presence),.read_bit(read_bit)
+    );
+    function [7:0] crc_next;
+        input [7:0] old_crc;
+        input bit_value;
+        reg feedback;
+        begin
+            feedback=old_crc[0]^bit_value;
+            crc_next={1'b0,old_crc[7:1]} ^ (feedback ? 8'h8c : 8'h00);
+        end
+    endfunction
+    always @(posedge clk) begin
+        if(!resetn) begin
+            state&lt;=IDLE;phase&lt;=0;tx_data&lt;=0;bit_index&lt;=0;
+            byte_index&lt;=0;scratchpad_byte&lt;=0;crc&lt;=0;low_temp&lt;=0;high_temp&lt;=0;
+            conv_div&lt;=0;conv_remaining&lt;=0;
+            cmd_valid&lt;=0;cmd_op&lt;=0;cmd_bit&lt;=0;
+            busy&lt;=0;done_pulse&lt;=0;error_pulse&lt;=0;
+            error_code&lt;=0;temperature_raw&lt;=0;
+        end else begin
+            done_pulse&lt;=0;error_pulse&lt;=0;cmd_valid&lt;=0;
+            case(state)
+            IDLE: if(start_pulse) begin
+                busy&lt;=1;error_code&lt;=0;phase&lt;=0;
+                bit_index&lt;=0;byte_index&lt;=0;crc&lt;=0;
+                state&lt;=ISSUE;
+            end
+            ISSUE: if(cmd_ready) begin
+                cmd_valid&lt;=1;
+                if(phase==0 || phase==4) begin
+                    cmd_op&lt;=0;cmd_bit&lt;=0;
+                end else if(phase==7) begin
+                    cmd_op&lt;=2;cmd_bit&lt;=0;
+                end else begin
+                    cmd_op&lt;=1;cmd_bit&lt;=tx_data[bit_index];
+                end
+                state&lt;=WAIT_OP;
+            end
+            WAIT_OP: if(slot_done) begin
+                if(phase==0 || phase==4) state&lt;=CHECK_RESET;
+                else if(phase==7) state&lt;=READ_ADV;
+                else state&lt;=WRITE_ADV;
+            end
+            CHECK_RESET: begin
+                if(!presence) begin
+                    error_code&lt;=1;state&lt;=FAULT;
+                end else begin
+                    if(phase==0) begin phase&lt;=1;tx_data&lt;=8'hcc;end
+                    else begin phase&lt;=5;tx_data&lt;=8'hcc;end
+                    bit_index&lt;=0;state&lt;=ISSUE;
+                end
+            end
+            WRITE_ADV: begin
+                if(bit_index!=7) begin
+                    bit_index&lt;=bit_index+1;state&lt;=ISSUE;
+                end else begin
+                    bit_index&lt;=0;
+                    case(phase)
+                    1: begin phase&lt;=2;tx_data&lt;=8'h44;state&lt;=ISSUE;end
+                    2: begin
+                        phase&lt;=3;conv_div&lt;=0;
+                        conv_remaining&lt;=CONVERT_WAIT_US;
+                        state&lt;=WAIT_CONVERT;
+                    end
+                    5: begin phase&lt;=6;tx_data&lt;=8'hbe;state&lt;=ISSUE;end
+                    6: begin
+                        phase&lt;=7;byte_index&lt;=0;crc&lt;=0;
+                        scratchpad_byte&lt;=0;state&lt;=ISSUE;
+                    end
+                    default: state&lt;=FAULT;
+                    endcase
+                end
+            end
+            WAIT_CONVERT: begin
+                if(conv_remaining==0) begin
+                    phase&lt;=4;state&lt;=ISSUE;
+                end else if(conv_div==CLK_HZ/1000000-1) begin
+                    conv_div&lt;=0;
+                    conv_remaining&lt;=conv_remaining-1;
+                end else conv_div&lt;=conv_div+1;
+            end
+            READ_ADV: begin
+                scratchpad_byte[bit_index]&lt;=read_bit;
+                if(byte_index&lt;8) crc&lt;=crc_next(crc,read_bit);
+                if(bit_index!=7) begin
+                    bit_index&lt;=bit_index+1;state&lt;=ISSUE;
+                end else begin
+                    bit_index&lt;=0;
+                    if(byte_index==0) low_temp&lt;={read_bit,scratchpad_byte[6:0]};
+                    if(byte_index==1)
+                        high_temp&lt;={read_bit,scratchpad_byte[6:0]};
+                    if(byte_index==8) begin
+                        if({read_bit,scratchpad_byte[6:0]}==crc) begin
+                            // (변경) CRC 정상일 때에만 공개 온도 레지스터 갱신.
+                            temperature_raw&lt;={high_temp,low_temp};
+                            state&lt;=COMPLETE;
+                        end
+                        else begin
+                            error_code&lt;=2;state&lt;=FAULT;
+                        end
+                    end else begin
+                        byte_index&lt;=byte_index+1;
+                        scratchpad_byte&lt;=0;state&lt;=ISSUE;
+                    end
+                end
+            end
+            COMPLETE: begin busy&lt;=0;done_pulse&lt;=1;state&lt;=IDLE;end
+            FAULT: begin busy&lt;=0;error_pulse&lt;=1;state&lt;=IDLE;end
+            default: state&lt;=FAULT;
+            endcase
+        end
+    end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 3 (152줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// DS18B20 one externally-powered device on bus (VDD, DQ, GND).</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Reset -&gt; Skip ROM(CC) -&gt; Convert T(44) -&gt; 750ms wait</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// -&gt; Reset -&gt; Skip ROM(CC) -&gt; Read Scratchpad(BE) -&gt; 9 bytes -&gt; CRC8.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>// No strong-pullup/parasite-power support, multi-drop addressing,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>// variable resolution, interrupt, or AXI interface in this version.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>7</td><td><code>module ds18b20_controller #(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>8</td><td><code>    parameter integer CLK_HZ=100000000,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>9</td><td><code>    parameter integer CONVERT_WAIT_US=750000</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>10</td><td><code>)(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>    input wire clk,input wire resetn,input wire start_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>12</td><td><code>    input wire dq_in,output wire dq_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>13</td><td><code>    output reg busy,output reg done_pulse,output reg error_pulse,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>14</td><td><code>    output reg [2:0] error_code, // 1=missing presence, 2=CRC</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>15</td><td><code>    output reg signed [15:0] temperature_raw</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>16</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>17</td><td><code>    localparam [3:0] IDLE=0,ISSUE=1,WAIT_OP=2,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>18</td><td><code>        CHECK_RESET=3,WRITE_ADV=4,WAIT_CONVERT=5,</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>19</td><td><code>        READ_ADV=6,COMPLETE=7,FAULT=8;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>20</td><td><code>    reg [3:0] state;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>21</td><td><code>    // phases: reset0, CC, 44, wait, reset1, CC, BE, read9</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>22</td><td><code>    reg [2:0] phase;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>23</td><td><code>    reg [7:0] tx_data;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>24</td><td><code>    reg [3:0] bit_index;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>25</td><td><code>    reg [3:0] byte_index;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>26</td><td><code>    reg [7:0] scratchpad_byte;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>27</td><td><code>    reg [7:0] crc;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>28</td><td><code>    reg [7:0] low_temp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>29</td><td><code>    reg [7:0] high_temp;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>30</td><td><code>    reg [31:0] conv_div;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>31</td><td><code>    reg [31:0] conv_remaining;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>32</td><td><code>    reg cmd_valid;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>33</td><td><code>    reg [1:0] cmd_op;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>34</td><td><code>    reg cmd_bit;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>35</td><td><code>    wire cmd_ready,slot_done,presence,read_bit;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>36</td><td><code>    onewire_slot_master #(.CLK_HZ(CLK_HZ)) u_slot (</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>37</td><td><code>        .clk(clk),.resetn(resetn),.cmd_valid(cmd_valid),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>38</td><td><code>        .cmd_ready(cmd_ready),.cmd_op(cmd_op),.cmd_bit(cmd_bit),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>39</td><td><code>        .dq_in(dq_in),.dq_drive_low(dq_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>40</td><td><code>        .done_pulse(slot_done),.presence(presence),.read_bit(read_bit)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>41</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>42</td><td><code>    function [7:0] crc_next;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>43</td><td><code>        input [7:0] old_crc;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>44</td><td><code>        input bit_value;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>45</td><td><code>        reg feedback;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>46</td><td><code>        begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>47</td><td><code>            feedback=old_crc[0]^bit_value;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>            crc_next={1'b0,old_crc[7:1]} ^ (feedback ? 8'h8c : 8'h00);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>49</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>50</td><td><code>    endfunction</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>51</td><td><code>    always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>52</td><td><code>        if(!resetn) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>53</td><td><code>            state&lt;=IDLE;phase&lt;=0;tx_data&lt;=0;bit_index&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>54</td><td><code>            byte_index&lt;=0;scratchpad_byte&lt;=0;crc&lt;=0;low_temp&lt;=0;high_temp&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>55</td><td><code>            conv_div&lt;=0;conv_remaining&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>56</td><td><code>            cmd_valid&lt;=0;cmd_op&lt;=0;cmd_bit&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>57</td><td><code>            busy&lt;=0;done_pulse&lt;=0;error_pulse&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>58</td><td><code>            error_code&lt;=0;temperature_raw&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>59</td><td><code>        end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>60</td><td><code>            done_pulse&lt;=0;error_pulse&lt;=0;cmd_valid&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>61</td><td><code>            case(state)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>62</td><td><code>            IDLE: if(start_pulse) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>63</td><td><code>                busy&lt;=1;error_code&lt;=0;phase&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>64</td><td><code>                bit_index&lt;=0;byte_index&lt;=0;crc&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>65</td><td><code>                state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>66</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>67</td><td><code>            ISSUE: if(cmd_ready) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>68</td><td><code>                cmd_valid&lt;=1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>69</td><td><code>                if(phase==0 || phase==4) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>70</td><td><code>                    cmd_op&lt;=0;cmd_bit&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>71</td><td><code>                end else if(phase==7) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>72</td><td><code>                    cmd_op&lt;=2;cmd_bit&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>73</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>74</td><td><code>                    cmd_op&lt;=1;cmd_bit&lt;=tx_data[bit_index];</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>75</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>76</td><td><code>                state&lt;=WAIT_OP;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>77</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>            WAIT_OP: if(slot_done) begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>79</td><td><code>                if(phase==0 || phase==4) state&lt;=CHECK_RESET;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>80</td><td><code>                else if(phase==7) state&lt;=READ_ADV;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>81</td><td><code>                else state&lt;=WRITE_ADV;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>82</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>83</td><td><code>            CHECK_RESET: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>84</td><td><code>                if(!presence) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>85</td><td><code>                    error_code&lt;=1;state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>86</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>87</td><td><code>                    if(phase==0) begin phase&lt;=1;tx_data&lt;=8'hcc;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>88</td><td><code>                    else begin phase&lt;=5;tx_data&lt;=8'hcc;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>89</td><td><code>                    bit_index&lt;=0;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>90</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>91</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>92</td><td><code>            WRITE_ADV: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>                if(bit_index!=7) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>94</td><td><code>                    bit_index&lt;=bit_index+1;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>95</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>96</td><td><code>                    bit_index&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>97</td><td><code>                    case(phase)</code></td><td>상태 또는 명령별 제어 경로를 나눕니다.</td></tr><tr><td>98</td><td><code>                    1: begin phase&lt;=2;tx_data&lt;=8'h44;state&lt;=ISSUE;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>99</td><td><code>                    2: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>100</td><td><code>                        phase&lt;=3;conv_div&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>101</td><td><code>                        conv_remaining&lt;=CONVERT_WAIT_US;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>102</td><td><code>                        state&lt;=WAIT_CONVERT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>103</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>104</td><td><code>                    5: begin phase&lt;=6;tx_data&lt;=8'hbe;state&lt;=ISSUE;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>105</td><td><code>                    6: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>106</td><td><code>                        phase&lt;=7;byte_index&lt;=0;crc&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>107</td><td><code>                        scratchpad_byte&lt;=0;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>108</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>109</td><td><code>                    default: state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>110</td><td><code>                    endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>111</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>112</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>113</td><td><code>            WAIT_CONVERT: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>114</td><td><code>                if(conv_remaining==0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>115</td><td><code>                    phase&lt;=4;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>116</td><td><code>                end else if(conv_div==CLK_HZ/1000000-1) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>117</td><td><code>                    conv_div&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>118</td><td><code>                    conv_remaining&lt;=conv_remaining-1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>119</td><td><code>                end else conv_div&lt;=conv_div+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>120</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>121</td><td><code>            READ_ADV: begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>122</td><td><code>                scratchpad_byte[bit_index]&lt;=read_bit;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>123</td><td><code>                if(byte_index&lt;8) crc&lt;=crc_next(crc,read_bit);</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>124</td><td><code>                if(bit_index!=7) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>125</td><td><code>                    bit_index&lt;=bit_index+1;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>126</td><td><code>                end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>127</td><td><code>                    bit_index&lt;=0;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>128</td><td><code>                    if(byte_index==0) low_temp&lt;={read_bit,scratchpad_byte[6:0]};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>129</td><td><code>                    if(byte_index==1)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>130</td><td><code>                        high_temp&lt;={read_bit,scratchpad_byte[6:0]};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>131</td><td><code>                    if(byte_index==8) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>132</td><td><code>                        if({read_bit,scratchpad_byte[6:0]}==crc) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>133</td><td><code>                            // (변경) CRC 정상일 때에만 공개 온도 레지스터 갱신.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>134</td><td><code>                            temperature_raw&lt;={high_temp,low_temp};</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>135</td><td><code>                            state&lt;=COMPLETE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>136</td><td><code>                        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>137</td><td><code>                        else begin</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>138</td><td><code>                            error_code&lt;=2;state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>139</td><td><code>                        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>140</td><td><code>                    end else begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>141</td><td><code>                        byte_index&lt;=byte_index+1;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>142</td><td><code>                        scratchpad_byte&lt;=0;state&lt;=ISSUE;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>143</td><td><code>                    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>144</td><td><code>                end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>145</td><td><code>            end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>146</td><td><code>            COMPLETE: begin busy&lt;=0;done_pulse&lt;=1;state&lt;=IDLE;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>147</td><td><code>            FAULT: begin busy&lt;=0;error_pulse&lt;=1;state&lt;=IDLE;end</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>148</td><td><code>            default: state&lt;=FAULT;</code></td><td>논블로킹 대입입니다. 플립플롭의 다음 값과 이전 값을 구분합니다.</td></tr><tr><td>149</td><td><code>            endcase</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>150</td><td><code>        end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>151</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>152</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>rtl/ds18b20_open_drain_io.v — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>rtl/ds18b20_open_drain_io.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// Vivado-only 1-Wire IOBUF boundary. Separate from portable RTL tests.
+// dq_drive_low=1 drives logic LOW; 0 releases DQ to external 3.3V pullup.
+// Do not use 5V pullup on Basys3 FPGA input.
+module ds18b20_open_drain_io(
+    input wire dq_drive_low,
+    inout wire ds18b20_dq,
+    output wire dq_in
+);
+    IOBUF u_ds18b20_dq (
+        .I(1'b0),.T(~dq_drive_low),.O(dq_in),.IO(ds18b20_dq)
+    );
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 4 (13줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// Vivado-only 1-Wire IOBUF boundary. Separate from portable RTL tests.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// dq_drive_low=1 drives logic LOW; 0 releases DQ to external 3.3V pullup.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// Do not use 5V pullup on Basys3 FPGA input.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>module ds18b20_open_drain_io(</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>6</td><td><code>    input wire dq_drive_low,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>7</td><td><code>    inout wire ds18b20_dq,</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>8</td><td><code>    output wire dq_in</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>9</td><td><code>);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>10</td><td><code>    IOBUF u_ds18b20_dq (</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>11</td><td><code>        .I(1'b0),.T(~dq_drive_low),.O(dq_in),.IO(ds18b20_dq)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>12</td><td><code>    );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>13</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<details><summary>tests/tb_ds18b20_controller.v — 전체 코드 열기</summary><div class="codeblock"><div class="codebar"><span>tests/tb_ds18b20_controller.v · VERILOG · 소스 원문</span></div><pre><code>`timescale 1ns/1ps
+// P2-15 self-checking simulated DS18B20, does NOT model analog bus.
+// Checks 2 resets/presence, CC/44/CC/BE TX, nine scratchpad bytes,
+// signed temperature_raw, CRC rejection, missing presence.
+module tb_ds18b20_controller;
+  reg clk=0;always #5 clk=~clk;
+  reg resetn=0,start=0,presence_enabled=1,corrupt_crc=0;
+  wire dq_drive_low,done,error,busy;
+  wire [2:0] error_code;
+  wire signed [15:0] temperature_raw;
+  reg [7:0] scratch[0:8];
+  reg [7:0] crc_local;
+  integer i,j,case_number=0,command_bits=0,reset_count=0;
+  reg [7:0] command_bytes[0:3];
+  reg [7:0] current_byte;
+  reg slave_low;
+  wire dq_in = !(dq_drive_low || slave_low);
+  ds18b20_controller #(
+      .CLK_HZ(1000000),.CONVERT_WAIT_US(20)
+  ) dut(
+    .clk(clk),.resetn(resetn),.start_pulse(start),
+    .dq_in(dq_in),.dq_drive_low(dq_drive_low),
+    .busy(busy),.done_pulse(done),.error_pulse(error),
+    .error_code(error_code),.temperature_raw(temperature_raw)
+  );
+  function [7:0] crc_byte;
+    input [7:0] crc_in;
+    input [7:0] b;
+    reg [7:0] c;
+    integer n;
+    begin
+      c=crc_in;
+      for(n=0;n&lt;8;n=n+1) begin
+        if(c[0]^b[n]) c=(c&gt;&gt;1)^8'h8c;
+        else c=c&gt;&gt;1;
+      end
+      crc_byte=c;
+    end
+  endfunction
+  task set_scratchpad;
+    input [15:0] raw;
+    begin
+      scratch[0]=raw[7:0];scratch[1]=raw[15:8];
+      scratch[2]=8'h4b;scratch[3]=8'h46;
+      scratch[4]=8'h7f;scratch[5]=8'hff;
+      scratch[6]=8'h0c;scratch[7]=8'h10;
+      crc_local=0;
+      for(i=0;i&lt;8;i=i+1)
+        crc_local=crc_byte(crc_local,scratch[i]);
+      scratch[8]=crc_local^(corrupt_crc ? 8'h01 : 8'h00);
+    end
+  endtask
+  // Simplified digital slave drives ACK-like presence and read-zero bits
+  // at the exact sampling state. This is a functional bus model, not a
+  // nanosecond jitter/timing compliance test.
+  always @(*) begin
+    slave_low=0;
+    if(presence_enabled &amp;&amp; dut.u_slot.state==3'd2)
+      slave_low=1;
+    if(dut.u_slot.state==3'd5 &amp;&amp; dut.phase==7 &amp;&amp;
+       !scratch[dut.byte_index][dut.bit_index])
+      slave_low=1;
+  end
+
+  // Collect commands only at slot transaction start, avoiding races
+  // between testbench and core's registered data pins.
+  always @(posedge clk) begin
+    if(resetn &amp;&amp; dut.u_slot.cmd_valid &amp;&amp; dut.u_slot.cmd_ready) begin
+      if(dut.u_slot.cmd_op==0) begin
+        reset_count=reset_count+1;
+      end else if(dut.u_slot.cmd_op==1) begin
+        current_byte[command_bits%8]=dut.u_slot.cmd_bit;
+        command_bits=command_bits+1;
+        if(command_bits%8==0)
+          command_bytes[command_bits/8-1]=current_byte;
+      end
+    end
+  end
+  task reset_test;
+    begin
+      resetn=0;start=0;
+      repeat(4) @(negedge clk);
+      resetn=1;command_bits=0;reset_count=0;
+    end
+  endtask
+  task kick;
+    begin
+      @(negedge clk);start=1;
+      @(negedge clk);start=0;
+    end
+  endtask
+  initial begin
+    corrupt_crc=0;set_scratchpad(16'h0191);
+    reset_test; kick;
+    wait(done); #1;
+    if(error || error_code || busy || temperature_raw!==16'h0191)
+      $fatal(1,"positive temp incorrect: %h",temperature_raw);
+    if(reset_count!=2 || command_bits!=32 ||
+       command_bytes[0]!==8'hcc || command_bytes[1]!==8'h44 ||
+       command_bytes[2]!==8'hcc || command_bytes[3]!==8'hbe)
+      $fatal(1,"command sequence wrong resets=%0d bits=%0d %h %h %h %h",
+             reset_count,command_bits,
+             command_bytes[0],command_bytes[1],
+             command_bytes[2],command_bytes[3]);
+    $display("P2_15_DS18B20_POSITIVE_CRC_COMMAND_PASS");
+
+    corrupt_crc=0;set_scratchpad(16'hff5e);
+    reset_test;kick;wait(done);#1;
+    if(busy || temperature_raw!==16'hff5e)
+      $fatal(1,"negative signed temperature wrong: %h",temperature_raw);
+    $display("P2_15_DS18B20_NEGATIVE_TEMP_PASS");
+
+    corrupt_crc=1;set_scratchpad(16'h0191);
+    reset_test;kick;wait(error);#1;
+    if(error_code!=2 || busy || temperature_raw!==16'h0000)
+      $fatal(1,"CRC error not rejected or untrusted temperature published");
+    $display("P2_15_DS18B20_CRC_REJECT_PASS");
+
+    corrupt_crc=0;set_scratchpad(16'h0191);presence_enabled=0;
+    reset_test;kick;wait(error);#1;
+    if(error_code!=1 || reset_count!=1 || busy)
+      $fatal(1,"missing presence not detected");
+    $display("P2_15_DS18B20_NO_PRESENCE_PASS");
+
+    $display("P2_15_DS18B20_CONTROLLER_RTL PASS");
+    $finish;
+  end
+  initial begin #4000000;$fatal(1,"TIMEOUT");end
+endmodule
+</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 5 (124줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code>`timescale 1ns/1ps</code></td><td>시뮬레이션 시간 단위 및 정밀도를 지정합니다.</td></tr><tr><td>2</td><td><code>// P2-15 self-checking simulated DS18B20, does NOT model analog bus.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>3</td><td><code>// Checks 2 resets/presence, CC/44/CC/BE TX, nine scratchpad bytes,</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>4</td><td><code>// signed temperature_raw, CRC rejection, missing presence.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>5</td><td><code>module tb_ds18b20_controller;</code></td><td>Verilog 모듈을 정의합니다. 포트 이름을 구조도와 1:1로 대응합니다.</td></tr><tr><td>6</td><td><code>  reg clk=0;always #5 clk=~clk;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>7</td><td><code>  reg resetn=0,start=0,presence_enabled=1,corrupt_crc=0;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>8</td><td><code>  wire dq_drive_low,done,error,busy;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>9</td><td><code>  wire [2:0] error_code;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>10</td><td><code>  wire signed [15:0] temperature_raw;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>11</td><td><code>  reg [7:0] scratch[0:8];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>12</td><td><code>  reg [7:0] crc_local;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>13</td><td><code>  integer i,j,case_number=0,command_bits=0,reset_count=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>14</td><td><code>  reg [7:0] command_bytes[0:3];</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>15</td><td><code>  reg [7:0] current_byte;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>16</td><td><code>  reg slave_low;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>17</td><td><code>  wire dq_in = !(dq_drive_low || slave_low);</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>18</td><td><code>  ds18b20_controller #(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>19</td><td><code>      .CLK_HZ(1000000),.CONVERT_WAIT_US(20)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>20</td><td><code>  ) dut(</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>21</td><td><code>    .clk(clk),.resetn(resetn),.start_pulse(start),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>22</td><td><code>    .dq_in(dq_in),.dq_drive_low(dq_drive_low),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>23</td><td><code>    .busy(busy),.done_pulse(done),.error_pulse(error),</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>24</td><td><code>    .error_code(error_code),.temperature_raw(temperature_raw)</code></td><td>하위 모듈의 포트명과 상위 연결 신호를 대응시킵니다.</td></tr><tr><td>25</td><td><code>  );</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>26</td><td><code>  function [7:0] crc_byte;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>27</td><td><code>    input [7:0] crc_in;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>28</td><td><code>    input [7:0] b;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>29</td><td><code>    reg [7:0] c;</code></td><td>RTL 신호·레지스터를 선언합니다. 비트 수와 갱신 조건을 확인합니다.</td></tr><tr><td>30</td><td><code>    integer n;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>31</td><td><code>    begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>32</td><td><code>      c=crc_in;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>33</td><td><code>      for(n=0;n&lt;8;n=n+1) begin</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>34</td><td><code>        if(c[0]^b[n]) c=(c&gt;&gt;1)^8'h8c;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>35</td><td><code>        else c=c&gt;&gt;1;</code></td><td>앞 조건이 거짓인 경우 동작입니다.</td></tr><tr><td>36</td><td><code>      end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>37</td><td><code>      crc_byte=c;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>38</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>39</td><td><code>  endfunction</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>40</td><td><code>  task set_scratchpad;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>41</td><td><code>    input [15:0] raw;</code></td><td>입력·출력 포트 선언입니다. 폭과 방향을 확인합니다.</td></tr><tr><td>42</td><td><code>    begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>43</td><td><code>      scratch[0]=raw[7:0];scratch[1]=raw[15:8];</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>44</td><td><code>      scratch[2]=8'h4b;scratch[3]=8'h46;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>45</td><td><code>      scratch[4]=8'h7f;scratch[5]=8'hff;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>46</td><td><code>      scratch[6]=8'h0c;scratch[7]=8'h10;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>47</td><td><code>      crc_local=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>48</td><td><code>      for(i=0;i&lt;8;i=i+1)</code></td><td>반복의 시작·종료 조건과 누산·카운터 갱신을 살펴봅니다.</td></tr><tr><td>49</td><td><code>        crc_local=crc_byte(crc_local,scratch[i]);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>50</td><td><code>      scratch[8]=crc_local^(corrupt_crc ? 8'h01 : 8'h00);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>51</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>52</td><td><code>  endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>53</td><td><code>  // Simplified digital slave drives ACK-like presence and read-zero bits</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>54</td><td><code>  // at the exact sampling state. This is a functional bus model, not a</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>55</td><td><code>  // nanosecond jitter/timing compliance test.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>56</td><td><code>  always @(*) begin</code></td><td>always 블록의 클록/민감도 및 모든 분기를 확인합니다.</td></tr><tr><td>57</td><td><code>    slave_low=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>58</td><td><code>    if(presence_enabled &amp;&amp; dut.u_slot.state==3'd2)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>59</td><td><code>      slave_low=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>60</td><td><code>    if(dut.u_slot.state==3'd5 &amp;&amp; dut.phase==7 &amp;&amp;</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>61</td><td><code>       !scratch[dut.byte_index][dut.bit_index])</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>62</td><td><code>      slave_low=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>63</td><td><code>  end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>65</td><td><code>  // Collect commands only at slot transaction start, avoiding races</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>66</td><td><code>  // between testbench and core's registered data pins.</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>67</td><td><code>  always @(posedge clk) begin</code></td><td>상승 에지에 맞춰 값을 갱신하는 플립플롭 동작입니다.</td></tr><tr><td>68</td><td><code>    if(resetn &amp;&amp; dut.u_slot.cmd_valid &amp;&amp; dut.u_slot.cmd_ready) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>69</td><td><code>      if(dut.u_slot.cmd_op==0) begin</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>70</td><td><code>        reset_count=reset_count+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>71</td><td><code>      end else if(dut.u_slot.cmd_op==1) begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>72</td><td><code>        current_byte[command_bits%8]=dut.u_slot.cmd_bit;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>73</td><td><code>        command_bits=command_bits+1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>74</td><td><code>        if(command_bits%8==0)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>75</td><td><code>          command_bytes[command_bits/8-1]=current_byte;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>76</td><td><code>      end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>77</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>78</td><td><code>  end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>79</td><td><code>  task reset_test;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>80</td><td><code>    begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>81</td><td><code>      resetn=0;start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>82</td><td><code>      repeat(4) @(negedge clk);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>83</td><td><code>      resetn=1;command_bits=0;reset_count=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>84</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>85</td><td><code>  endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>86</td><td><code>  task kick;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>87</td><td><code>    begin</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>88</td><td><code>      @(negedge clk);start=1;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>89</td><td><code>      @(negedge clk);start=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>90</td><td><code>    end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>91</td><td><code>  endtask</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>92</td><td><code>  initial begin</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>93</td><td><code>    corrupt_crc=0;set_scratchpad(16'h0191);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>94</td><td><code>    reset_test; kick;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>95</td><td><code>    wait(done); #1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>96</td><td><code>    if(error || error_code || busy || temperature_raw!==16'h0191)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>97</td><td><code>      $fatal(1,&quot;positive temp incorrect: %h&quot;,temperature_raw);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>98</td><td><code>    if(reset_count!=2 || command_bits!=32 ||</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>99</td><td><code>       command_bytes[0]!==8'hcc || command_bytes[1]!==8'h44 ||</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>100</td><td><code>       command_bytes[2]!==8'hcc || command_bytes[3]!==8'hbe)</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>101</td><td><code>      $fatal(1,&quot;command sequence wrong resets=%0d bits=%0d %h %h %h %h&quot;,</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>102</td><td><code>             reset_count,command_bits,</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>103</td><td><code>             command_bytes[0],command_bytes[1],</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>104</td><td><code>             command_bytes[2],command_bytes[3]);</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>105</td><td><code>    $display(&quot;P2_15_DS18B20_POSITIVE_CRC_COMMAND_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>107</td><td><code>    corrupt_crc=0;set_scratchpad(16'hff5e);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>108</td><td><code>    reset_test;kick;wait(done);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>109</td><td><code>    if(busy || temperature_raw!==16'hff5e)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>110</td><td><code>      $fatal(1,&quot;negative signed temperature wrong: %h&quot;,temperature_raw);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>111</td><td><code>    $display(&quot;P2_15_DS18B20_NEGATIVE_TEMP_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>113</td><td><code>    corrupt_crc=1;set_scratchpad(16'h0191);</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>114</td><td><code>    reset_test;kick;wait(error);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>115</td><td><code>    if(error_code!=2 || busy || temperature_raw!==16'h0000)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>116</td><td><code>      $fatal(1,&quot;CRC error not rejected or untrusted temperature published&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>117</td><td><code>    $display(&quot;P2_15_DS18B20_CRC_REJECT_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>119</td><td><code>    corrupt_crc=0;set_scratchpad(16'h0191);presence_enabled=0;</code></td><td>논리/산술 연산·대입을 수행합니다. 비트 폭과 단위·경계값을 확인합니다.</td></tr><tr><td>120</td><td><code>    reset_test;kick;wait(error);#1;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>121</td><td><code>    if(error_code!=1 || reset_count!=1 || busy)</code></td><td>괄호 조건이 참인 경우만 실행합니다. 오류·범위 경계도 확인합니다.</td></tr><tr><td>122</td><td><code>      $fatal(1,&quot;missing presence not detected&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>123</td><td><code>    $display(&quot;P2_15_DS18B20_NO_PRESENCE_PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>125</td><td><code>    $display(&quot;P2_15_DS18B20_CONTROLLER_RTL PASS&quot;);</code></td><td>테스트벤치에서 조건 실패·오류·결과를 출력합니다.</td></tr><tr><td>126</td><td><code>    $finish;</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>127</td><td><code>  end</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr><tr><td>128</td><td><code>  initial begin #4000000;$fatal(1,&quot;TIMEOUT&quot;);end</code></td><td>실제 포트·변수·함수명과 인접한 동작을 연결하여 읽습니다.</td></tr><tr><td>129</td><td><code>endmodule</code></td><td>블록의 시작 또는 끝입니다. 대응되는 if/case/module 범위를 찾습니다.</td></tr></tbody></table></div></details></div></details>
+<h3>Ubuntu에서 실행</h3>
+<div class="codeblock"><div class="codebar"><span>실습 명령 · Bash / 코드 실행 예시</span></div><pre><code># 최초 1회: Ubuntu 패키지 목록 갱신 및 시뮬레이터 설치
+sudo apt update
+sudo apt install -y iverilog
+
+# 저장소 루트 폴더에서 RTL 시뮬레이션 실행
+bash part02/chapters/P2_15_Lesson/tests/run_rtl_tests.sh</code></pre><details class="prof-code"><summary>교수용 코드 한 줄씩 풀이 · 코드 블록 6 (5줄)</summary><div class="prof-scroll"><table><thead><tr><th>줄</th><th>원본 코드</th><th>동작 의미·확인 사항</th></tr></thead><tbody><tr><td>1</td><td><code># 최초 1회: Ubuntu 패키지 목록 갱신 및 시뮬레이터 설치</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>2</td><td><code>sudo apt update</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>3</td><td><code>sudo apt install -y iverilog</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr><tr><td>5</td><td><code># 저장소 루트 폴더에서 RTL 시뮬레이션 실행</code></td><td>주석이나 설명입니다. 아래 실제 실행 코드의 의도와 구분합니다.</td></tr><tr><td>6</td><td><code>bash part02/chapters/P2_15_Lesson/tests/run_rtl_tests.sh</code></td><td>실습용 우분투 명령입니다. 대상 파일과 실행 결과를 함께 확인합니다.</td></tr></tbody></table></div></details></div>
+<p>현재의 CI 검증은 `CLK_HZ=1MHz`, `CONVERT_WAIT_US=20`으로 축소한 <em>교육용 디지털 모델</em>이다. 실물 750ms 변환 지연과 아날로그 상승시간·실제 DQ 전기적 임계값은 검증하지 않았다.</p></section>
+<section class="section" id="s07"><h2><span class="num">07</span>실행 검증·판정</h2>
+<table><tr><th>검증 항목</th><th>상태</th><th>근거</th></tr>
+<tr><td>RESET/PRESENCE + 명령 CC,44,CC,BE</td><td>RTL_SIM PASS</td><td>명령 전송 및 2회 Reset 확인</td></tr>
+<tr><td>양수/음수 온도 데이터</td><td>RTL_SIM PASS</td><td>0x0191, 0xFF5E 읽기</td></tr>
+<tr><td>CRC 불일치</td><td>RTL_SIM PASS</td><td>오류 검출, 온도 갱신 거부</td></tr>
+<tr><td>센서 Presence 없음</td><td>RTL_SIM PASS</td><td>error_code 1</td></tr>
+<tr><td>AXI4-Lite/CPU 제어</td><td>미구현</td><td>후속 개발에서 분리</td></tr>
+<tr><td>Vivado 합성/타이밍</td><td>보류</td><td>실제 XPR 미검증</td></tr>
+<tr><td>Vitis 및 실물 센서</td><td>보류</td><td>실제 보드 데이터 미확인</td></tr>
+<tr><td>UVM</td><td>미실행</td><td>Verilog 자가검증 TB 사용</td></tr></table>
+<p><a href="https://github.com/Yuul-Jung/amd_soc/actions/workflows/p2-15-ds18b20-verification.yml">GitHub Actions 실제 자동 검증 실행 기록</a> · <a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/docs/P2_15_SIM_VERIFICATION_20261111.md">검증 보고서</a></p></section>
+<section class="section" id="s08"><h2><span class="num">08</span>후속 과제</h2>
+<p>15.1 기본 리셋·1bit 슬롯 → 15.2 온도 변환·9바이트 읽기 → 15.3 CRC·오류 처리 → 15.4 AXI4-Lite Register Map·MicroBlaze V 연결로 확장한다. 단일 센서뿐 아니라 다중 DS18B20 ROM Search 및 기생전원 모드는 별도 고급 과제로 분리한다.</p><p><a href="https://github.com/Yuul-Jung/amd_soc/blob/work/part02-second-half-20261110/part02/chapters/P2_15_Lesson/README.md">15장 소스 구성</a> · <a href="../part02_2/guide/ch14_i2c_lcd_v05.html">14장 I²C LCD</a></p></section><nav class="chapter-links" id="chapter-links" aria-label="이전·다음 장"></nav><section class="prof-card" id="prof-summary"><h2>교수용 수업 마무리 질문</h2><p>① DS18B20 1-Wire 타임슬롯·온도 계산의 실제 값/신호 흐름을 원본 RTL·C 코드의 변수·포트 이름으로 다시 설명합니다.</p><p>② 하드웨어 타이밍·전압·보정·안전 조건 가운데 실제 데이터시트로 확인해야 하는 항목은 무엇인가요?</p><p>③ 기존 RTL 단위 시험과 MicroBlaze V AXI 통합·합성·실물 검증 중 어떤 증거가 있는지 구분합니다.</p></section></main></div><footer class="footer">제2부 11~20장 통합 학습안내서 · 표준 v01 · 단위 시뮬레이션과 하드웨어 실증을 구분</footer><script>window.COURSE={"title":"Basys3 + MicroBlaze V · 제2부 11~20장","chapters":[{"id":"ch11","number":11,"title":"SG90 서보 모터 각도 제어","file":"../../easy02/ch11_teacher_v02.html"},{"id":"ch12","number":12,"title":"28BYJ-48 스테핑 모터 제어","file":"../../easy02/ch12_teacher_v02.html"},{"id":"ch13","number":13,"title":"MFRC522 SPI RFID 통신","file":"../../easy02/ch13_teacher_v02.html"},{"id":"ch14","number":14,"title":"PCF8574 I²C 문자 LCD","file":"../../easy02/ch14_teacher_v02.html"},{"id":"ch15","number":15,"title":"DS18B20 1-Wire 온도 측정","file":"ch15_ds18b20_v02.html"},{"id":"ch16","number":16,"title":"DS3231 I²C 실시간 시계","file":"../../easy02/ch16_teacher_v02.html"},{"id":"ch17","number":17,"title":"DHT22 온습도 통신","file":"../../easy02/ch17_teacher_v02.html"},{"id":"ch18","number":18,"title":"HC-SR501 PIR 인터럽트","file":"../../easy02/ch18_teacher_v02.html"},{"id":"ch19","number":19,"title":"BME280 복합 환경 제어","file":"../../easy02/ch19_teacher_v02.html"},{"id":"ch20","number":20,"title":"종합 RTL 통합·안전 인터록","file":"../../easy02/ch20_teacher_v02.html"}]};</script><script src="../part02_2/guide/assets/site.js" defer></script></body></html>
