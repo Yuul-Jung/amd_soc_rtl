@@ -25,3 +25,10 @@
 - **TB 설정:** `RESET_PERIOD=8`, `cfg_period=8`, `cfg_duty` 0·2·4·6·8, 10ns 클록, `cfg_polarity=0`, `cfg_enable=1`.
 - **학습 문법:** `task`, `function`, `repeat`, `for`, `wait`; 설정 요청·적용·관찰 흐름 분리.
 - **검증 수준:** HTML·본문·TB 포트 정적 검증 완료. Icarus 컴파일/실행·VCD·실브라우저는 **NOT_RUN**.
+
+## 제04장 · PASS/FAIL 자동 판정
+- **검증 DUT:** `part02_1/ch04/rtl/pwm_core.v`.
+- **원본 Blob SHA:** `e813f3fb107bd327054d11e0b397817b8e7bd813`.
+- **신규 파일:** `tb/ch04/tb_pwm_pass_fail.sv`, `scripts/run_ch04.sh`, `ch04_pass_fail_automation_v01.html`.
+- **조건:** `RESET_PERIOD=8`, `cfg_period=8`, 10ns 클록, 듀티 0·2·4·6·8.
+- **검증 상태:** 정적 포트·링크·문서 검사 완료, RTL_SIM **NOT_RUN** (시뮬레이터 미설치).
