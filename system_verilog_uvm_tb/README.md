@@ -1,7 +1,7 @@
 # RTL Testbench · SystemVerilog · UVM 검증 학습안내서
 
 - **전체 편성:** 독립 6부, 총 24장/48시간, 한 장은 60분 × 2회로 진행
-- **발행:** [INDEX](index.html) / [제01장](ch01_testbench_basics_v01.html) / [제02장](ch02_clock_reset_events_v01.html) / [제03장](ch03_reusable_stimulus_v01.html) / [제04장](ch04_pass_fail_automation_v01.html) / [제05장](ch05_verification_types_v01.html) / [제06장](ch06_arrays_queues_packages_v01.html) / [전체 편성](CURRICULUM.md)
+- **발행:** [INDEX](index.html) / [제01장](ch01_testbench_basics_v01.html) / [제02장](ch02_clock_reset_events_v01.html) / [제03장](ch03_reusable_stimulus_v02.html) / [제04장](ch04_pass_fail_automation_v02.html) / [제05장](ch05_verification_types_v02.html) / [제06장](ch06_arrays_queues_packages_v02.html) / [전체 편성](CURRICULUM.md)
 - **원본 RTL:** 제01장은 `part03/common/rtl/uart_echo_controller.v`, 제02~03장은 `part02_1/ch04/rtl/pwm_core.v`를 읽기 전용 DUT로 사용
 - **목표:** 문법 → Testbench → Self-checking → SVA/Coverage → UVM → Regression/CI
 - **상태:** 제01~06장 HTML·교육용 TB·실행 스크립트 발행. 제04장 RTL 시뮬레이션은 **NOT_RUN** (제작 환경에 Icarus 실행기 없음).
@@ -32,3 +32,8 @@ DUT_PATH=/실제/RTL/경로/pwm_core.v bash scripts/run_ch03.sh
 ```
 
 `.build/`는 로컬 생성물이며 GitHub에 올리지 않습니다. 온라인 학습안내서는 `index.html`로 시작합니다.
+
+## HTML 레이아웃·내비게이션 보정
+- 제03~06장 `_v02.html`: 누락된 `<main class="content" id="main-content">` 영역을 복구하고, 좌측 세부 절 탐색이 `main section[id]`를 정상 식별하도록 수정.
+- INDEX와 `course.json`을 최신 발행 장에 맞춰 동기화. 디자인·기존 RTL·실습 코드 변경 없음.
+- 실제 GitHub Pages HTTP 접속은 별도로 확인해야 하며, 저장소 파일 존재를 공개 사이트 정상 구동과 혼동하지 않는다.
