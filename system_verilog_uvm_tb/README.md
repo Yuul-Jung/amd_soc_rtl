@@ -37,3 +37,6 @@ DUT_PATH=/실제/RTL/경로/pwm_core.v bash scripts/run_ch03.sh
 - 제03~06장 `_v02.html`: 누락된 `<main class="content" id="main-content">` 영역을 복구하고, 좌측 세부 절 탐색이 `main section[id]`를 정상 식별하도록 수정.
 - INDEX와 `course.json`을 최신 발행 장에 맞춰 동기화. 디자인·기존 RTL·실습 코드 변경 없음.
 - 실제 GitHub Pages HTTP 접속은 별도로 확인해야 하며, 저장소 파일 존재를 공개 사이트 정상 구동과 혼동하지 않는다.
+
+## 좌측 목차 체계
+`PART(부) → CHAPTER(장) → SECTION(절)`의 계층을 사용합니다. 현재 페이지의 PART는 상단에 한 번만 표시하고, 해당 PART의 CHAPTER 아래 현재 장 SECTION을 들여씁니다. 전체 6개 PART와 24장 편성은 INDEX에서 확인할 수 있습니다. 공통 스타일의 로컬 확장으로 `assets/site.js`와 `assets/site.css`에서 구현합니다.
