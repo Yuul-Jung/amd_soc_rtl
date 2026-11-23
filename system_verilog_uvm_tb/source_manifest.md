@@ -47,3 +47,15 @@
 - **신규 파일:** `tb/ch06/uart_expect_pkg.sv`, `tb/ch06/tb_uart_arrays_queues.sv`, `scripts/run_ch06.sh`, `ch06_arrays_queues_packages_v01.html`.
 - **검증 범위:** packed/unpacked 인덱스, 4개 데이터 queue, ready/valid 수락, 패키지 타입 재사용.
 - **검증:** 정적 코드·문서·포트 검사. RTL_SIM **NOT_RUN** (현재 실행 환경에 Icarus/Verilator 없음).
+
+## 제07장 · interface·modport·clocking block
+- **검증 DUT:** `part03/common/rtl/uart_echo_controller.v` (기존 원본, 수정 없음)
+- **원본 Blob SHA:** `28160c34522e47fbd961466651598da063bc74ae`
+- **원본 계약:** rx_data_i→tx_data_o, rx_valid_i→tx_valid_o, tx_ready_i→rx_ready_o; 조합회로·클록 없음.
+- **새 interface:** `tb/ch07/uart_stream_if.sv`; 6개 신호, `modport TB/DUT`, `clocking cb`.
+- **새 TB:** `tb/ch07/tb_uart_interface.sv`; `uart_echo_bind`는 포트 연결 전용, `uart_stream_agent`는 구동·관찰.
+- **실행 스크립트:** `scripts/run_ch07.sh` (Verilator 옵션 `--binary --timing --trace`).
+- **배포 페이지:** `ch07_interface_modport_clocking_v01.html`.
+- **입력 계약:** tb_clk 10ns는 TB 샘플링 기준이며 원본 DUT에는 미연결. input #1step / output #0.
+- **시나리오:** A_ACCEPT → Z_STALL → Z_ACCEPT → IDLE (Ready/Valid 전송 대기 상태에서 데이터 유지).
+- **판정:** 포트·HTML·링크·실습 계획 정적 점검 완료. RTL_SIM **NOT_RUN** (실행 도구 미설치).
