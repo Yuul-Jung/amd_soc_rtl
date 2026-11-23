@@ -47,9 +47,7 @@ module tb_pwm_clock_reset;
 
     // 상승 에지 이후 1ns를 기다려 비차단 대입 결과를 읽는다.
     // #1은 하드웨어 지연이 아니라 테스트벤치 관찰용 시간 이동이다.
-    integer sample_count = 0;
     always @(posedge clk) begin
-        sample_count = sample_count + 1;
         #1;
         $display("POS t=%0t ns rst=%b apply=%b pending=%b period=%0d duty=%0d en=%b pwm=%b",
             $time, resetn, cfg_apply, pending,
