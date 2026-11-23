@@ -1,7 +1,7 @@
 # RTL Testbench → SystemVerilog → UVM → 실무 검증 · 6부 24장
 **기본 편성:** 총 48시간, 장별 2시간(60분 × 2), 신규 DUT 제작 최소화, 기존 RTL 검증.
 **교육 순서:** 검증 문법 → 자동 판정 → SystemVerilog → Assertion·Coverage → 인터페이스 검증 → UVM → 실무.
-**상태:** 제1~2장 v01 발행 / 제3~24장 본문 미발행. 아래는 교육과정 편성안.
+**상태:** 제1~3장 v01 발행 / 제4~24장 본문 미발행. 아래는 교육과정 편성안.
 
 ## 제1부 · Verilog 테스트벤치 기초
 파형 확인에서 자동 판정까지
@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 01 | 테스트벤치의 첫 실행 | module·initial·timescale·$display·$finish | 기존 UART Echo RTL에 입력을 주고 출력 관찰 |
 | 02 | Clock·Reset·이벤트 | always·#·posedge·negedge | PWM 클록·리셋과 시간 경계 |
-| 03 | 반복 자극과 작업 분리 | task·function·repeat·for·wait | PWM·FND 반복 입력 |
+| 03 | 반복 자극과 작업 분리 | task·function·repeat·for·wait | 기존 PWM 듀티 반복 입력·관찰 |
 | 04 | PASS/FAIL 자동 판정 | if·===·$error·$fatal | 기대값과 DUT 출력 자동 비교 |
 
 ## 제2부 · SystemVerilog 문법
