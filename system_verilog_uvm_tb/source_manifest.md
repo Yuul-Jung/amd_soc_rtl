@@ -39,3 +39,11 @@
 - **포트·시간 계약:** 조합 6포트, `rx_data_i→tx_data_o`, `rx_valid_i→tx_valid_o`, `tx_ready_i→rx_ready_o`. 클록·리셋 없음.
 - **신규 파일:** `tb/ch05/tb_uart_types.sv`, `scripts/run_ch05.sh`, `ch05_verification_types_v01.html`
 - **검증:** 정적 포트·링크·도식·문법 검토 완료. RTL_SIM **NOT_RUN** (시뮬레이터 미설치).
+
+## 제06장 · 배열·큐·패키지
+- **원본 DUT:** `part03/common/rtl/uart_echo_controller.v`
+- **원본 Blob SHA:** `28160c34522e47fbd961466651598da063bc74ae`
+- **포트 계약:** 6개 포트의 순수 조합 전달, 클록·리셋·FIFO 없음. TB 관찰용 `#1`은 DUT 지연 아님.
+- **신규 파일:** `tb/ch06/uart_expect_pkg.sv`, `tb/ch06/tb_uart_arrays_queues.sv`, `scripts/run_ch06.sh`, `ch06_arrays_queues_packages_v01.html`.
+- **검증 범위:** packed/unpacked 인덱스, 4개 데이터 queue, ready/valid 수락, 패키지 타입 재사용.
+- **검증:** 정적 코드·문서·포트 검사. RTL_SIM **NOT_RUN** (현재 실행 환경에 Icarus/Verilator 없음).
