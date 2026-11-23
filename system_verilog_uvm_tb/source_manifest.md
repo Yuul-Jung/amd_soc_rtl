@@ -32,3 +32,10 @@
 - **신규 파일:** `tb/ch04/tb_pwm_pass_fail.sv`, `scripts/run_ch04.sh`, `ch04_pass_fail_automation_v01.html`.
 - **조건:** `RESET_PERIOD=8`, `cfg_period=8`, 10ns 클록, 듀티 0·2·4·6·8.
 - **검증 상태:** 정적 포트·링크·문서 검사 완료, RTL_SIM **NOT_RUN** (시뮬레이터 미설치).
+
+## 제05장 · SystemVerilog 검증 자료형
+- **원본 DUT:** `part03/common/rtl/uart_echo_controller.v`
+- **원본 Blob SHA:** `28160c34522e47fbd961466651598da063bc74ae`
+- **포트·시간 계약:** 조합 6포트, `rx_data_i→tx_data_o`, `rx_valid_i→tx_valid_o`, `tx_ready_i→rx_ready_o`. 클록·리셋 없음.
+- **신규 파일:** `tb/ch05/tb_uart_types.sv`, `scripts/run_ch05.sh`, `ch05_verification_types_v01.html`
+- **검증:** 정적 포트·링크·도식·문법 검토 완료. RTL_SIM **NOT_RUN** (시뮬레이터 미설치).
