@@ -571,3 +571,44 @@ pre code {
     height: auto;
   }
 }
+
+/* 12. 본 과정 전용 PART > CHAPTER > SECTION 좌측 계층 표기.
+ * 중앙 HTML 교육 표준의 테마·고정 탐색·코드 복사 규격은 그대로 유지한다.
+ */
+.course-part-heading {
+  margin: 3px 0 12px;
+  padding: 11px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--soft);
+  border-left: 3px solid var(--accent);
+  line-height: 1.4;
+}
+.course-part-code {
+  font: 600 0.75rem "IBM Plex Mono", monospace;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+.course-part-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.toc .course-ch-links > .course-toc-heading {
+  margin: 8px 0 4px 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.toc .course-nested-sections {
+  margin: 0 0 9px 26px;
+  padding-left: 6px;
+  border-left: 1px solid var(--line);
+}
+.toc .course-nested-sections a {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  padding: 6px 5px;
+  overflow-wrap: anywhere;
+}
