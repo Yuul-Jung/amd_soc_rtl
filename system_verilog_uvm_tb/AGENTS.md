@@ -9,3 +9,11 @@
 7. INDEX는 발행된 장만 링크, 계획된 장에 깨진 링크 금지. 각 장별 버전 `_vNN.html`.
 8. 1장 2시간은 60분 단위 두 구간으로 구성, 코드·실행 결과·구문별 풀이·검증 순서 유지.
 9. 민감정보·계정·로컬 절대경로·토큰·비공개 소스를 공개 결과물에 포함하지 않는다.
+
+## 배포 HTML의 좌측 3계층 목차 (필수)
+- **PART(부) → CHAPTER(장) → SECTION(절)** 순서로 표시한다. PART는 CHAPTER보다 상위, SECTION은 현재 CHAPTER 아래의 하위 목록이다.
+- 각 장에서 **현재 PART를 좌측 상단에 한 번만 표시**한다. 같은 부에 속한 CHAPTER만 아래에 배치하고, 현재 CHAPTER 바로 아래에 해당 페이지의 SECTION을 들여써 표시한다.
+- INDEX는 현재 PART가 없는 특수 페이지로서 `ALL 6 PARTS`를 한 번 표시하고, 본문에 6개 PART와 24개 CHAPTER 목차를 유지한다.
+- 현재 부는 4장씩 소속한다: PART 01 = CH01~04, PART 02 = CH05~08, ... PART 06 = CH21~24. `CURRICULUM.md`의 부 제목과 좌측 제목을 반드시 일치시킨다.
+- 기존 `assets/site.js`의 PART 계층·절 중첩, `assets/site.css`의 `.course-part-*`·`.course-nested-sections`는 중앙 `rule_md`를 동기화할 때도 임의 덮어쓰지 않는다. 중앙 교육용 기본 스타일을 보존한 **과정 전용 확장**이다.
+- 이전/다음 장 이동, INDEX 복귀, 모바일 서랍, 절 스크롤 강조, 코드 복사는 계속 유지한다. 새 장 제작 후 좌측 **PART 한 개·동일 부 CHAPTER·현재 장 SECTION**을 함께 검증한다.
