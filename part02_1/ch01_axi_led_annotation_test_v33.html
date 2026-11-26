@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="제2부 01장 · 제1부 11장 SoC 기반 사용자 AXI LED IP 실습">
+<title>제2부 01장 · 사용자 AXI LED IP · 실습안내서 v01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/education/site.css">
+<link rel="stylesheet" href="../assets/education/site-theme.css">
+<style>
+.content img,.content svg{max-width:100%;height:auto}
+.content .tablewrap{width:100%;max-width:100%;overflow-x:auto}
+.content .section pre{white-space:pre;max-width:100%;overflow-x:auto}
+.content .section figure{margin:18px 0}
+.content .section figcaption{font-size:.85rem;color:#4a4f5a;text-align:center}
+.content .steps{padding-left:24px}
+.content .steps li{margin:14px 0}
+.content .caution{border-left:3px solid #b47614;padding:12px 15px;background:#fff5e2}
+.content .code-full code{font-size:.82rem;line-height:1.6}
+.content .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.content .panel{border:1px solid #dddfd8;padding:12px;min-width:0}
+.content .tag{display:inline-block;color:#4635b1;font-weight:700;font-size:.78rem}
+.content .checks label{display:block;margin:9px 0}
+.content .codeblock pre{max-height:650px}
+</style>
+</head><body data-chapter="ch01">
+<a class="skip-link" href="#main-content">본문 바로가기</a>
+<button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button>
+<div class="shade" id="shade"></div>
+<header class="hero"><div class="hero-inner"><p class="kicker">PART 02 · CHAPTER 01</p>
+<h1>제2부 01장 · 사용자 AXI LED IP</h1>
+<p>MicroBlaze V → AXI4-Lite → 사용자 LED IP → Basys3 LED0</p>
+<div class="chips"><span class="chip">MicroBlaze V</span><span class="chip">AXI4-Lite</span><span class="chip">RTL · Vitis C</span></div>
+</div></header>
+<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav>
+<main class="content" id="main-content">
+<section class="section" id="start"><h2><span class="num">00</span>선수학습</h2>
+<p>제1부 11장의 사용자 Top과 AXI 주변장치가 연결된 SoC를 기준으로 새 실습 프로젝트를 구성합니다.</p>
+<p><a href="../part01/chapters/11_user_top_io_remap.html">제1부 11장 · 사용자 Top</a> ·
+<a href="index.html">제2부 01~10장 목차</a></p></section>
+<section class="section" id="overview"><h2>1. 과제 개요</h2><p>제1부 11장의 MicroBlaze V SoC를 바탕으로 <strong>사용자 AXI4-Lite LED IP</strong>를 제작합니다. PC 터미널에서 <code>LED ON</code> 또는 <code>LED OFF</code>를 입력하면 CPU가 사용자 IP의 REG0에 값을 기록하고, 해당 레지스터 bit0이 Basys3의 LED0을 제어합니다.</p><p>최종 동작: <code>LED ON</code> → LED0 점등, <code>LED OFF</code> → LED0 소등, <code>STATUS</code> → LED 상태와 레지스터 값 출력.</p></section>
+<section class="section" id="io"><h2>2. 입력·출력 정의</h2><div class="tablewrap"><table><thead><tr><th>구분</th><th>신호·명령</th><th>기능</th></tr></thead><tbody><tr><td>PC 입력</td><td><code>LED ON</code>, <code>LED OFF</code>, <code>STATUS</code> + Enter</td><td>UART 문자열 명령</td></tr><tr><td>보드 입력</td><td><code>clk</code>, <code>btnC</code>, <code>sw[15:0]</code>, <code>RsRx</code></td><td>기존 시스템 클록·리셋·스위치·UART 수신 연결</td></tr><tr><td>AXI 입력</td><td><code>S00_AXI</code>, <code>REG0</code> (offset <code>0x00</code>)</td><td>CPU가 32비트 레지스터에 기록하며 bit0이 LED0 출력값</td></tr><tr><td>신규 IP 출력</td><td><code>led_o</code> → <code>p2_led_o</code> → <code>led[0]</code></td><td>사용자 AXI LED IP의 단일 비트 출력</td></tr><tr><td>기존 출력</td><td><code>gpio_led[15:1]</code> → <code>led[15:1]</code></td><td>기존 AXI GPIO LED 출력 배선 유지</td></tr><tr><td>PC 출력</td><td><code>RsTx</code></td><td>UART 명령 처리 결과 및 REG0 읽기값 전송</td></tr></tbody></table></div></section>
+<section class="section" id="architecture"><h2>3. 전체 동작 구조</h2><figure class="architecture-figure"><img src="assets/P2_01_AXI_LED_Block_Diagram.svg" alt="PC UART → MicroBlaze V → AXI4-Lite → 사용자 LED IP → LED0, 기존 GPIO → LED1~15 경로"><figcaption>LED0 제어 경로와 기존 LED1~15 경로를 분리한 전체 연결 구조</figcaption></figure><p>CPU는 레지스터 값을 기록하고, IP는 저장된 bit0 값을 LED0으로 출력합니다. <code>STATUS</code> 명령에서는 레지스터를 다시 읽어 UART에 결과를 표시합니다.</p></section>
+<section class="section" id="features"><h2>4. 기존 기능과 추가 기능</h2><div class="tablewrap"><table><thead><tr><th>구분</th><th>구성</th></tr></thead><tbody><tr><td>기존 SoC 유지</td><td>MicroBlaze V, BRAM, 기존 AXI GPIO·UART·Timer·INTC 하드웨어 및 보드 연결</td></tr><tr><td>신규 RTL</td><td><code>p2_01_axi_led</code> 사용자 AXI4-Lite IP의 레지스터 출력 <code>led_o</code></td></tr><tr><td>Top 연결 변경</td><td>LED0은 새 IP에서, LED1~15는 기존 GPIO에서 연결</td></tr><tr><td>신규 C 명령</td><td><code>LED ON</code>, <code>LED OFF</code>, <code>STATUS</code></td></tr></tbody></table></div></section>
+<section class="section" id="s02"><h2>01. 기존 SoC 프로젝트 복제</h2><ol class="steps"><li>Vivado에서 제1부 11장 프로젝트 <code>soc11_user_top.xpr</code>을 엽니다.</li><li><strong>File → Project → Save As</strong>를 선택합니다.</li><li>Project Name은 <code>soc_ip_design_01</code>, 저장 위치는 <code>~/soc/hw/</code>로 지정합니다.</li><li><strong>Create Project Subdirectory</strong>를 선택하고, 소스 복사 옵션이 제공되면 기존 소스를 새 프로젝트로 복사합니다.</li><li>새 <code>soc_ip_design_01</code> 프로젝트에서 기존 <code>soc11_integration.bd</code>와 <code>basys3_soc11_top</code>이 정상적으로 열리는지 확인합니다.</li></ol></section>
+<section class="section" id="s04"><h2>02. AXI4-Lite Peripheral 생성</h2><ol class="steps"><li><strong>IP Wizard 시작</strong><p>새 XPR을 연 상태에서 <b>Tools → Create and Package New IP</b> → Next → <b>Create a new AXI4 Peripheral</b> 선택.</p></li><li><strong>이름·위치 지정</strong><p>Name <code>p2_01_axi_led</code>, Version <code>1.0</code>, IP Location <code>~/soc/hw/soc_ip_design_01/ip_repo</code>.</p></li><li><strong>AXI 인터페이스 설정</strong><p>Interface <code>S00_AXI</code>, Type <code>Lite</code>, Mode <code>Slave</code>, Data Width <code>32</code>, Number of Registers <code>4</code>. Target Language는 Verilog로 확인로 지정.</p></li><li><strong>편집 프로젝트 열기</strong><p>Wizard의 Create/Package 단계에서 <b>Edit IP</b>를 선택하거나, IP Catalog에서 해당 IP를 우클릭해 <b>Edit in IP Packager</b>를 엽니다.</p></li></ol>
+</section>
+<section class="section" id="s05"><h2>03. 기존 AXI 템플릿에 LED 출력 추가</h2><p>자동 생성된 두 RTL 파일을 열어 다음을 추가합니다. 위치·코드 설명은 AXI RTL 해설에서 확인합니다.</p><div class="tablewrap"><table><thead><tr><th>파일</th><th>추가할 내용</th></tr></thead><tbody><tr><td><code>p2_01_axi_led_v1_0.v</code></td><td>출력 포트 <code>led_o</code>, 하위 S00_AXI 인스턴스 연결 <code>.led_o(led_o)</code></td></tr><tr><td><code>p2_01_axi_led_v1_0_S00_AXI.v</code></td><td>출력 포트 <code>led_o</code>, <code>assign led_o = slv_reg0[0];</code></td></tr></tbody></table></div><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>output wire led_o,  // 모듈 포트에 1회 선언
+
+.led_o(led_o),       // 최상위에서 하위 AXI 모듈 연결
+
+assign led_o = slv_reg0[0]; // 하위 AXI 모듈 내부 출력 연결</code></pre></div><p>이 세 조각을 같은 위치에 연속해서 붙이는 것이 아닙니다. <b>각 코드의 정확한 삽입 위치를 별도 해설에서 확인</b>합니다.</p>
+<h3>포트를 수정하는 실제 위치</h3>
+<ol class="steps">
+<li><strong>상위 모듈: 출력 포트 선언</strong><p><code>p2_01_axi_led_v1_0.v</code>의 <code>module</code> 포트 목록 첫 항목에 <code>output wire led_o,</code>를 추가합니다.</p></li>
+<li><strong>상위 모듈: 하위 인스턴스 연결</strong><p>기존 <code>p2_01_axi_led_v1_0_S00_AXI</code> 인스턴스의 포트 목록 첫 항목에 <code>.led_o(led_o),</code>를 추가합니다.</p></li>
+<li><strong>하위 모듈: 출력 포트 선언</strong><p><code>p2_01_axi_led_v1_0_S00_AXI.v</code>의 포트 목록 첫 항목에 <code>output wire led_o,</code>를 추가합니다.</p></li>
+<li><strong>하위 모듈: 레지스터 배선</strong><p><code>slv_reg0</code> 선언 확인 후 <code>always</code> 바깥에 <code>assign led_o = slv_reg0[0];</code>를 추가합니다.</p></li>
+</ol>
+<p>쉼표 위치는 <b>실제 선언부/인스턴스의 첫 항목 앞에 삽입할 때</b>를 기준으로 설명했습니다. 다른 위치에 넣으면 쉼표를 조정해야 합니다. Vivado에서 생성된 소스와 이름이 다르면 삽입하지 않습니다.</p>
+
+</section>
+<section class="section" id="s06"><h2>04. IP 재패키징·Catalog 확인</h2><ol class="steps"><li><strong>수정 소스 저장</strong><p>IP 편집 프로젝트에서 두 RTL 파일을 저장하고 Syntax 오류를 확인합니다.</p></li><li><strong>Re-Package</strong><p>IP Packager → Review and Package → <b>Re-Package IP</b> 실행.</p></li><li><strong>원래 프로젝트에서 갱신</strong><p><code>soc_ip_design_01.xpr</code> 프로젝트로 돌아와 IP Repository와 IP Catalog를 갱신합니다.</p></li></ol></section>
+<section class="section" id="s07"><h2>05. Block Design에 사용자 IP 연결</h2><ol class="steps"><li><strong>BD 열기</strong><p>Sources → <code>soc11_integration.bd</code> 더블클릭.</p></li><li><strong>IP 추가</strong><p>Block Design에서 Add IP → <code>p2_01_axi_led</code> 검색·추가.</p></li><li><strong>AXI 연결</strong><p><b>Run Connection Automation</b>에서 신규 Slave를 기존 CPU의 AXI 주소 경로에 연결합니다. Clock/Reset 연결은 실제 기존 100MHz AXI 도메인에 맞춥니다.</p></li><li><strong>LED 출력 외부화</strong><p>신규 IP의 <code>led_o</code> → 우클릭 <b>Make External</b> → 외부 포트명 <code>p2_led_o</code>.</p></li><li><strong>주소 확인</strong><p>Address Editor에서 새 IP Segment 주소를 배정하고 실제 Base Address를 기록 → Validate Design.</p></li></ol></section>
+<section class="section" id="bdmap"><div class="tag">B · BD 확인표</div><h2>AXI IP 연결 완료 후 구조 대조</h2>
+
+<div class="tablewrap"><table><thead><tr><th>시작</th><th>도착</th><th>무엇을 확인할까?</th></tr></thead><tbody>
+<tr><td>기존 MicroBlaze V AXI 주소 경로</td><td>신규 <code>p2_01_axi_led/S00_AXI</code></td><td>기존 인터커넥트에 매핑, Address Editor 주소 존재</td></tr>
+<tr><td>기존 AXI Clock</td><td>신규 IP <code>s00_axi_aclk</code></td><td>BD에서 같은 클록 도메인 사용</td></tr>
+<tr><td>기존 AXI Reset</td><td>신규 IP <code>s00_axi_aresetn</code></td><td>극성과 클록 연관성 확인</td></tr>
+<tr><td>IP <code>led_o</code></td><td>BD external <code>p2_led_o</code></td><td>출력 포트 1비트·단일 구동 확인</td></tr>
+<tr><td>Wrapper <code>p2_led_o</code></td><td>Top <code>ip_led0</code></td><td>실제 생성 Wrapper 선언부에 새 포트 존재</td></tr>
+</tbody></table></div>
+<h3>Top 배선 비교</h3>
+<div class="grid"><div class="panel"><h3>변경 전</h3><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>soc11_integration_wrapper
+  .led_tri_o(led)         // LED0~15
+  .sw_tri_i(sw)
+  .UART_0_rxd(RsRx)
+  .UART_0_txd(RsTx)</code></pre></div></div>
+<div class="panel"><h3>변경 후</h3><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>wire [15:0] gpio_led;
+wire        ip_led0;
+assign led = {gpio_led[15:1], ip_led0};
+
+soc11_integration_wrapper
+  .led_tri_o(gpio_led)
+  .p2_led_o(ip_led0)</code></pre></div></div></div>
+</section>
+
+<section class="section" id="s08"><h2>06. Wrapper 재생성·사용자 Top 교체</h2><ol class="steps"><li><strong>Output Products 갱신</strong><p>변경된 <code>soc11_integration.bd</code>를 저장하고 <b>Generate Output Products</b>를 실행. Wrapper는 Vivado 자동 관리형으로 갱신합니다.</p></li><li><strong>새 Top 교체</strong><p>새 프로젝트의 <code>basys3_soc11_top.v</code>를 열고 제2부 01장 사용자 Top 전체 소스로 바꿉니다. <b>원본 프로젝트 파일은 열어 수정하지 않습니다.</b></p></li><li><strong>Set as Top</strong><p>Sources에서 <code>basys3_soc11_top</code> 오른쪽 클릭 → Set as Top. Elaborated Design에서 포트 오류를 점검합니다.</p></li><li><strong>XDC 확인</strong><p>기존 제1부 11장 Top과 동일한 외부 포트 이름이므로 기존 Top용 XDC를 재사용합니다. 중복 XDC 활성화 여부와 LED0 핀 제약을 확인합니다.</p></li></ol><p>아래는 <b>BD의 <code>p2_led_o</code> 포트를 생성·갱신한 뒤에만</b> 적용하는 최종 Top 코드입니다. Wrapper 갱신 이전에는 이 파일을 적용하지 않습니다.</p><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>// 제2부 01장(P2-01) 사용자 Top — 보드 연결 전용
+// (변경) LED0을 신규 AXI IP 단독 출력에 연결한다.
+// (유지) LED1~15, SW, UART, Clock, Reset은 기존 Wrapper에 연결한다.
+module basys3_soc11_top (
+    input  wire        clk,     // Basys3 100 MHz: W5
+    input  wire        btnC,    // 기존 시스템 Reset: U18
+    input  wire [15:0] sw,      // 기존 스위치 입력
+    output wire [15:0] led,     // 내장 LED[15:0]
+    input  wire        RsRx,    // PC -&gt; FPGA UART
+    output wire        RsTx     // FPGA -&gt; PC UART
+);
+    wire [15:0] gpio_led;       // 기존 AXI GPIO 출력, bit0은 미사용
+    wire        ip_led0;        // 새 사용자 AXI IP 출력
+
+    // (변경) 결합된 신호를 보드 출력에 연결한다.
+    // LED[15:1]은 gpio_led[15:1], LED[0]은 ip_led0으로 연결.
+    // 연산이나 상태 결정이 아닌 단순 배선이다.
+    assign led = {gpio_led[15:1], ip_led0};
+
+    soc11_integration_wrapper u_soc11 (
+        .clk(clk),
+        .btnC(btnC),
+        .sw_tri_i(sw),
+        .led_tri_o(gpio_led),
+        .UART_0_rxd(RsRx),
+        .UART_0_txd(RsTx),
+        .p2_led_o(ip_led0)       // BD에서 외부화한 포트; 생성 Wrapper와 대조
+    );
+endmodule
+</code></pre></div></section>
+<section class="section" id="s09"><h2>07. Synthesis·Implementation·XSA</h2><ol class="steps"><li><strong>Synthesis</strong><p>Run Synthesis 실행. 경고와 오류 메시지를 확인합니다.</p></li><li><strong>Implementation</strong><p>Run Implementation → Open Implemented Design → Timing Summary와 DRC 확인.</p></li><li><strong>Bitstream</strong><p>Generate Bitstream 실행.</p></li><li><strong>XSA</strong><p>File → Export → Export Hardware → Include Bitstream을 선택합니다.</p></li></ol></section>
+<section class="section" id="s10"><h2>08. 새 Platform 생성</h2><ol class="steps"><li><strong>Platform 생성</strong><p>Vitis Unified IDE 2024.2 → File → New Component → Platform. 새 이름 <code>soc_ip_design_01_platform</code>.</p></li><li><strong>하드웨어 지정</strong><p>Hardware Design에서 이번 장 새 XSA 선택, OS <code>standalone</code>, CPU는 실제 <code>microblaze_riscv_0</code> 선택.</p></li><li><strong>Build</strong><p>Platform → Flow → Build.</p></li></ol></section>
+<section class="section" id="s11"><h2>09. 새 Application·main.c 입력</h2><ol class="steps"><li><strong>Application 생성</strong><p>File → New Component → Application → <code>soc_ip_design_01_app</code>. 새 Platform 및 standalone Domain 선택.</p></li><li><strong>소스 입력</strong><p>C 전체 소스를 새 App의 <code>src/main.c</code>에 붙여넣고 저장합니다.</p></li><li><strong>주소 입력</strong><p>Vivado Address Editor의 Base Address를 <code>USER_IP_BASEADDR</code>에 기록합니다. 미설정 <code>0xFFFFFFFFU</code>면 의도적으로 컴파일 중단됩니다.</p></li><li><strong>BSP 대조</strong><p>새 Platform의 <code>xparameters.h</code>에서 UART Lite Base Address 매크로 존재를 확인합니다.</p></li><li><strong>Build</strong><p>Application → Flow → Build.</p></li></ol>
+<h3>주소 설정 예시 — 실제 값과 구분</h3>
+<p>다음 두 자료가 서로 같은 주소를 가리키는지 검사합니다.</p>
+<div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>// main.c의 자리표시자 — 이 값 그대로는 컴파일되지 않음
+#define USER_IP_BASEADDR 0xFFFFFFFFU
+
+// 변경 후 작성 예: 아래 값은 시연용이며 실제 주소가 아님
+// #define USER_IP_BASEADDR 0x44A00000U</code></pre></div>
+<p>실제 값은 <b>Vivado Address Editor</b>에서 신규 Slave의 Base Address를 확인하고, 새 Platform의 <code>xparameters.h</code>에서 해당 주변장치 매크로와 대조합니다. 예시 주소를 그대로 붙여넣으면 다른 IP에 잘못 기록할 수 있으므로 금지합니다.</p>
+<p><code>main.c</code>의 <code>#error</code>는 주소 미설정 상태에서 실수로 ELF를 만드는 것을 막는 안전장치입니다.</p>
+<h3>문자열을 처리하는 실제 순서</h3>
+<div class="tablewrap"><table><thead><tr><th>처리 단계</th><th>입력·중간 상태</th><th>이해할 점</th></tr></thead><tbody>
+<tr><td>1. 수신</td><td>문자 <code>L</code>, <code>E</code>, <code>D</code>, <code> </code>, <code>O</code>, <code>N</code> 순서</td><td>UART는 한 번에 1바이트씩 수신</td></tr>
+<tr><td>2. Enter</td><td><code>line = "LED ON"</code>의 끝에 <code>\0</code> 기록</td><td>C 문자열은 종료문자가 필요</td></tr>
+<tr><td>3. 비교</td><td><code>strcmp(line, "LED ON") == 0</code></td><td>동일한 문자열일 때 0 반환</td></tr>
+<tr><td>4. 기록</td><td><code>Xil_Out32(BASE + 0x00, 1U)</code></td><td>CPU가 REG0에 값 1 기록</td></tr>
+<tr><td>5. 하드웨어</td><td><code>slv_reg0[0]</code> → <code>led_o</code></td><td>AXI 쓰기 후 레지스터 bit0이 핀 제어</td></tr>
+<tr><td>6. 확인</td><td><code>Xil_In32(BASE + 0x00)</code></td><td>레지스터를 다시 읽어 UART 응답</td></tr>
+</tbody></table></div>
+</section>
+<section class="section code-full" id="vitis-full-source"><h2>Vitis C 전체 코드 — P2_01_main.c</h2><p>새 Application의 <code>src/main.c</code>에 적용합니다. <code>USER_IP_BASEADDR</code>는 Vivado Address Editor와 생성된 BSP의 실제 주소로 설정합니다.</p><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>/* P2-01: UART 문자열 명령으로 사용자 AXI IP의 LED0를 제어한다. */
+#include "xparameters.h"   /* Vitis BSP의 하드웨어 주소 정의 */
+#include "xil_types.h"     /* u8(8비트), u32(32비트) 자료형 */
+#include "xil_io.h"        /* Xil_In32(), Xil_Out32() */
+#include "xuartlite_l.h"   /* XUartLite_RecvByte(), SendByte() */
+#include &lt;string.h&gt;        /* strcmp(): 두 문자열 비교 */
+
+/* (필수 수정) Vivado Address Editor의 사용자 IP 주소를 입력한다. */
+#ifndef USER_IP_BASEADDR
+#define USER_IP_BASEADDR   0xFFFFFFFFU
+#endif
+#if USER_IP_BASEADDR == 0xFFFFFFFFU
+#error "USER_IP_BASEADDR를 실제 Vivado AXI IP Base Address로 수정하세요"
+#endif
+
+#define LED_REG_OFFSET    0x00U  /* slv_reg0: bit0가 LED0 출력 */
+#define LINE_CAPACITY     32U    /* 최대 31문자 + 종료문자 */
+
+/* 제1부에서 사용한 AXI UART Lite를 재사용한다. */
+#if defined(XPAR_XUARTLITE_0_BASEADDR)
+#define UART_BASEADDR XPAR_XUARTLITE_0_BASEADDR
+#elif defined(XPAR_UARTLITE_0_BASEADDR)
+#define UART_BASEADDR XPAR_UARTLITE_0_BASEADDR
+#elif defined(XPAR_AXI_UARTLITE_0_BASEADDR)
+#define UART_BASEADDR XPAR_AXI_UARTLITE_0_BASEADDR
+#else
+#error "xparameters.h에서 UART Lite BASEADDR 매크로를 확인하세요"
+#endif
+
+/* 문자열의 각 문자를 UART로 보낸다. */
+static void uart_puts(const char *text)
+{
+    while (*text != '\0') {  /* '\0': 문자열의 끝 */
+        XUartLite_SendByte(UART_BASEADDR, (u8)*text);
+        text++;
+    }
+}
+
+/* u32 값을 8자리 16진수 문자열로 출력한다. */
+static void uart_hex32(u32 value)
+{
+    const char digits[] = "0123456789ABCDEF";
+    int shift;
+    for (shift = 28; shift &gt;= 0; shift -= 4) {
+        u8 nibble = (u8)((value &gt;&gt; shift) &amp; 0x0FU);
+        XUartLite_SendByte(UART_BASEADDR, (u8)digits[nibble]);
+    }
+}
+
+/* REG0 읽기값에서 LED0 상태를 해석해 출력한다. */
+static void report_status(const char *prefix)
+{
+    u32 value = Xil_In32(USER_IP_BASEADDR + LED_REG_OFFSET);
+    uart_puts(prefix);
+    uart_puts((value &amp; 1U) ? "LED=ON REG0=0x" : "LED=OFF REG0=0x");
+    uart_hex32(value);
+    uart_puts("\r\n");
+}
+
+/* Enter까지 입력받는다. 반환: 1=명령, 0=빈 줄, -1=초과, -2=제어문자. */
+static int read_command_line(char *line, u32 capacity)
+{
+    u32 used = 0U;
+    int overflow = 0;
+    int invalid = 0;  /* NUL 등 제어문자 포함 명령 거부 */
+    while (1) {
+        u8 ch = XUartLite_RecvByte(UART_BASEADDR); /* 1바이트 대기 수신 */
+        if (ch == (u8)'\r' || ch == (u8)'\n') {
+            line[used] = '\0';       /* 항상 문자열을 종료한다. */
+            if (overflow) return -1; /* 버퍼 밖에 쓰지 않는다. */
+            if (invalid) return -2;  /* 제어문자가 포함되면 거부 */
+            return used ? 1 : 0;
+        }
+        if (ch &lt; (u8)0x20U || ch &gt; (u8)0x7EU) {
+            invalid = 1;  /* 출력 가능한 ASCII만 허용 */
+            continue;
+        }
+        if (used &lt; capacity - 1U) {
+            line[used++] = (char)ch;
+        } else {
+            overflow = 1; /* Enter 전까지 초과 문자를 버린다. */
+        }
+    }
+}
+
+/* 문자열을 비교한 후 AXI 레지스터에 기록하거나 읽는다. */
+static void handle_command(const char *line)
+{
+    if (strcmp(line, "LED ON") == 0) {
+        Xil_Out32(USER_IP_BASEADDR + LED_REG_OFFSET, 1U);
+        report_status("OK ");
+    } else if (strcmp(line, "LED OFF") == 0) {
+        Xil_Out32(USER_IP_BASEADDR + LED_REG_OFFSET, 0U);
+        report_status("OK ");
+    } else if (strcmp(line, "STATUS") == 0) {
+        report_status("STATUS ");
+    } else {
+        uart_puts("ERROR: use LED ON / LED OFF / STATUS\r\n");
+    }
+}
+
+int main(void)
+{
+    char line[LINE_CAPACITY]; /* ASCII 명령을 저장할 문자 배열 */
+    int result;
+    uart_puts("\r\nP2-01 AXI LED CONTROL\r\n");
+    uart_puts("Commands: LED ON | LED OFF | STATUS (Enter)\r\n");
+    report_status("STATUS ");
+
+    while (1) {
+        result = read_command_line(line, LINE_CAPACITY);
+        if (result &gt; 0) {
+            handle_command(line);
+        } else if (result == -2) {
+            uart_puts("ERROR: invalid character\r\n");
+        } else if (result &lt; 0) {
+            uart_puts("ERROR: command too long (max 31)\r\n");
+        }
+        /* 빈 줄 및 CRLF의 두 번째 줄바꿈은 무시한다. */
+    }
+}
+</code></pre></div></section><section class="section" id="s13"><h2>10. Basys3 연결·UART 설정</h2><ol class="steps"><li><strong>USB 케이블</strong><p>Basys3와 Ubuntu PC를 USB 데이터 케이블로 연결하고 보드 전원 확인.</p></li><li><strong>시리얼 포트 확인</strong><p><code>ls -l /dev/ttyUSB* 2&gt;/dev/null</code> 명령으로 포트 후보를 확인하고 제1부 11장의 사용 포트와 비교합니다.</p></li><li><strong>터미널 열기</strong><p>moserial 또는 minicom에서 Baud 115200, 8 data bits, No parity, 1 stop bit, No flow control 설정. Local Echo 중복 여부를 확인합니다.</p></li><li><strong>프로그램 실행</strong><p>Vitis의 신규 Bitstream + 신규 ELF를 지정해 Program Device 및 Run/Resume.</p></li></ol></section>
+<section class="section" id="s14"><h2>11. 문자열 명령으로 LED0 확인</h2><ol class="steps"><li><strong>LED ON</strong><p>터미널에서 <code>LED ON</code> 입력 후 Enter.</p></li><li><strong>STATUS</strong><p><code>STATUS</code> 입력 후 Enter.</p></li><li><strong>LED OFF</strong><p><code>LED OFF</code> 입력 후 Enter.</p></li><li><strong>오타 시험</strong><p><code>LEDON</code> 입력 후 Enter.</p></li><li><strong>경계 시험</strong><p>빈 Enter, CRLF, 31자 초과 긴 입력을 시험합니다.</p></li></ol><div class="codeblock"><div class="codebar"><span>원본 코드</span></div><pre><code>P2-01 AXI LED CONTROL
+Commands: LED ON | LED OFF | STATUS (Enter)
+STATUS LED=OFF REG0=0x00000000
+OK LED=ON REG0=0x00000001
+STATUS LED=ON REG0=0x00000001
+OK LED=OFF REG0=0x00000000
+ERROR: use LED ON / LED OFF / STATUS</code></pre></div></section><section class="section" id="troubleshoot"><div class="tag">D · 오류 점검</div><h2>증상별 원인 확인</h2><div class="tablewrap"><table><thead><tr><th>증상</th><th>우선 확인</th></tr></thead><tbody><tr><td>XPR 또는 BD 누락</td><td>Save As 위치·파일 복사·원본 절대경로</td></tr><tr><td>IP Catalog에 없음</td><td>IP repo 설정·component.xml·Re-Package</td></tr><tr><td>Top 연결 포트 오류</td><td>Wrapper에 실제 <code>p2_led_o</code>가 존재하는지</td></tr><tr><td>LED0 동작 없음</td><td><code>slv_reg0[0]</code> → <code>led_o</code> → <code>p2_led_o</code> → <code>led[0]</code> 경로</td></tr><tr><td>UART 시작 문구 없음</td><td>실제 포트·115200 8N1·새 ELF·CPU Run</td></tr><tr><td>빌드 중 <code>#error</code></td><td>IP Base Address·UART BSP 매크로 확인</td></tr><tr><td>명령을 써도 응답 없음</td><td>Enter 설정·명령 대소문자·CPU Run·AXI 주소</td></tr><tr><td>AXI 경고·타이밍 오류</td><td>실제 소스와 BD Clock/Reset·XDC 중복 제약</td></tr></tbody></table></div>
+<h3>문자열 반례 — LED 상태를 바꾸면 안 되는 입력</h3>
+<div class="tablewrap"><table><thead><tr><th>입력</th><th>기대 응답</th><th>상태</th></tr></thead><tbody>
+<tr><td><code>led on</code>, <code>LEDON</code>, <code>LED ON </code></td><td><code>ERROR: use ...</code></td><td>REG0/LED0 불변</td></tr>
+<tr><td>빈 Enter, CRLF의 두 번째 종료 문자</td><td>별도 응답 없음</td><td>REG0/LED0 불변</td></tr>
+<tr><td>32자 이상 한 줄 입력</td><td><code>ERROR: command too long (max 31)</code></td><td>Enter까지 버린 뒤 정상 명령 재대기</td></tr>
+<tr><td>제어문자 포함</td><td><code>ERROR: invalid character</code></td><td>REG0/LED0 불변</td></tr>
+</tbody></table></div>
+<p>UART 터미널의 CR/LF 설정은 한 줄 종료와 직접 연결됩니다. 입력 자체가 전송되지 않으면 PC의 Port, Local Echo/Transmit Newline 설정도 확인합니다.</p>
+</section><section class="section" id="accept"><div class="tag">D · 동작 확인</div><h2>01장 동작 확인 목록</h2><div class="checklist"><label><input type="checkbox"/> 복제한 프로젝트에서 기존 BD·Top 연결 확인</label><label><input type="checkbox"/> 새 IP의 <code>slv_reg0[0] → LED0</code> 배선 확인</label><label><input type="checkbox"/> Vivado Validate/Synthesis/Implementation/Timing/Bitstream/XSA 확인</label><label><input type="checkbox"/> Vitis BSP·Application Build와 새 ELF 확인</label><label><input type="checkbox"/> UART 문자열 명령 3개와 LED0 실제 ON/OFF 확인</label><label><input type="checkbox"/> 입력 오류·긴 문자열·재실행 확인</label></div>
+</section><section class="section" id="sources"><div class="tag">참고</div><h2>원본·공식 문서</h2><p>제1부 7장 원본 학습자료 · 제1부 11장 원본 Top · AMD UG1118: AXI4 Peripheral · AMD UG643: Xil_In32 / Xil_Out32.</p>
+
+</section>
+<div class="chapter-links" id="chapter-links"></div></main></div>
+<footer class="footer">Basys3 · MicroBlaze V SoC · 제2부 01장</footer>
+<script>window.COURSE={"title":"제2부 · 사용자 AXI IP","chapters":[{"id":"ch01","number":1,"title":"사용자 AXI LED IP","file":"P2_01_AXI_LED_Guide.html"},{"id":"ch02","number":2,"title":"FND 4자리 표시","file":"P2_02_AXI_FND_Guide.html"},{"id":"ch03","number":3,"title":"방향 버튼·IRQ","file":"P2_03_Guide.html"},{"id":"ch04","number":4,"title":"범용 PWM","file":"P2_04_Guide.html"},{"id":"ch05","number":5,"title":"디지털 CdS 자동 조명","file":"P2_05_Guide.html"},{"id":"ch06","number":6,"title":"HC-SR04 거리 측정","file":"P2_06_Guide.html"},{"id":"ch07","number":7,"title":"DC 모터 보호·제어","file":"P2_07_Guide.html"},{"id":"ch08","number":8,"title":"XADC 측정·PWM","file":"P2_08_Guide.html"},{"id":"ch09","number":9,"title":"UART·IRQ 통합","file":"P2_09_Guide.html"},{"id":"ch10","number":10,"title":"AXI IP 라이브러리","file":"P2_10_Guide.html"}]};</script>
+<script src="../assets/education/site.js" defer></script>
+<script type="application/json" data-yja-config>{"host":"#main-content","anchors":"section.section[id]","course":"amd-soc-rtl-annotation-test","chapter":"part02-01","revision":"source-01a98bc6dc92","pageInk":true,"external":true}</script>
+<script src="https://yuul-jung.github.io/textbook_handwirte_engine/annotation-loader.js" data-yja-release="v32" defer></script>
+</body></html>
